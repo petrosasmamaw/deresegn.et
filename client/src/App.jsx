@@ -10,16 +10,17 @@ import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
   const dispatch = useDispatch()
-  const { user, loading } = useSelector(s => s.auth)
+  const { user, initializing } = useSelector(s => s.auth)
 
   useEffect(() => {
     dispatch(fetchSession())
   }, [dispatch])
 
-  if (loading) {
+  if (initializing) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-base)]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--color-accent)' }}></div>
+        <p className="text-sm text-[var(--color-text-secondary)]">Loading session…</p>
       </div>
     )
   }

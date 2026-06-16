@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { loading, error } = useSelector(s => s.auth)
+  const { submitting, error } = useSelector(s => s.auth)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -57,8 +57,8 @@ export default function LoginPage() {
             />
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Signing in…' : 'Sign In'}
+          <button type="submit" disabled={submitting} className="btn-primary w-full">
+            {submitting ? 'Logging in…' : 'Sign In'}
           </button>
         </form>
 

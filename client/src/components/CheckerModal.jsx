@@ -219,7 +219,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
                     Cancel
                   </button>
                   <button type="submit" disabled={loading || !screenshot} className="btn-primary flex-1">
-                    {loading ? 'Verifying…' : 'Verify Receipt'}
+                    {loading ? 'Verifying...' : 'Verify Receipt'}
                   </button>
                 </div>
               </div>

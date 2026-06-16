@@ -10,7 +10,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { loading, error } = useSelector(s => s.auth)
+  const { submitting, error } = useSelector(s => s.auth)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -72,8 +72,8 @@ export default function RegisterPage() {
             />
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Creating account…' : 'Create Account'}
+          <button type="submit" disabled={submitting} className="btn-primary w-full">
+            {submitting ? 'Registering…' : 'Create Account'}
           </button>
         </form>
 

@@ -154,7 +154,7 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
               disabled={loading}
               className="btn-primary flex-1"
             >
-              {loading ? 'Processing…' : 'Submit Payment'}
+              {loading ? 'Adding...' : 'Submit Payment'}
             </button>
           </div>
         </form>

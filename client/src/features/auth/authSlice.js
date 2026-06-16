@@ -18,6 +18,9 @@ export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWi
     }
     const res = await axios.get('/users/me')
     const profile = unwrap(res)
+    if (!profile?.user) {
+      return rejectWithValue('Could not load user profile')
+    }
     return profile.user
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message)
@@ -38,6 +41,9 @@ export const login = createAsyncThunk('auth/login', async (payload, { rejectWith
     }
     const res = await axios.get('/users/me')
     const profile = unwrap(res)
+    if (!profile?.user) {
+      return rejectWithValue('Could not load user profile')
+    }
     return profile.user
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message)
@@ -50,6 +56,7 @@ export const fetchSession = createAsyncThunk('auth/session', async (_, { rejectW
     if (!session?.user) return null
     const res = await axios.get('/users/me')
     const data = unwrap(res)
+    if (!data?.user) return null
     return data.user
   } catch {
     return null
@@ -62,7 +69,7 @@ export const logout = createAsyncThunk('auth/logout', async () => {
 
 const slice = createSlice({
   name: 'auth',
-  initialState: { user: null, loading: false, error: null },
+  initialState: { user: null, initializing: false, submitting: false, error: null },
   reducers: {
     clearError(state) {
       state.error = null
@@ -70,17 +77,17 @@ const slice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(signup.pending, (s) => { s.loading = true; s.error = null })
-      .addCase(signup.fulfilled, (s, a) => { s.loading = false; s.user = a.payload })
-      .addCase(signup.rejected, (s, a) => { s.loading = false; s.error = a.payload })
+      .addCase(signup.pending, (s) => { s.submitting = true; s.error = null })
+      .addCase(signup.fulfilled, (s, a) => { s.submitting = false; s.user = a.payload })
+      .addCase(signup.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
 
-      .addCase(login.pending, (s) => { s.loading = true; s.error = null })
-      .addCase(login.fulfilled, (s, a) => { s.loading = false; s.user = a.payload })
-      .addCase(login.rejected, (s, a) => { s.loading = false; s.error = a.payload })
+      .addCase(login.pending, (s) => { s.submitting = true; s.error = null })
+      .addCase(login.fulfilled, (s, a) => { s.submitting = false; s.user = a.payload })
+      .addCase(login.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
 
-      .addCase(fetchSession.pending, (s) => { s.loading = true })
-      .addCase(fetchSession.fulfilled, (s, a) => { s.loading = false; s.user = a.payload })
-      .addCase(fetchSession.rejected, (s) => { s.loading = false; s.user = null })
+      .addCase(fetchSession.pending, (s) => { s.initializing = true })
+      .addCase(fetchSession.fulfilled, (s, a) => { s.initializing = false; s.user = a.payload })
+      .addCase(fetchSession.rejected, (s) => { s.initializing = false; s.user = null })
 
       .addCase(logout.fulfilled, (s) => { s.user = null; s.error = null })
   },
