@@ -1,0 +1,14 @@
+{
+  "watch": ["src"],
+  "ext": "js,mjs,json",
+  "ignore": [
+    "uploads/**",
+    "node_modules/**",
+    "drizzle/**",
+    "*.log"
+  ],
+  "delay": 1500,
+  "legacyWatch": true,
+  "exec": "node src/index.js",
+  "signal": "SIGTERM"
+}

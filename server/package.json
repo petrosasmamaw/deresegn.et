@@ -1,0 +1,21 @@
+{
+  "name": "deresegn-server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "start": "node src/index.js",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:reset": "node src/init/resetAuthTables.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Deresegn Receipt Checker Backend Server",
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10",
+    "nodemon": "^2.0.22"
+  }
+}
