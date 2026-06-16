@@ -1,4 +1,4 @@
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Clock } from 'lucide-react'
 import EmptyState from './EmptyState'
 
 const METHOD_LABELS = {
@@ -9,8 +9,8 @@ const METHOD_LABELS = {
 export default function CheckHistory({ checks = [], loading = false }) {
   if (loading) {
     return (
-      <div className="space-y-2">
-        {[1, 2, 3].map(i => <div key={i} className="skeleton skeleton-card" />)}
+      <div className="space-y-3">
+        {[1, 2, 3].map(i => <div key={i} className="skeleton skeleton-card" style={{ height: '60px' }} />)}
       </div>
     )
   }
@@ -18,9 +18,9 @@ export default function CheckHistory({ checks = [], loading = false }) {
   if (checks.length === 0) {
     return (
       <EmptyState
-        icon={null}
+        icon={Clock}
         title="No verifications yet"
-        description="Only successful receipt checks are saved here. Each verification costs 5 units."
+        description="Verify receipt scans to see them appear here. Each check costs 5 units."
       />
     )
   }
@@ -29,7 +29,7 @@ export default function CheckHistory({ checks = [], loading = false }) {
     <div className="overflow-x-auto">
       <table className="data-table">
         <thead>
-          <tr>
+          <tr style={{ background: 'var(--color-bg-subtle)' }}>
             <th>Date</th>
             <th>Method</th>
             <th>Payment ID</th>
@@ -40,24 +40,24 @@ export default function CheckHistory({ checks = [], loading = false }) {
         </thead>
         <tbody>
           {checks.map((check) => (
-            <tr key={check.id}>
-              <td className="font-mono text-[var(--text-sm)]">
+            <tr key={check.id} style={{ borderBottomColor: 'var(--color-border)' }}>
+              <td className="font-mono text-[var(--text-sm)] font-medium">
                 {new Date(check.createdAt).toLocaleDateString(undefined, {
                   month: 'short',
                   day: 'numeric',
                   year: 'numeric',
                 })}
               </td>
-              <td>{METHOD_LABELS[check.paymentMethod] || check.paymentMethod}</td>
-              <td className="font-mono text-[var(--text-sm)]">{check.transactionCode}</td>
-              <td className="font-mono">{check.amount} ETB</td>
+              <td className="font-medium text-[var(--text-sm)]">{METHOD_LABELS[check.paymentMethod] || check.paymentMethod}</td>
+              <td className="font-mono text-[var(--text-sm)] text-[var(--color-text-secondary)]">{check.transactionCode}</td>
+              <td className="font-mono font-semibold">{check.amount} ETB</td>
               <td>
-                <div className="badge badge-success flex items-center gap-2">
-                  <CheckCircle2 size={12} />
+                <div className="badge badge-success inline-flex items-center gap-2">
+                  <CheckCircle2 size={14} strokeWidth={2.5} />
                   Verified
                 </div>
               </td>
-              <td className="font-mono font-medium">−{check.balanceDeducted}</td>
+              <td className="font-mono font-bold text-[var(--color-text-secondary)]">−{check.balanceDeducted}</td>
             </tr>
           ))}
         </tbody>

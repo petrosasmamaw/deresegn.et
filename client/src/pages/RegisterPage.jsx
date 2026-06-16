@@ -1,8 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { signup } from '../features/auth/authSlice'
-import { ReceiptText } from 'lucide-react'
+import { Shield, ArrowRight } from 'lucide-react'
+
+function RegisterSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[var(--color-bg-base)] to-[var(--color-bg-subtle)] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center">
+          <div className="skeleton w-14 h-14 rounded-xl mx-auto mb-4"></div>
+          <div className="skeleton h-8 w-40 rounded mx-auto mb-2"></div>
+          <div className="skeleton h-4 w-48 rounded mx-auto"></div>
+        </div>
+        <div className="card space-y-4">
+          <div className="skeleton h-10 rounded"></div>
+          <div className="skeleton h-10 rounded"></div>
+          <div className="skeleton h-10 rounded"></div>
+          <div className="skeleton h-12 rounded"></div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -10,7 +30,13 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { submitting, error } = useSelector(s => s.auth)
+  const { user, initializing, submitting, error } = useSelector(s => s.auth)
+
+  // Redirect to dashboard if already logged in
+  if (user) return <Navigate to="/dashboard" replace />
+
+  // Show skeleton while session is initializing
+  if (initializing) return <RegisterSkeleton />
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -19,67 +45,93 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center bg-gradient-to-br from-[var(--color-bg-base)] to-[var(--color-bg-subtle)] px-4 py-12">
+    <main className="flex-1 flex items-center justify-center min-h-screen px-4 py-12" style={{ background: `linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)` }}>
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-4" style={{ background: 'var(--color-accent-muted)' }}>
-            <ReceiptText size={32} style={{ color: 'var(--color-accent)' }} />
+        {/* Logo Section */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-4" style={{ background: 'var(--color-primary-muted)' }}>
+            <Shield size={28} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
           </div>
           <h1 className="page-title mb-2">Create Account</h1>
-          <p className="page-subtitle">Join Deresegn to verify receipts</p>
+          <p className="page-subtitle">Join Deresegn for secure receipts</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card space-y-4">
-          {error && <div className="alert alert-error">{error}</div>}
+        {/* Form Card */}
+        <div className="card space-y-5">
+          {error && (
+            <div className="alert alert-error">
+              <div className="flex-1">
+                <p className="font-semibold text-sm">{error}</p>
+              </div>
+            </div>
+          )}
 
-          <div>
-            <label className="label">Full Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="input"
-              placeholder="Demo User"
-              autoComplete="name"
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="label">Full Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="input"
+                placeholder="John Doe"
+                autoComplete="name"
+                required
+              />
+            </div>
 
-          <div>
-            <label className="label">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input"
-              placeholder="demo@deresegn.com"
-              autoComplete="email"
-              required
-            />
-          </div>
+            <div>
+              <label className="label">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input"
+                placeholder="your@email.com"
+                autoComplete="email"
+                required
+              />
+            </div>
 
-          <div>
-            <label className="label">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input"
-              placeholder="••••••••"
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
-          </div>
+            <div>
+              <label className="label">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input"
+                placeholder="••••••••"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+              <p className="helper-text">Minimum 8 characters</p>
+            </div>
 
-          <button type="submit" disabled={submitting} className="btn-primary w-full">
-            {submitting ? 'Registering…' : 'Create Account'}
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              disabled={submitting} 
+              className="btn-primary w-full flex items-center justify-center gap-2 mt-6"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Registering...
+                </>
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+        </div>
 
+        {/* Sign In Link */}
         <p className="text-center text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-6">
           Already have an account?{' '}
-          <a href="/login" className="font-medium" style={{ color: 'var(--color-accent)' }}>
+          <a href="/login" className="font-semibold" style={{ color: 'var(--color-primary)' }}>
             Sign in
           </a>
         </p>

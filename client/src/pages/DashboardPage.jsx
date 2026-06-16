@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { ReceiptText } from 'lucide-react'
+import { CheckCircle2, Zap, TrendingUp } from 'lucide-react'
 import { fetchBalance, submitTopUp } from '../features/balance/balanceSlice'
 import { fetchCheckHistory, performCheck } from '../features/checks/checksSlice'
 import BalanceCard from '../components/BalanceCard'
@@ -46,45 +46,56 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="flex-1">
+    <main className="flex-1" style={{ background: 'linear-gradient(180deg, var(--color-bg-base) 0%, var(--color-bg-subtle) 100%)' }}>
       <div className="container mx-auto py-8 md:py-12 max-w-6xl">
-        <div className="mb-10">
-          <p className="eyebrow mb-2">Services</p>
-          <h1 className="page-title">Receipt Verification</h1>
-          <p className="page-subtitle">Verify transaction receipts and manage your balance</p>
+        {/* Page Header */}
+        <div className="mb-12">
+          <p className="eyebrow mb-3">Dashboard</p>
+          <h1 className="page-title mb-2">Receipt Verification</h1>
+          <p className="page-subtitle">Manage your balance and verify transaction receipts</p>
         </div>
 
+        {/* Primary Grid: Balance + Verification */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
+          {/* Balance Card (Hero - Spans 2 cols) */}
           <div className="md:col-span-2">
             <BalanceCard balance={balance} onTopUpClick={() => setTopupOpen(true)} />
           </div>
 
-          <div className="card flex flex-col justify-between">
+          {/* Quick Actions Card */}
+          <div className="card flex flex-col justify-between" style={{ background: `linear-gradient(135deg, var(--color-accent-muted) 0%, rgba(245, 158, 11, 0.08) 100%)`, borderColor: 'var(--color-accent-border)', borderWidth: '2px' }}>
             <div>
-              <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] uppercase font-medium mb-4">Verify Receipt</p>
-              <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mb-4">
-                Verify Telebirr or CBE Birr receipts. AI + QR checks compare your input, screenshot, and payment ID. Each check costs 5 units.
+              <div className="flex items-center gap-2 mb-3">
+                <Zap size={18} style={{ color: 'var(--color-accent)' }} strokeWidth={2} />
+                <p className="font-display font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Action</p>
+              </div>
+              <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mb-4 leading-relaxed">
+                Upload a receipt to verify its authenticity. QR code + form comparison. Each verification costs 5 units.
               </p>
             </div>
             <button
               onClick={() => setCheckerOpen(true)}
               className="btn-primary w-full flex items-center justify-center gap-2"
             >
-              <ReceiptText size={18} />
-              Start Verification
+              <CheckCircle2 size={18} strokeWidth={2} />
+              Verify Receipt
             </button>
           </div>
         </div>
 
+        {/* History Section */}
         <div className="card">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="section-title">Verification History</h2>
-              <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-1">Your recent receipt verifications</p>
+              <h2 className="section-title flex items-center gap-2">
+                <TrendingUp size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
+                Verification History
+              </h2>
+              <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-2">Your recent receipt verifications</p>
             </div>
             <button
               onClick={() => dispatch(fetchCheckHistory())}
-              className="btn-secondary"
+              className="btn-secondary text-sm"
             >
               Refresh
             </button>
@@ -94,6 +105,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Modals */}
       <TopUpModal
         isOpen={topupOpen}
         onClose={() => setTopupOpen(false)}

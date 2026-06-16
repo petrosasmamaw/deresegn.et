@@ -8,6 +8,51 @@ import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
+function DashboardSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[var(--color-bg-base)] to-[var(--color-bg-subtle)]">
+      {/* Navbar Skeleton */}
+      <nav className="navbar">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="skeleton w-10 h-10 rounded-lg"></div>
+            <div className="skeleton w-24 h-6 rounded"></div>
+          </div>
+          <div className="skeleton w-32 h-8 rounded ml-auto"></div>
+        </div>
+      </nav>
+
+      {/* Page Skeleton */}
+      <main className="flex-1 p-4">
+        <div className="container mx-auto">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <div className="skeleton h-4 w-24 rounded mb-2"></div>
+            <div className="skeleton h-8 w-48 rounded"></div>
+          </div>
+
+          {/* Balance Card Skeleton */}
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <div className="md:col-span-2 skeleton-card"></div>
+            <div className="skeleton-card"></div>
+          </div>
+
+          {/* Table Skeleton */}
+          <div className="card">
+            <div className="skeleton h-6 w-40 rounded mb-4"></div>
+            <div className="space-y-3">
+              <div className="skeleton h-12 rounded"></div>
+              <div className="skeleton h-12 rounded"></div>
+              <div className="skeleton h-12 rounded"></div>
+              <div className="skeleton h-12 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
 export default function App() {
   const dispatch = useDispatch()
   const { user, initializing } = useSelector(s => s.auth)
@@ -17,17 +62,12 @@ export default function App() {
   }, [dispatch])
 
   if (initializing) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-base)]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--color-accent)' }}></div>
-        <p className="text-sm text-[var(--color-text-secondary)]">Loading session…</p>
-      </div>
-    )
+    return <DashboardSkeleton />
   }
 
   return (
     <>
-      <Navbar />
+      {user && <Navbar />}
       <main className="flex-1">
         <Routes>
           <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
