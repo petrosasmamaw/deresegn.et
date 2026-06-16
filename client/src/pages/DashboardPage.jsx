@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { CheckCircle2, Zap, TrendingUp } from 'lucide-react'
+import { CheckCircle2, Zap, TrendingUp, ChevronLeft } from 'lucide-react'
 import { fetchBalance, submitTopUp } from '../features/balance/balanceSlice'
 import { fetchCheckHistory, performCheck } from '../features/checks/checksSlice'
 import BalanceCard from '../components/BalanceCard'
+import BottomNav from '../components/BottomNav'
 import TopUpModal from '../components/TopUpModal'
 import CheckerModal from '../components/CheckerModal'
 import CheckHistory from '../components/CheckHistory'
@@ -14,6 +15,7 @@ export default function DashboardPage() {
   const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, lastCheck } = useSelector(s => s.checks)
   const [topupOpen, setTopupOpen] = useState(false)
   const [checkerOpen, setCheckerOpen] = useState(false)
+  const [mobileTab, setMobileTab] = useState('home')
 
   useEffect(() => {
     dispatch(fetchBalance())
@@ -47,7 +49,8 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1" style={{ background: 'linear-gradient(180deg, var(--color-bg-base) 0%, var(--color-bg-subtle) 100%)' }}>
-      <div className="container mx-auto py-8 md:py-12 max-w-6xl">
+      {/* Desktop Layout */}
+      <div className="hidden md:block container mx-auto py-8 md:py-12 max-w-6xl">
         {/* Page Header */}
         <div className="mb-12">
           <p className="eyebrow mb-3">Dashboard</p>
@@ -105,6 +108,65 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Mobile Layout */}
+      <div className="md:hidden flex flex-col min-h-screen px-4 pt-6">
+        {/* Mobile Header */}
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
+            {mobileTab === 'home' ? 'Balance & Verify' : 'History'}
+          </h1>
+        </div>
+
+        {/* Mobile Content Tabs */}
+        {mobileTab === 'home' ? (
+          <div className="flex-1 space-y-4">
+            {/* Balance Card */}
+            <BalanceCard balance={balance} onTopUpClick={() => setTopupOpen(true)} />
+
+            {/* Quick Verify Card */}
+            <div className="card flex flex-col gap-4" style={{ background: `linear-gradient(135deg, var(--color-accent-muted) 0%, rgba(245, 158, 11, 0.08) 100%)`, borderColor: 'var(--color-accent-border)', borderWidth: '2px' }}>
+              <div className="flex items-center gap-2">
+                <Zap size={16} style={{ color: 'var(--color-accent)' }} strokeWidth={2} />
+                <p className="font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Verify</p>
+              </div>
+              <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                Tap the + button below to verify a receipt. QR code + form comparison. 5 units per check.
+              </p>
+            </div>
+
+            {/* Last Check Summary */}
+            {lastCheck && (
+              <div className="card border-l-4" style={{ borderLeftColor: 'var(--color-primary)' }}>
+                <p className="text-xs text-[var(--color-text-secondary)] uppercase font-semibold mb-2">Last Verification</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[var(--color-text-secondary)]">Amount:</span>
+                    <span className="font-mono font-bold">{lastCheck.amount} ETB</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[var(--color-text-secondary)]">Status:</span>
+                    <span className="badge badge-success inline-flex items-center gap-1 text-xs">
+                      <CheckCircle2 size={12} />
+                      Verified
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[var(--color-text-secondary)]">Cost:</span>
+                    <span className="font-mono font-bold text-[var(--color-error)]">−{lastCheck.balanceDeducted}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1">
+            <div className="space-y-3">
+              <CheckHistory checks={checks} loading={checksLoading} />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Modals */}
       <TopUpModal
         isOpen={topupOpen}
@@ -122,6 +184,9 @@ export default function DashboardPage() {
         error={checkError}
         lastResult={lastCheck}
       />
+
+      {/* Mobile Bottom Navigation with FAB */}
+      <BottomNav activeTab={mobileTab} onTabChange={setMobileTab} onFabClick={() => setCheckerOpen(true)} />
     </main>
   )
 }

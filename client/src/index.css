@@ -752,13 +752,60 @@ body {
     max-width: 100%;
     max-height: 100vh;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .modal-overlay {
     align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-header {
+    position: sticky;
+    top: 0;
+    background: var(--color-bg-elevated);
+    z-index: 10;
+  }
+
+  .modal-footer {
+    position: sticky;
+    bottom: 0;
+    background: var(--color-bg-subtle);
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 
   .hidden {
     display: none !important;
+  }
+
+  /* Ensure minimum tap target size (44px) */
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
