@@ -7,6 +7,7 @@ import { pathToFileURL } from 'url'
 import balanceRoutes from './routes/balanceRoutes.js'
 import checkRoutes from './routes/checkRoutes.js'
 import appAuthRoutes from './routes/appAuthRoutes.js'
+import adminRoutes from './routes/adminRoutes.js'
 import errorHandler from './middleware/errorHandler.js'
 import { testConnection } from './db/index.js'
 
@@ -57,6 +58,7 @@ mountAuthHandler()
 app.use('/api/balance', balanceRoutes)
 app.use('/api/check', checkRoutes)
 app.use('/api/users', appAuthRoutes)
+app.use('/api/admin', adminRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() })

@@ -32,7 +32,7 @@ function DashboardSkeleton() {
   )
 }
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ children, requireAdmin = false }) {
   const { user, initializing } = useSelector((s) => s.auth)
 
   if (initializing) {
@@ -40,6 +40,10 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
+
+  if (requireAdmin && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />
+  }
 
   return children
 }
