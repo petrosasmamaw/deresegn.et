@@ -3,11 +3,25 @@ import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload }
 import { VerificationFailureList, VerificationSuccessNote, VerificationWarningList } from './VerificationResult'
 
 const METHODS = [
-  { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet transfer' },
-  { id: 'cbe', label: 'CBE Birr', icon: Building2, desc: 'Bank account transfer' },
-  { id: 'boa', label: 'Bank of Abyssinia', icon: Building2, desc: 'BOA bank account transfer' },
-  { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen bank account transfer' },
+  { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt with Invoice No. & QR' },
+  { id: 'cbe', label: 'Commercial Bank of Ethiopia (CBE)', icon: Building2, desc: 'CBE mobile success receipt with FT reference' },
+  { id: 'boa', label: 'Bank of Abyssinia', icon: Building2, desc: 'BOA transfer receipt with FT reference' },
+  { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen Super App receipt with IPSS reference' },
 ]
+
+const TX_PLACEHOLDERS = {
+  telebirr: 'e.g. DFC7TG1O11',
+  cbe: 'e.g. FT26169D8C5M',
+  boa: 'e.g. FT26169X4SRS',
+  dashen: 'e.g. 110IPSS2616900WO',
+}
+
+const UPLOAD_HINTS = {
+  telebirr: 'Full Telebirr receipt with QR code at the bottom',
+  cbe: 'CBE success screen showing transaction ID and QR code',
+  boa: 'Bank of Abyssinia receipt with "Scan the QR to Verify"',
+  dashen: 'Dashen receipt or "Successfully paid!" screen with QR code',
+}
 
 // Calculate check cost based on receipt amount
 function getCheckCostByAmount(amount) {
@@ -212,7 +226,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
                     </div>
                     <div>
                       <label className="label">Payment ID</label>
-                      <input className="input font-mono" value={form.transactionCode} onChange={(e) => handleChange('transactionCode', e.target.value)} placeholder="e.g. DFC7TG1O11" required />
+                      <input className="input font-mono" value={form.transactionCode} onChange={(e) => handleChange('transactionCode', e.target.value)} placeholder={TX_PLACEHOLDERS[method] || 'Transaction reference'} required />
                     </div>
                   </div>
 
@@ -259,7 +273,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
                       <div className="space-y-2">
                         <Upload size={24} className="mx-auto" style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
                         <p className="text-sm font-semibold text-[var(--color-text-primary)]">Upload receipt screenshot</p>
-                        <p className="text-xs text-[var(--color-text-secondary)]">Must show QR code at bottom</p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">{UPLOAD_HINTS[method] || 'Must show QR code'}</p>
                       </div>
                     )}
                   </div>

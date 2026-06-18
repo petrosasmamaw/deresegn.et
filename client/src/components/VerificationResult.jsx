@@ -7,11 +7,14 @@ const FIELD_LABELS = {
   receiverAccount: 'Receiver account',
   amount: 'Amount',
   transactionCode: 'Payment ID',
+  screenshot: 'Screenshot',
 }
 
 const CODE_LABELS = {
   FRAUD_EDITED_RECEIPT: 'Edited receipt detected',
+  FAKE_QR_CODE: 'Fake QR code detected',
   DUPLICATE_TX: 'Duplicate payment ID',
+  QR_MISSING: 'QR code missing',
   QR_UNREADABLE: 'QR code not readable',
   TX_FORM_QR_MISMATCH: 'Form vs QR mismatch',
   TX_FORM_SCREENSHOT_MISMATCH: 'Form vs screenshot mismatch',
@@ -20,6 +23,7 @@ const CODE_LABELS = {
   RECEIVER_NAME_MISMATCH: 'Receiver name mismatch',
   RECEIVER_ACCOUNT_MISMATCH: 'Receiver account mismatch',
   AMOUNT_FORM_SCREENSHOT_MISMATCH: 'Amount mismatch',
+  SCREENSHOT_REQUIRED: 'Screenshot required',
 }
 
 export function VerificationFailureList({ issues = [], title = 'Receipt could not be verified' }) {

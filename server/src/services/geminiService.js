@@ -1,27 +1,6 @@
 import fs from 'fs/promises';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const EXTRACTION_PROMPT = `You are analyzing a Telebirr or CBE Birr payment receipt screenshot from Ethiopia.
-
-Extract payment details and return ONLY valid JSON (no markdown, no code fences):
-{
-  "senderName": string or null,
-  "senderAccount": string or null,
-  "receiverName": string or null,
-  "receiverAccount": string or null,
-  "amount": number or null,
-  "date": string or null,
-  "transactionCode": string or null
-}
-
-Rules:
-- For Telebirr: use "Settled Amount" for amount (NOT "Total Paid Amount" which includes fees).
-- For Telebirr: use "Invoice No." as transactionCode.
-- For Telebirr: "Payer" = sender, "Credited Party" = receiver.
-- For CBE Birr: use the transaction reference as transactionCode.
-- For date: return as DD-MM-YYYY exactly as shown (e.g. "12-06-2026").
-- For masked accounts like 2519****6956, return them as shown.
-- Amount: numeric only, no "Birr" or commas.`;
+import { buildExtractionPrompt } from './receiptFormats.js';
 
 const MODELS = [
   'gemini-3.1-flash-lite',
@@ -35,11 +14,11 @@ function assertValidApiKey(apiKey) {
   }
 }
 
-async function callModel(apiKey, modelName, base64, mimeType) {
+async function callModel(apiKey, modelName, base64, mimeType, prompt) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: modelName });
   const result = await model.generateContent([
-    { text: EXTRACTION_PROMPT },
+    { text: prompt },
     { inlineData: { mimeType, data: base64 } },
   ]);
   return result.response.text().trim();
@@ -68,18 +47,19 @@ function isRetryableModelError(err) {
     || msg.includes('is not supported');
 }
 
-export async function extractPaymentFromScreenshot(imagePath) {
+export async function extractPaymentFromScreenshot(imagePath, method = 'telebirr') {
   const apiKey = process.env.GEMINI_API_KEY;
   assertValidApiKey(apiKey);
 
   const buffer = await fs.readFile(imagePath);
   const base64 = buffer.toString('base64');
   const mimeType = imagePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+  const prompt = buildExtractionPrompt(method);
 
   let lastError = null;
   for (const modelName of MODELS) {
     try {
-      const text = await callModel(apiKey, modelName, base64, mimeType);
+      const text = await callModel(apiKey, modelName, base64, mimeType, prompt);
       return parseGeminiJson(text);
     } catch (err) {
       lastError = err;

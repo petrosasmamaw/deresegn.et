@@ -1,3 +1,15 @@
+import {
+  isSupportedMethod,
+  getMethodLabel,
+  requiresQrCode,
+  getQrMissingMessage,
+} from './receiptFormats.js';
+import {
+  analyzeQrAuthenticity,
+  isQrTrustworthyForMethod,
+  buildFakeQrIssue,
+} from './qrAuthenticityService.js';
+
 function issue(type, code, field, message, extra = {}) {
   return { type, code, field, message, ...extra };
 }
@@ -7,7 +19,7 @@ function normalizeText(value) {
 }
 
 function normalizeAccount(value) {
-  const raw = String(value || '').trim();
+  const raw = String(value || '').trim().replace(/^ETB[-\s]*/i, '');
   const digitParts = raw.replace(/[^\d*]/g, '').split('*').filter(Boolean);
   if (digitParts.length >= 2) {
     let combined = digitParts.join('');
@@ -63,6 +75,16 @@ function txCodesMatch(a, b) {
   return na === nb;
 }
 
+function txCodesConflict(qr, screenshot) {
+  const qrCode = normalizeTxCode(qr);
+  const screenshotCode = normalizeTxCode(screenshot);
+  if (!qrCode || !screenshotCode) return false;
+  if (txCodesMatch(qrCode, screenshotCode)) return false;
+  // OCR often reads a cut-off payment ID as a shorter prefix of the real QR value.
+  if (qrCode.startsWith(screenshotCode) || screenshotCode.startsWith(qrCode)) return false;
+  return true;
+}
+
 function allTxCodesMatch(...candidates) {
   const codes = candidates.map(normalizeTxCode).filter(Boolean);
   if (codes.length <= 1) return true;
@@ -85,8 +107,9 @@ export function validateReceiptSubmission({
 }) {
   const issues = [];
 
-  if (!['telebirr', 'cbe'].includes(method)) {
-    issues.push(issue('error', 'METHOD_INVALID', 'method', 'Payment method must be Telebirr or CBE Birr.'));
+  if (!isSupportedMethod(method)) {
+    issues.push(issue('error', 'METHOD_INVALID', 'method',
+      `Payment method must be one of: ${['Telebirr', 'CBE', 'Bank of Abyssinia', 'Dashen Bank'].join(', ')}.`));
   }
 
   const requiredFields = [
@@ -107,62 +130,81 @@ export function validateReceiptSubmission({
   const formTx = normalizeTxCode(form.transactionCode);
   const screenshotTx = normalizeTxCode(extracted?.transactionCode);
   const qrTx = normalizeTxCode(qrData?.transactionCode);
+  const qrFound = Boolean(qrData?.raw);
+  const qrAuthenticity = qrFound ? analyzeQrAuthenticity(method, qrData.raw) : null;
+  const qrVerifiedWithForm = isQrTrustworthyForMethod(method, {
+    authenticity: qrAuthenticity,
+    transactionCode: qrTx,
+    formTx,
+    screenshotTx,
+  });
 
-  if (method === 'telebirr' && !qrTx) {
-    issues.push(issue('error', 'QR_UNREADABLE', 'transactionCode',
-      'Could not read the QR code on your Telebirr receipt. Upload a clear screenshot with the QR visible at the bottom.',
-      { qrValue: null }));
+  if (requiresQrCode(method)) {
+    if (!qrFound) {
+      issues.push(issue('error', 'QR_MISSING', 'screenshot',
+        getQrMissingMessage(method),
+        { qrValue: null }));
+    } else if (qrAuthenticity && !qrAuthenticity.authentic) {
+      const fakeIssue = buildFakeQrIssue(qrAuthenticity, method);
+      issues.push(issue('error', fakeIssue.code, fakeIssue.field, fakeIssue.message, {
+        qrFormat: qrAuthenticity.format,
+      }));
+    } else if (method === 'telebirr' && !qrTx) {
+      issues.push(issue('error', 'QR_UNREADABLE', 'transactionCode',
+        `A QR code was found on your ${getMethodLabel(method)} receipt but could not be read clearly. Upload a sharper screenshot with the full QR code visible.`,
+        { qrValue: null }));
+    }
   }
 
-  if (qrTx && screenshotTx && !txCodesMatch(qrTx, screenshotTx)) {
+  if (qrTx && screenshotTx && txCodesConflict(qrTx, screenshotTx)) {
     issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'transactionCode',
       `Receipt may be edited — screenshot shows "${screenshotTx}" but the QR code proves "${qrTx}".`,
       { screenshotValue: screenshotTx, qrValue: qrTx }));
   }
 
-  if (qrTx && formTx && !txCodesMatch(qrTx, formTx)) {
+  if (qrTx && formTx && !txCodesMatch(qrTx, formTx) && method === 'telebirr') {
     issues.push(issue('error', 'TX_FORM_QR_MISMATCH', 'transactionCode',
       `Payment ID you entered ("${formTx}") does not match the QR code ("${qrTx}").`,
       { formValue: formTx, qrValue: qrTx }));
   }
 
-  if (geminiUsed && screenshotTx && formTx && !txCodesMatch(screenshotTx, formTx)) {
+  if (!qrVerifiedWithForm && geminiUsed && screenshotTx && formTx && !txCodesMatch(screenshotTx, formTx)) {
     issues.push(issue('error', 'TX_FORM_SCREENSHOT_MISMATCH', 'transactionCode',
       `Payment ID you entered ("${formTx}") does not match the screenshot ("${screenshotTx}").`,
       { formValue: formTx, screenshotValue: screenshotTx }));
   }
 
-  if (qrTx && screenshotTx && formTx && !allTxCodesMatch(formTx, screenshotTx, qrTx)) {
+  if (!qrVerifiedWithForm && qrTx && screenshotTx && formTx && !allTxCodesMatch(formTx, screenshotTx, qrTx)) {
     issues.push(issue('error', 'TX_CODE_MISMATCH', 'transactionCode',
       `Form ("${formTx}"), screenshot ("${screenshotTx}"), and QR ("${qrTx}") must all match.`,
       { formValue: formTx, screenshotValue: screenshotTx, qrValue: qrTx }));
   }
 
-  if (geminiUsed && extracted?.senderName && form.senderName && !namesMatch(form.senderName, extracted.senderName)) {
+  if (!qrVerifiedWithForm && geminiUsed && extracted?.senderName && form.senderName && !namesMatch(form.senderName, extracted.senderName)) {
     issues.push(issue('error', 'SENDER_NAME_MISMATCH', 'senderName',
       `Sender name you entered ("${form.senderName}") does not match the screenshot ("${extracted.senderName}").`,
       { formValue: form.senderName, screenshotValue: extracted.senderName }));
   }
 
-  if (geminiUsed && extracted?.senderAccount && form.senderAccount && !accountsMatch(form.senderAccount, extracted.senderAccount)) {
+  if (!qrVerifiedWithForm && geminiUsed && extracted?.senderAccount && form.senderAccount && !accountsMatch(form.senderAccount, extracted.senderAccount)) {
     issues.push(issue('error', 'SENDER_ACCOUNT_MISMATCH', 'senderAccount',
       `Sender account you entered ("${form.senderAccount}") does not match the screenshot ("${extracted.senderAccount}").`,
       { formValue: form.senderAccount, screenshotValue: extracted.senderAccount }));
   }
 
-  if (geminiUsed && extracted?.receiverName && form.receiverName && !namesMatch(form.receiverName, extracted.receiverName)) {
+  if (!qrVerifiedWithForm && geminiUsed && extracted?.receiverName && form.receiverName && !namesMatch(form.receiverName, extracted.receiverName)) {
     issues.push(issue('error', 'RECEIVER_NAME_MISMATCH', 'receiverName',
       `Receiver name you entered ("${form.receiverName}") does not match the screenshot ("${extracted.receiverName}").`,
       { formValue: form.receiverName, screenshotValue: extracted.receiverName }));
   }
 
-  if (geminiUsed && extracted?.receiverAccount && form.receiverAccount && !accountsMatch(form.receiverAccount, extracted.receiverAccount)) {
+  if (!qrVerifiedWithForm && geminiUsed && extracted?.receiverAccount && form.receiverAccount && !accountsMatch(form.receiverAccount, extracted.receiverAccount)) {
     issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
       `Receiver account you entered ("${form.receiverAccount}") does not match the screenshot ("${extracted.receiverAccount}").`,
       { formValue: form.receiverAccount, screenshotValue: extracted.receiverAccount }));
   }
 
-  if (geminiUsed && extracted?.amount != null && form.amount && !amountsMatch(form.amount, extracted.amount)) {
+  if (!qrVerifiedWithForm && geminiUsed && extracted?.amount != null && form.amount && !amountsMatch(form.amount, extracted.amount)) {
     issues.push(issue('error', 'AMOUNT_FORM_SCREENSHOT_MISMATCH', 'amount',
       `Amount you entered (${form.amount}) does not match the screenshot (${extracted.amount}).`,
       { formValue: form.amount, screenshotValue: extracted.amount }));
@@ -174,7 +216,27 @@ export function validateReceiptSubmission({
       `${aiMsg} Cross-checking form against QR code only.`));
   }
 
-  if (qrTx && geminiUsed && screenshotTx && txCodesMatch(qrTx, screenshotTx) && txCodesMatch(qrTx, formTx)) {
+  if (qrVerifiedWithForm) {
+    const verifiedMsg = method === 'telebirr'
+      ? `QR code verified — payment ID ${formTx || qrTx} matches your form.`
+      : `Official ${getMethodLabel(method)} QR verified — payment ID ${formTx} matches the receipt.`;
+    issues.push(issue('warning', 'QR_VERIFIED', 'transactionCode', verifiedMsg));
+
+    const screenshotTextIncomplete = geminiUsed && (
+      !screenshotTx
+      || (extracted?.senderName && form.senderName && !namesMatch(form.senderName, extracted.senderName))
+      || (extracted?.senderAccount && form.senderAccount && !accountsMatch(form.senderAccount, extracted.senderAccount))
+      || (extracted?.receiverName && form.receiverName && !namesMatch(form.receiverName, extracted.receiverName))
+      || (extracted?.receiverAccount && form.receiverAccount && !accountsMatch(form.receiverAccount, extracted.receiverAccount))
+      || (extracted?.amount != null && form.amount && !amountsMatch(form.amount, extracted.amount))
+      || (screenshotTx && formTx && !txCodesMatch(screenshotTx, formTx))
+    );
+
+    if (screenshotTextIncomplete) {
+      issues.push(issue('warning', 'SCREENSHOT_TEXT_PARTIAL', null,
+        'Some receipt text in the screenshot was cut off or unclear, but verification passed using your form details and the QR code.'));
+    }
+  } else if (qrTx && geminiUsed && screenshotTx && txCodesMatch(qrTx, screenshotTx) && txCodesMatch(qrTx, formTx)) {
     issues.push(issue('warning', 'QR_VERIFIED', 'transactionCode',
       `QR code verified — payment ID ${qrTx} matches your form and screenshot.`));
   }
@@ -201,6 +263,7 @@ export function validateReceiptSubmission({
     warnings: warnings.map((i) => i.message),
     extracted,
     qrData,
+    qrAuthenticity,
     geminiUsed,
   };
 }

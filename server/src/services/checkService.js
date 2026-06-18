@@ -136,7 +136,7 @@ async function runReceiptVerification({ method, form, screenshotPath }) {
     let extracted = null;
 
     try {
-      extracted = await extractPaymentFromScreenshot(screenshotPath);
+      extracted = await extractPaymentFromScreenshot(screenshotPath, method);
     } catch (err) {
       geminiError = err.message;
       console.warn('[Gemini]', geminiError);

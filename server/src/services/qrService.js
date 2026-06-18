@@ -48,10 +48,15 @@ export function extractTelebirrInvoiceFromPayload(payload) {
 export function parseTransactionFromQr(qrText) {
   if (!qrText || typeof qrText !== 'string') return null;
 
+  const trimmed = qrText.trim();
+
+  // CBE QR encodes an official verification URL — FT reference is on the receipt text.
+  if (/^https?:\/\/mbreciept\.cbe\.com\.et\/v2-/i.test(trimmed)) {
+    return null;
+  }
+
   const telebirr = extractTelebirrInvoiceFromPayload(qrText);
   if (telebirr) return telebirr;
-
-  const trimmed = qrText.trim();
 
   try {
     const json = JSON.parse(trimmed);
@@ -62,9 +67,11 @@ export function parseTransactionFromQr(qrText) {
   }
 
   const patterns = [
-    /(?:invoice|txn|transaction|reference|ref)[:\s#-]*([A-Z0-9]{8,14})/i,
+    /(?:invoice|txn|transaction|reference|ref)[:\s#-]*([A-Z0-9]{8,20})/i,
     /\b(DFC[A-Z0-9]{6,14})\b/i,
-    /\b(FT[A-Z0-9]{8,})\b/i,
+    /\b(FT[A-Z0-9]{8,14})\b/i,
+    /\b(\d{3}IPSS[A-Z0-9]{10,})\b/i,
+    /\b(IPSS\d+[A-Z0-9]+)\b/i,
   ];
 
   for (const pattern of patterns) {
@@ -72,7 +79,31 @@ export function parseTransactionFromQr(qrText) {
     if (match?.[1]) return match[1].toUpperCase();
   }
 
-  return trimmed.length >= 8 && trimmed.length <= 64 ? trimmed.toUpperCase() : null;
+  if (trimmed.startsWith('http')) return null;
+
+  return trimmed.length >= 8 && trimmed.length <= 32 ? trimmed.toUpperCase() : null;
+}
+
+export function parseQrPayload(raw) {
+  const text = String(raw || '').trim();
+  if (!text) {
+    return { transactionCode: null, verificationUrl: null, verificationToken: null };
+  }
+
+  const cbeMatch = text.match(/^https?:\/\/mbreciept\.cbe\.com\.et\/(v2-[a-z0-9]+)/i);
+  if (cbeMatch) {
+    return {
+      transactionCode: null,
+      verificationUrl: text,
+      verificationToken: cbeMatch[1],
+    };
+  }
+
+  return {
+    transactionCode: parseTransactionFromQr(text),
+    verificationUrl: /^https?:\/\//i.test(text) ? text : null,
+    verificationToken: null,
+  };
 }
 
 function scanBitmap(bitmap) {
@@ -105,18 +136,32 @@ export async function decodeQrFromImage(imagePath) {
       const code = scanBitmap(variant.bitmap);
       if (!code?.data) continue;
 
-      const transactionCode = parseTransactionFromQr(code.data);
+      const parsed = parseQrPayload(code.data);
       return {
         raw: code.data,
-        transactionCode,
+        transactionCode: parsed.transactionCode,
+        verificationUrl: parsed.verificationUrl,
+        verificationToken: parsed.verificationToken,
         decodedPayload: extractTelebirrInvoiceFromPayload(code.data)
           ? Buffer.from(code.data, 'base64').toString('ascii')
           : code.data,
       };
     }
 
-    return { raw: null, transactionCode: null, decodedPayload: null };
+    return {
+      raw: null,
+      transactionCode: null,
+      verificationUrl: null,
+      verificationToken: null,
+      decodedPayload: null,
+    };
   } catch {
-    return { raw: null, transactionCode: null, decodedPayload: null };
+    return {
+      raw: null,
+      transactionCode: null,
+      verificationUrl: null,
+      verificationToken: null,
+      decodedPayload: null,
+    };
   }
 }

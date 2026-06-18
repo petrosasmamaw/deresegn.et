@@ -3,7 +3,9 @@ import EmptyState from './EmptyState'
 
 const METHOD_LABELS = {
   telebirr: 'Telebirr',
-  cbe: 'CBE Birr',
+  cbe: 'CBE',
+  boa: 'Bank of Abyssinia',
+  dashen: 'Dashen Bank',
 }
 
 export default function CheckHistory({ checks = [], loading = false }) {
@@ -20,7 +22,7 @@ export default function CheckHistory({ checks = [], loading = false }) {
       <EmptyState
         icon={Clock}
         title="No verifications yet"
-        description=\"Verify receipt scans to see them appear here. Cost varies: 2-20 Birr per check based on amount.\"
+        description="Verify receipt scans to see them appear here. Cost varies: 2-20 Birr per check based on amount."
       />
     )
   }
