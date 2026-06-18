@@ -9,6 +9,17 @@ const METHODS = [
   { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen bank account transfer' },
 ]
 
+// Calculate check cost based on receipt amount
+function getCheckCostByAmount(amount) {
+  const numAmount = parseFloat(amount) || 0;
+  
+  if (numAmount < 100) return 2;
+  if (numAmount < 1000) return 5;
+  if (numAmount < 5000) return 10;
+  if (numAmount < 10000) return 15;
+  return 20;
+}
+
 export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error, lastResult }) {
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState('')
@@ -123,7 +134,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
             <VerificationWarningList issues={lastResult.validationResult?.issues || []} />
             <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
               <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Balance Update</p>
-              <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">5 Birr deducted from your account</p>
+              <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">{lastResult?.balanceDeducted || 5} Birr deducted from your account</p>
             </div>
             <button onClick={handleClose} className="btn-primary w-full">
               Complete
@@ -204,6 +215,13 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
                       <input className="input font-mono" value={form.transactionCode} onChange={(e) => handleChange('transactionCode', e.target.value)} placeholder="e.g. DFC7TG1O11" required />
                     </div>
                   </div>
+
+                  {form.amount && (
+                    <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
+                      <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Verification Cost</p>
+                      <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">This verification will cost {getCheckCostByAmount(form.amount)} Birr</p>
+                    </div>
+                  )}
                 </div>
 
                 <button type="button" onClick={() => setStep(3)} className="btn-primary w-full flex items-center justify-center gap-2">

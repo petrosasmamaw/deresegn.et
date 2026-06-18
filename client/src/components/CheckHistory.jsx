@@ -20,7 +20,7 @@ export default function CheckHistory({ checks = [], loading = false }) {
       <EmptyState
         icon={Clock}
         title="No verifications yet"
-        description="Verify receipt scans to see them appear here. Each check costs 5 Birr."
+        description=\"Verify receipt scans to see them appear here. Cost varies: 2-20 Birr per check based on amount.\"
       />
     )
   }

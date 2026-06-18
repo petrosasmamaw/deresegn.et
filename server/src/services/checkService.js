@@ -212,7 +212,9 @@ export async function submitReceiptCheck({ userId, method, form, screenshotPath 
     });
   }
 
-  const newBalance = await deductBalance(userId, CHECK_COST);
+  // Calculate cost based on receipt amount
+  const checkCost = getCheckCostByAmount(form.amount);
+  const newBalance = await deductBalance(userId, checkCost);
 
   try {
     const [saved] = await db.insert(receiptChecks).values({
@@ -230,7 +232,7 @@ export async function submitReceiptCheck({ userId, method, form, screenshotPath 
       qrData: JSON.stringify(result.qrData),
       validationResult: JSON.stringify(result.validation),
       isValid: true,
-      balanceDeducted: CHECK_COST,
+      balanceDeducted: checkCost,
     }).returning();
 
     return {
@@ -243,7 +245,7 @@ export async function submitReceiptCheck({ userId, method, form, screenshotPath 
       issues: result.validation.issues,
     };
   } catch (err) {
-    await addBalance(userId, CHECK_COST);
+    await addBalance(userId, checkCost);
     await deleteCloudinaryImage(result.screenshotPublicId);
 
     if (err.code === '23505') {
