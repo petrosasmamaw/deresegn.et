@@ -5,6 +5,8 @@ import { VerificationFailureList, VerificationSuccessNote, VerificationWarningLi
 const METHODS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet transfer' },
   { id: 'cbe', label: 'CBE Birr', icon: Building2, desc: 'Bank account transfer' },
+  { id: 'boa', label: 'Bank of Abyssinia', icon: Building2, desc: 'BOA bank account transfer' },
+  { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen bank account transfer' },
 ]
 
 export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error, lastResult }) {

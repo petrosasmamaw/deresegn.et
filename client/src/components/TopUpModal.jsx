@@ -4,6 +4,8 @@ import { X, Smartphone, Building2, Upload } from 'lucide-react'
 const METHODS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet' },
   { id: 'cbe', label: 'CBE Birr', icon: Building2, desc: 'Bank transfer' },
+  { id: 'boa', label: 'Bank of Abyssinia', icon: Building2, desc: 'BOA bank transfer' },
+  { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen bank transfer' },
 ]
 
 export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }) {

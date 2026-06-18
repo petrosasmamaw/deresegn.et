@@ -7,8 +7,18 @@ import { extractPaymentFromScreenshot } from './geminiService.js';
 import { decodeQrFromImage } from './qrService.js';
 import { validateReceiptSubmission, buildDuplicateTxIssue } from './receiptValidationService.js';
 
-export const CHECK_COST = 5;
 const TOPUP_UNITS_PER_APPROVAL = 50;
+
+// Calculate check cost based on receipt amount
+export function getCheckCostByAmount(amount) {
+  const numAmount = parseFloat(amount) || 0;
+  
+  if (numAmount < 100) return 2;
+  if (numAmount < 1000) return 5;
+  if (numAmount < 5000) return 10;
+  if (numAmount < 10000) return 15;
+  return 20;
+}
 
 export class CheckError extends Error {
   constructor(message, status = 400, details = null) {
