@@ -45,7 +45,7 @@ export default function Navbar() {
               >
                 <Shield size={16} strokeWidth={2} />
                 <span className="font-mono font-bold">{balance}</span>
-                <span className="text-xs font-semibold uppercase">units</span>
+                <span className="text-xs font-semibold uppercase">Birr</span>
               </div>
 
               {/* User Email (desktop) */}

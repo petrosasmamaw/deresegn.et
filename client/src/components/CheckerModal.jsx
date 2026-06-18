@@ -121,7 +121,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
             <VerificationWarningList issues={lastResult.validationResult?.issues || []} />
             <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
               <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Balance Update</p>
-              <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">5 units deducted from your account</p>
+              <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">5 Birr deducted from your account</p>
             </div>
             <button onClick={handleClose} className="btn-primary w-full">
               Complete

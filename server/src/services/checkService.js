@@ -256,7 +256,14 @@ export async function submitTopUp({ userId, screenshotPath, form, method = 'tele
     });
   }
 
-  const newBalance = await addBalance(userId, TOPUP_UNITS_PER_APPROVAL);
+  // Use actual deposited amount in Birr instead of fixed units
+  const birrAmount = parseFloat(form.amount) || 0;
+  
+  if (birrAmount <= 0) {
+    throw new TopUpError('Invalid amount. Please deposit a valid Birr amount.', 422);
+  }
+
+  const newBalance = await addBalance(userId, birrAmount);
 
   const [transaction] = await db.insert(topUpTransactions).values({
     userId,
@@ -269,7 +276,7 @@ export async function submitTopUp({ userId, screenshotPath, form, method = 'tele
     amount: String(form.amount),
     transactionCode: result.validation.txCode,
     aiResult: JSON.stringify({ extracted: result.extracted, qrData: result.qrData, validation: result.validation }),
-    unitsAdded: TOPUP_UNITS_PER_APPROVAL,
+    unitsAdded: birrAmount,
     submittedAt: new Date(),
   }).returning();
 

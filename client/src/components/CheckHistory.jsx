@@ -20,7 +20,7 @@ export default function CheckHistory({ checks = [], loading = false }) {
       <EmptyState
         icon={Clock}
         title="No verifications yet"
-        description="Verify receipt scans to see them appear here. Each check costs 5 units."
+        description="Verify receipt scans to see them appear here. Each check costs 5 Birr."
       />
     )
   }

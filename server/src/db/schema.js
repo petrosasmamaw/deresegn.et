@@ -70,7 +70,7 @@ export const verification = pgTable('verification', {
 export const balances = pgTable('balances', {
   id: serial('id').primaryKey(),
   userId: text('user_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
-  amount: integer('amount').notNull().default(0),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull().default('0'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({

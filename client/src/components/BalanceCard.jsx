@@ -16,7 +16,7 @@ export default function BalanceCard({ balance = 0, onTopUpClick }) {
               {balance}
             </p>
             <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-1 font-medium">
-              Verification units available
+              Birr available
             </p>
           </div>
         </div>

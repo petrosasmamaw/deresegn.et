@@ -73,7 +73,7 @@ export default function DashboardPage() {
                 <p className="font-display font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Action</p>
               </div>
               <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mb-4 leading-relaxed">
-                Upload a receipt to verify its authenticity. QR code + form comparison. Each verification costs 5 units.
+                Upload a receipt to verify its authenticity. QR code + form comparison. Each verification costs 5 Birr.
               </p>
             </div>
             <button
@@ -130,7 +130,7 @@ export default function DashboardPage() {
                 <p className="font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Verify</p>
               </div>
               <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-                Tap the + button below to verify a receipt. QR code + form comparison. 5 units per check.
+                Tap the + button below to verify a receipt. QR code + form comparison. 5 Birr per check.
               </p>
             </div>
 
