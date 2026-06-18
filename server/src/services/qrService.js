@@ -45,6 +45,30 @@ export function extractTelebirrInvoiceFromPayload(payload) {
   return null;
 }
 
+/** Best-effort phone extraction from Telebirr signed QR payload (not available for CBE URL QRs). */
+export function extractPhoneFromQrPayload(qrData) {
+  const chunks = [qrData?.decodedPayload, qrData?.raw].filter(Boolean);
+
+  for (const chunk of chunks) {
+    const text = String(chunk);
+    const patterns = text.match(/\b(?:251)?9\d{8}\b/g) || [];
+    for (const hit of patterns) {
+      let digits = hit.replace(/\D/g, '');
+      if (digits.startsWith('251') && digits.length >= 12) digits = `0${digits.slice(3)}`;
+      if (digits.startsWith('9') && digits.length === 9) digits = `0${digits}`;
+      if (/^09\d{8}$/.test(digits)) return digits;
+    }
+
+    const allDigits = text.replace(/[^\d]/g, '');
+    const local = allDigits.match(/09\d{8}/);
+    if (local) return local[0];
+    const intl = allDigits.match(/2519\d{8}/);
+    if (intl) return `0${intl[0].slice(3)}`;
+  }
+
+  return null;
+}
+
 export function parseTransactionFromQr(qrText) {
   if (!qrText || typeof qrText !== 'string') return null;
 

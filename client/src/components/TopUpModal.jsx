@@ -156,7 +156,7 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
                 <button type="button" onClick={() => setStep(1)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
                 <p className="text-sm font-semibold">Step 2: Upload Payment Screenshot</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
-                  Send payment via {METHOD_LABELS[method]}, then upload the receipt. We verify the screenshot, QR code, and that payment was sent to your account below.
+                  Send payment via {METHOD_LABELS[method]}, then upload the receipt. We verify the official QR code and that payment was sent to your account below. Balance credits from the QR amount when available.
                 </p>
 
                 {selectedAccount && (

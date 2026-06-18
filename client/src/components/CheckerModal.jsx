@@ -224,7 +224,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
                   </button>
                   <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 2: Upload Receipt Screenshot</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    We will check the screenshot and official bank QR code.
+                    We check the official bank QR code (must not be fake). Full screenshot: text + QR are compared. Cropped screenshot: QR code only.
                   </p>
                 </div>
 
@@ -272,7 +272,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
                   </button>
                   <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Enter Transaction Details</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    We will match your details against the screenshot text and QR code.
+                    We will match your details against screenshot + QR when visible, or QR only if the image is cropped.
                   </p>
                 </div>
 
