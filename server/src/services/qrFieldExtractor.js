@@ -141,13 +141,20 @@ export function detectScreenshotCropped({
 
   if (extracted?.amount == null && qrFields?.amount) return true;
 
+  if (!extracted?.senderName && qrFields?.senderName) return true;
+  if (!extracted?.senderAccount && qrFields?.senderAccount) return true;
+
   return false;
 }
 
 export function mergeReceiptSources({ extracted, qrFields, form, preferQr = false }) {
   const pick = (qrVal, shotVal, formVal) => {
-    if (preferQr) return qrVal ?? shotVal ?? formVal ?? '';
-    return shotVal ?? qrVal ?? formVal ?? '';
+    const q = qrVal == null || qrVal === '' ? null : qrVal;
+    const s = shotVal == null || shotVal === '' ? null : shotVal;
+    const f = formVal == null || formVal === '' ? null : formVal;
+    if (preferQr) return q ?? s ?? f ?? '';
+    if (q && !s) return q;
+    return s ?? q ?? f ?? '';
   };
 
   return {

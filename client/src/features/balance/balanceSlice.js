@@ -46,11 +46,17 @@ const slice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchBalance.pending, (s) => { s.loading = true; s.error = null })
-      .addCase(fetchBalance.fulfilled, (s, a) => { s.loading = false; s.current = a.payload })
+      .addCase(fetchBalance.fulfilled, (s, a) => {
+        s.loading = false
+        s.current = parseFloat(a.payload) || 0
+      })
       .addCase(fetchBalance.rejected, (s, a) => { s.loading = false; s.error = a.payload })
 
       .addCase(submitTopUp.pending, (s) => { s.submitting = true; s.error = null })
-      .addCase(submitTopUp.fulfilled, (s, a) => { s.submitting = false; s.current = a.payload.balance })
+      .addCase(submitTopUp.fulfilled, (s, a) => {
+        s.submitting = false
+        s.current = parseFloat(a.payload.balance) || 0
+      })
       .addCase(submitTopUp.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
   },
 })

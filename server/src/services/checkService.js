@@ -7,6 +7,28 @@ import { extractPaymentFromScreenshot } from './geminiService.js';
 import { decodeQrFromImage } from './qrService.js';
 import { validateReceiptSubmission, buildDuplicateTxIssue } from './receiptValidationService.js';
 import { getTopUpReceiverAccount } from './topUpAccountService.js';
+import { normalizeTxCode } from '../utils/txCode.js';
+import { extractQrReceiptFields } from './qrFieldExtractor.js';
+import { fetchCbeTransactionFromQr, mergeCbeApiIntoQrFields } from './cbeReceiptService.js';
+
+function toMoney(value) {
+  return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
+}
+
+export function resolvePaymentId(method, { validation, qrData, extracted }) {
+  const qrFields = validation?.qrFields;
+  const qrTx = normalizeTxCode(qrFields?.transactionCode || qrData?.transactionCode);
+  const screenshotTx = normalizeTxCode(extracted?.transactionCode);
+  const fallbackTx = normalizeTxCode(validation?.txCode);
+
+  if (method === 'telebirr') {
+    return qrTx || screenshotTx || fallbackTx || null;
+  }
+  if (method === 'cbe') {
+    return qrTx || screenshotTx || qrData?.verificationToken || fallbackTx || null;
+  }
+  return qrTx || screenshotTx || fallbackTx || null;
+}
 
 const TOPUP_UNITS_PER_APPROVAL = 50;
 
@@ -61,30 +83,34 @@ export async function ensureUserBalance(userId) {
 
 export async function getUserBalance(userId) {
   const row = await ensureUserBalance(userId);
-  return row.amount;
+  return parseFloat(toMoney(row.amount));
 }
 
 async function deductBalance(userId, amount) {
   const row = await ensureUserBalance(userId);
-  if (row.amount < amount) {
+  const current = parseFloat(toMoney(row.amount));
+  const debit = parseFloat(amount) || 0;
+  if (current < debit) {
     throw new CheckError('Insufficient balance. Top up to continue verifying receipts.', 402);
   }
   const [updated] = await db
     .update(balances)
-    .set({ amount: row.amount - amount, updatedAt: new Date() })
+    .set({ amount: toMoney(current - debit), updatedAt: new Date() })
     .where(eq(balances.userId, userId))
     .returning();
-  return updated.amount;
+  return parseFloat(toMoney(updated.amount));
 }
 
 async function addBalance(userId, amount) {
   const row = await ensureUserBalance(userId);
+  const current = parseFloat(toMoney(row.amount));
+  const credit = parseFloat(amount) || 0;
   const [updated] = await db
     .update(balances)
-    .set({ amount: row.amount + amount, updatedAt: new Date() })
+    .set({ amount: toMoney(current + credit), updatedAt: new Date() })
     .where(eq(balances.userId, userId))
     .returning();
-  return updated.amount;
+  return parseFloat(toMoney(updated.amount));
 }
 
 export async function findCheckByTxCode(txCode) {
@@ -158,16 +184,34 @@ async function runReceiptVerification({ method, form, screenshotPath, withDetail
       console.log('[QR] Payment ID from QR:', qrData.transactionCode);
     }
 
+    let qrFields = extractQrReceiptFields(method, qrData);
+    if (method === 'cbe' && qrData?.verificationToken) {
+      const cbeApiFields = await fetchCbeTransactionFromQr(qrData);
+      qrFields = mergeCbeApiIntoQrFields(qrFields, cbeApiFields);
+      if (cbeApiFields?.transactionCode) {
+        console.log('[CBE API] Loaded transaction:', cbeApiFields.transactionCode);
+      }
+    }
+
     const validation = validateReceiptSubmission({
       method,
       form,
       extracted,
       qrData,
+      qrFields,
       geminiUsed,
       geminiError,
       withDetails,
       expectedReceiver,
     });
+
+    const paymentId = resolvePaymentId(method, { validation, qrData, extracted });
+    if (paymentId) {
+      validation.txCode = paymentId;
+      if (validation.resolvedDetails) {
+        validation.resolvedDetails.transactionCode = paymentId;
+      }
+    }
 
     if (validation.txCode) {
       const duplicateCheck = await findCheckByTxCode(validation.txCode);
@@ -288,33 +332,86 @@ export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' 
 
   const details = result.validation.resolvedDetails;
   const birrAmount = parseFloat(details.amount) || 0;
-  
+  const paymentId = result.validation.txCode || resolvePaymentId(method, {
+    validation: result.validation,
+    qrData: result.qrData,
+    extracted: result.extracted,
+  });
+
+  if (!paymentId) {
+    await deleteCloudinaryImage(result.screenshotPublicId);
+    throw new TopUpError('Payment ID error: could not determine a unique payment ID from the QR code or receipt.', 422);
+  }
+
   if (birrAmount <= 0) {
+    await deleteCloudinaryImage(result.screenshotPublicId);
     throw new TopUpError('Invalid amount. Please deposit a valid Birr amount.', 422);
   }
 
-  const newBalance = await addBalance(userId, birrAmount);
+  details.transactionCode = paymentId;
 
-  const [transaction] = await db.insert(topUpTransactions).values({
-    userId,
-    screenshotUrl: result.screenshotUrl,
-    status: 'complete',
-    senderName: details.senderName,
-    senderAccount: details.senderAccount,
-    receiverName: details.receiverName,
-    receiverAccount: details.receiverAccount,
-    amount: String(details.amount || birrAmount),
-    transactionCode: result.validation.txCode,
-    aiResult: JSON.stringify({ extracted: result.extracted, qrData: result.qrData, validation: result.validation }),
-    unitsAdded: birrAmount,
-    submittedAt: new Date(),
-  }).returning();
+  try {
+    const outcome = await db.transaction(async (tx) => {
+      const [existingBalance] = await tx
+        .select()
+        .from(balances)
+        .where(eq(balances.userId, userId))
+        .limit(1);
 
-  return {
-    newBalance,
-    transaction,
-    message: 'Top-up verified and balance credited',
-    resolvedDetails: details,
-    validation: result.validation,
-  };
+      let balanceRow = existingBalance;
+      if (!balanceRow) {
+        const [created] = await tx.insert(balances).values({ userId, amount: '0.00' }).returning();
+        balanceRow = created;
+      }
+
+      const current = parseFloat(toMoney(balanceRow.amount));
+      const nextBalance = toMoney(current + birrAmount);
+
+      const [transaction] = await tx.insert(topUpTransactions).values({
+        userId,
+        screenshotUrl: result.screenshotUrl,
+        status: 'complete',
+        senderName: details.senderName,
+        senderAccount: details.senderAccount,
+        receiverName: details.receiverName,
+        receiverAccount: details.receiverAccount,
+        amount: toMoney(birrAmount),
+        transactionCode: paymentId,
+        aiResult: JSON.stringify({
+          extracted: result.extracted,
+          qrData: result.qrData,
+          validation: result.validation,
+        }),
+        unitsAdded: Math.round(birrAmount),
+        submittedAt: new Date(),
+      }).returning();
+
+      const [updatedBalance] = await tx
+        .update(balances)
+        .set({ amount: nextBalance, updatedAt: new Date() })
+        .where(eq(balances.userId, userId))
+        .returning();
+
+      return {
+        transaction,
+        newBalance: parseFloat(toMoney(updatedBalance.amount)),
+      };
+    });
+
+    return {
+      newBalance: outcome.newBalance,
+      transaction: outcome.transaction,
+      message: 'Top-up verified and balance credited',
+      resolvedDetails: details,
+      validation: result.validation,
+    };
+  } catch (err) {
+    await deleteCloudinaryImage(result.screenshotPublicId);
+
+    if (err.code === '23505') {
+      const dupIssue = buildDuplicateTxIssue(paymentId);
+      throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
+    }
+    throw err;
+  }
 }

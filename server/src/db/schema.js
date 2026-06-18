@@ -97,6 +97,7 @@ export const topUpTransactions = pgTable('top_up_transactions', {
 }, (table) => ({
   userIdIdx: index('top_up_transactions_user_id_idx').on(table.userId),
   transactionCodeIdx: index('top_up_transactions_tx_code_idx').on(table.transactionCode),
+  transactionCodeUnique: uniqueIndex('top_up_transactions_tx_code_unique').on(table.transactionCode),
 }));
 
 export const receiptChecks = pgTable('receipt_checks', {

@@ -13,7 +13,7 @@ export default function BalanceCard({ balance = 0, onTopUpClick }) {
           <p className="eyebrow mb-2">Account Balance</p>
           <div className="mb-4">
             <p className="font-display text-5xl font-bold" style={{ color: 'var(--color-primary)', lineHeight: 1.1 }}>
-              {balance}
+              {Number(balance || 0).toFixed(2)}
             </p>
             <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-1 font-medium">
               Birr available

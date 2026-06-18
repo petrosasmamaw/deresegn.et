@@ -283,6 +283,7 @@ export function validateReceiptSubmission({
   geminiError = null,
   withDetails = true,
   expectedReceiver = null,
+  qrFields: providedQrFields = null,
 }) {
   const issues = [];
   const isTopUp = Boolean(expectedReceiver);
@@ -309,7 +310,7 @@ export function validateReceiptSubmission({
     }
   }
 
-  const qrFields = extractQrReceiptFields(method, qrData);
+  const qrFields = providedQrFields || extractQrReceiptFields(method, qrData);
   const formTx = normalizeTxCode(form.transactionCode);
   const screenshotTx = normalizeTxCode(extracted?.transactionCode);
   const qrTx = normalizeTxCode(qrFields.transactionCode || qrData?.transactionCode);
@@ -424,8 +425,10 @@ export function validateReceiptSubmission({
   } else {
     if (screenshotCropped) {
       if (qrAuthentic) {
-        issues.push(issue('warning', 'SCREENSHOT_CROPPED', null,
-          `Receipt text appears cut off. Verification used the official ${getMethodLabel(method)} QR code only.`));
+        const cropMsg = qrFields?.cbeApiSource
+          ? 'Receipt text appears cut off. Transaction details were loaded from the official CBE QR code.'
+          : `Receipt text appears cut off. Verification used the official ${getMethodLabel(method)} QR code only.`;
+        issues.push(issue('warning', 'SCREENSHOT_CROPPED', null, cropMsg));
       }
       const amt = parseFloat(qrFields.amount) || parseFloat(extracted?.amount);
       if (!amt || amt <= 0) {
@@ -464,7 +467,9 @@ export function validateReceiptSubmission({
         : 'Payment ID error: could not read payment ID from screenshot or QR code.'));
   }
 
-  const preferQr = screenshotCropped || isTopUp;
+  const preferQr = screenshotCropped || isTopUp || (
+    !extracted?.senderName && Boolean(qrFields?.senderName)
+  );
   const merged = mergeReceiptSources({
     extracted,
     qrFields,
