@@ -15,6 +15,13 @@
       "when": 1781608495818,
       "tag": "0001_update_balances_decimal",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781608495819,
+      "tag": "0002_top_up_receiver_accounts",
+      "breakpoints": true
     }
   ]
 }

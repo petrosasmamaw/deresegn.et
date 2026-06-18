@@ -6,18 +6,25 @@ export async function performCheck(req, res) {
     if (!req.file) return error(res, 'Receipt screenshot is required', 400);
 
     const method = req.body.method?.trim();
+    const withDetails = req.body.withDetails === 'true' || req.body.withDetails === true;
     const form = {
-      senderName: req.body.senderName?.trim(),
-      senderAccount: req.body.senderAccount?.trim(),
-      receiverName: req.body.receiverName?.trim(),
-      receiverAccount: req.body.receiverAccount?.trim(),
-      amount: req.body.amount,
-      transactionCode: req.body.transactionCode?.trim(),
+      senderName: req.body.senderName?.trim() || '',
+      senderAccount: req.body.senderAccount?.trim() || '',
+      receiverName: req.body.receiverName?.trim() || '',
+      receiverAccount: req.body.receiverAccount?.trim() || '',
+      amount: req.body.amount || '',
+      transactionCode: req.body.transactionCode?.trim() || '',
     };
 
-    if (!method || !form.senderName || !form.senderAccount || !form.receiverName
-      || !form.receiverAccount || !form.amount || !form.transactionCode) {
-      return error(res, 'All receipt fields are required', 400);
+    if (!method) {
+      return error(res, 'Payment method is required', 400);
+    }
+
+    if (withDetails) {
+      if (!form.senderName || !form.senderAccount || !form.receiverName
+        || !form.receiverAccount || !form.amount || !form.transactionCode) {
+        return error(res, 'All receipt fields are required', 400);
+      }
     }
 
     const result = await submitReceiptCheck({
@@ -25,6 +32,7 @@ export async function performCheck(req, res) {
       method,
       form,
       screenshotPath: req.file.path,
+      withDetails,
     });
 
     return success(res, {
@@ -32,6 +40,7 @@ export async function performCheck(req, res) {
       newBalance: result.newBalance,
       validation: result.validation,
       issues: result.issues,
+      resolvedDetails: result.resolvedDetails,
     }, result.message, 200);
   } catch (err) {
     if (err instanceof CheckError) {

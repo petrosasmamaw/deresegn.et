@@ -1,4 +1,5 @@
 import { extractTelebirrInvoiceFromPayload } from './qrService.js';
+import { normalizeTxCode, txCodesMatch } from '../utils/txCode.js';
 
 const FAKE_QR_HOSTS = [
   'qr-code-generator.com',
@@ -18,16 +19,11 @@ const BANK_DOMAINS = {
   dashen: ['dashenbanksc.com', 'dashensuperapp.com', 'dashenbank.com'],
 };
 
-function normalizeTxCode(value) {
-  return String(value || '').replace(/\s+/g, '').toUpperCase();
-}
-
 function isPlainTransactionCode(text) {
   const t = String(text || '').trim();
   if (!t || t.length > 32) return false;
   return /^(DFC[A-Z0-9]{6,14}|FT[A-Z0-9]{8,14}|\d{3}IPSS[A-Z0-9]{8,}|IPSS\d+[A-Z0-9]+)$/i.test(t);
 }
-
 function isSignedBankBinaryQr(text) {
   const t = String(text || '').trim();
   if (t.length < 80 || t.length > 400) return false;
@@ -250,19 +246,17 @@ export function isQrTrustworthyForMethod(method, { authenticity, transactionCode
 
   switch (method) {
     case 'telebirr':
-      return Boolean(qrTx && form && qrTx === form);
+      return Boolean(qrTx && form && txCodesMatch(qrTx, form));
 
     case 'cbe':
-      // CBE QR encodes verification URL; FT reference is on the receipt text.
-      return Boolean(form && screenshot && screenshot === form);
+      return Boolean(form && screenshot && txCodesMatch(screenshot, form));
 
     case 'boa':
-      // BOA QR is signed binary; FT reference is on the receipt text.
-      return Boolean(form && screenshot && screenshot === form);
+      return Boolean(form && screenshot && txCodesMatch(screenshot, form));
 
     case 'dashen':
-      if (qrTx && form && qrTx === form) return true;
-      return Boolean(form && screenshot && screenshot === form);
+      if (qrTx && form && txCodesMatch(qrTx, form)) return true;
+      return Boolean(form && screenshot && txCodesMatch(screenshot, form));
 
     default:
       return false;

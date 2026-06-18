@@ -11,18 +11,19 @@ const FIELD_LABELS = {
 }
 
 const CODE_LABELS = {
-  FRAUD_EDITED_RECEIPT: 'Edited receipt detected',
+  FRAUD_EDITED_RECEIPT: 'Payment ID error',
   FAKE_QR_CODE: 'Fake QR code detected',
-  DUPLICATE_TX: 'Duplicate payment ID',
+  DUPLICATE_TX: 'Payment ID error',
   QR_MISSING: 'QR code missing',
   QR_UNREADABLE: 'QR code not readable',
-  TX_FORM_QR_MISMATCH: 'Form vs QR mismatch',
-  TX_FORM_SCREENSHOT_MISMATCH: 'Form vs screenshot mismatch',
-  SENDER_NAME_MISMATCH: 'Sender name mismatch',
-  SENDER_ACCOUNT_MISMATCH: 'Sender account mismatch',
-  RECEIVER_NAME_MISMATCH: 'Receiver name mismatch',
-  RECEIVER_ACCOUNT_MISMATCH: 'Receiver account mismatch',
-  AMOUNT_FORM_SCREENSHOT_MISMATCH: 'Amount mismatch',
+  TX_FORM_QR_MISMATCH: 'Payment ID error',
+  TX_FORM_SCREENSHOT_MISMATCH: 'Payment ID error',
+  TX_CODE_MISMATCH: 'Payment ID error',
+  SENDER_NAME_MISMATCH: 'Sender name error',
+  SENDER_ACCOUNT_MISMATCH: 'Sender account error',
+  RECEIVER_NAME_MISMATCH: 'Receiver name error',
+  RECEIVER_ACCOUNT_MISMATCH: 'Receiver account error',
+  AMOUNT_FORM_SCREENSHOT_MISMATCH: 'Amount error',
   SCREENSHOT_REQUIRED: 'Screenshot required',
 }
 

@@ -5,10 +5,12 @@ import { unwrap } from '../api/unwrap'
 import AdminNavbar from '../components/AdminNavbar'
 import AdminUsersList from '../components/AdminUsersList'
 import AdminUserDetail from '../components/AdminUserDetail'
-import { Users, TrendingUp, Activity, Zap } from 'lucide-react'
+import AdminAccountsPanel from '../components/AdminAccountsPanel'
+import { Users, TrendingUp, Activity, Zap, Wallet } from 'lucide-react'
 
 export default function AdminDashboard() {
   const { user } = useSelector((s) => s.auth)
+  const [activeTab, setActiveTab] = useState('users')
   const [dashboardData, setDashboardData] = useState(null)
   const [selectedUserId, setSelectedUserId] = useState(null)
   const [userDetail, setUserDetail] = useState(null)
@@ -91,8 +93,28 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Tab Navigation */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('users')}
+              className={`btn-secondary flex items-center gap-2 ${activeTab === 'users' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+            >
+              <Users size={16} />
+              Users
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('accounts')}
+              className={`btn-secondary flex items-center gap-2 ${activeTab === 'accounts' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+            >
+              <Wallet size={16} />
+              Accounts
+            </button>
+          </div>
+
           {/* Stats Cards */}
-          {dashboardData?.stats && (
+          {activeTab === 'users' && dashboardData?.stats && (
             <div className="grid md:grid-cols-4 gap-4">
               <div className="card p-6" style={{ borderLeft: '4px solid var(--color-primary)' }}>
                 <div className="flex items-center justify-between mb-4">
@@ -151,9 +173,11 @@ export default function AdminDashboard() {
           )}
 
           {/* Users Table */}
-          {dashboardData?.users && (
+          {activeTab === 'users' && dashboardData?.users && (
             <AdminUsersList users={dashboardData.users} onSelectUser={handleSelectUser} />
           )}
+
+          {activeTab === 'accounts' && <AdminAccountsPanel />}
         </div>
       </main>
 

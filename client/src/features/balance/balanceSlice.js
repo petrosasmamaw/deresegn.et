@@ -14,23 +14,21 @@ export const fetchBalance = createAsyncThunk('balance/fetch', async (_, { reject
 
 export const submitTopUp = createAsyncThunk(
   'balance/topup',
-  async ({ screenshot, form, method = 'telebirr' }, { rejectWithValue }) => {
+  async ({ screenshot, method = 'telebirr' }, { rejectWithValue }) => {
     try {
       const formData = new FormData()
       formData.append('screenshot', screenshot)
       formData.append('method', method)
-      formData.append('senderName', form.senderName)
-      formData.append('senderAccount', form.senderAccount)
-      formData.append('receiverName', form.receiverName)
-      formData.append('receiverAccount', form.receiverAccount)
-      formData.append('amount', form.amount)
-      formData.append('transactionCode', form.transactionCode)
 
       const res = await axios.post('/balance/topup', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       const data = unwrap(res)
-      return { balance: data.newBalance, transaction: data.transaction }
+      return {
+        balance: data.newBalance,
+        transaction: data.transaction,
+        resolvedDetails: data.resolvedDetails || null,
+      }
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message)
     }

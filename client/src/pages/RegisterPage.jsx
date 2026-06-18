@@ -33,7 +33,7 @@ export default function RegisterPage() {
   const { user, initializing, submitting, error } = useSelector(s => s.auth)
 
   // Redirect to dashboard if already logged in
-  if (user) return <Navigate to="/dashboard" replace />
+  if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
 
   // Show skeleton while session is initializing
   if (initializing) return <RegisterSkeleton />
@@ -41,7 +41,10 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const result = await dispatch(signup({ name, email, password }))
-    if (signup.fulfilled.match(result)) navigate('/dashboard')
+    if (signup.fulfilled.match(result)) {
+      const role = result.payload?.role;
+      navigate(role === 'admin' ? '/admin' : '/dashboard');
+    }
   }
 
   return (

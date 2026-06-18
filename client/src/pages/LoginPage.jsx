@@ -31,7 +31,7 @@ export default function LoginPage() {
   const { user, initializing, submitting, error } = useSelector(s => s.auth)
 
   // Redirect to dashboard if already logged in
-  if (user) return <Navigate to="/dashboard" replace />
+  if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
 
   // Show skeleton while session is initializing
   if (initializing) return <LoginSkeleton />
@@ -39,7 +39,10 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const result = await dispatch(login({ email, password }))
-    if (login.fulfilled.match(result)) navigate('/dashboard')
+    if (login.fulfilled.match(result)) {
+      const role = result.payload?.role;
+      navigate(role === 'admin' ? '/admin' : '/dashboard');
+    }
   }
 
   return (

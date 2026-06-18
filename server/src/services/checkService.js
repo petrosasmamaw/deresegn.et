@@ -6,6 +6,7 @@ import { eq, desc } from 'drizzle-orm';
 import { extractPaymentFromScreenshot } from './geminiService.js';
 import { decodeQrFromImage } from './qrService.js';
 import { validateReceiptSubmission, buildDuplicateTxIssue } from './receiptValidationService.js';
+import { getTopUpReceiverAccount } from './topUpAccountService.js';
 
 const TOPUP_UNITS_PER_APPROVAL = 50;
 
@@ -122,7 +123,7 @@ export async function getCheckHistory(userId, limit = 50) {
   return rows.map(parseCheckRow);
 }
 
-async function runReceiptVerification({ method, form, screenshotPath }) {
+async function runReceiptVerification({ method, form, screenshotPath, withDetails = true, expectedReceiver = null }) {
   let screenshotUrl = null;
   let screenshotPublicId = null;
 
@@ -164,6 +165,8 @@ async function runReceiptVerification({ method, form, screenshotPath }) {
       qrData,
       geminiUsed,
       geminiError,
+      withDetails,
+      expectedReceiver,
     });
 
     if (validation.txCode) {
@@ -200,8 +203,8 @@ async function runReceiptVerification({ method, form, screenshotPath }) {
   }
 }
 
-export async function submitReceiptCheck({ userId, method, form, screenshotPath }) {
-  const result = await runReceiptVerification({ method, form, screenshotPath });
+export async function submitReceiptCheck({ userId, method, form, screenshotPath, withDetails = true }) {
+  const result = await runReceiptVerification({ method, form, screenshotPath, withDetails });
 
   if (!result.passed) {
     await deleteCloudinaryImage(result.screenshotPublicId);
@@ -212,22 +215,22 @@ export async function submitReceiptCheck({ userId, method, form, screenshotPath 
     });
   }
 
-  // Calculate cost based on receipt amount
-  const checkCost = getCheckCostByAmount(form.amount);
+  const details = result.validation.resolvedDetails;
+  const checkCost = getCheckCostByAmount(details.amount);
   const newBalance = await deductBalance(userId, checkCost);
 
   try {
     const [saved] = await db.insert(receiptChecks).values({
       userId,
       paymentMethod: method,
-      senderName: form.senderName,
-      senderAccount: form.senderAccount,
-      receiverName: form.receiverName,
-      receiverAccount: form.receiverAccount,
-      amount: String(form.amount),
+      senderName: details.senderName,
+      senderAccount: details.senderAccount,
+      receiverName: details.receiverName,
+      receiverAccount: details.receiverAccount,
+      amount: String(details.amount || 0),
       transactionCode: result.validation.txCode,
       screenshotUrl: result.screenshotUrl,
-      enteredDetails: JSON.stringify(form),
+      enteredDetails: JSON.stringify(withDetails ? form : { withDetails: false }),
       extractedDetails: JSON.stringify(result.extracted),
       qrData: JSON.stringify(result.qrData),
       validationResult: JSON.stringify(result.validation),
@@ -243,6 +246,7 @@ export async function submitReceiptCheck({ userId, method, form, screenshotPath 
         : 'Receipt verified successfully',
       validation: result.validation,
       issues: result.validation.issues,
+      resolvedDetails: details,
     };
   } catch (err) {
     await addBalance(userId, checkCost);
@@ -256,8 +260,22 @@ export async function submitReceiptCheck({ userId, method, form, screenshotPath 
   }
 }
 
-export async function submitTopUp({ userId, screenshotPath, form, method = 'telebirr' }) {
-  const result = await runReceiptVerification({ method, form, screenshotPath });
+export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' }) {
+  const receiverConfig = await getTopUpReceiverAccount(method);
+  if (!receiverConfig) {
+    throw new TopUpError('Top-up is only supported for Telebirr and CBE', 400);
+  }
+
+  const result = await runReceiptVerification({
+    method,
+    form: {},
+    screenshotPath,
+    withDetails: false,
+    expectedReceiver: {
+      receiverName: receiverConfig.receiverName,
+      receiverAccount: receiverConfig.receiverAccount,
+    },
+  });
 
   if (!result.passed) {
     await deleteCloudinaryImage(result.screenshotPublicId);
@@ -268,8 +286,8 @@ export async function submitTopUp({ userId, screenshotPath, form, method = 'tele
     });
   }
 
-  // Use actual deposited amount in Birr instead of fixed units
-  const birrAmount = parseFloat(form.amount) || 0;
+  const details = result.validation.resolvedDetails;
+  const birrAmount = parseFloat(details.amount) || 0;
   
   if (birrAmount <= 0) {
     throw new TopUpError('Invalid amount. Please deposit a valid Birr amount.', 422);
@@ -281,11 +299,11 @@ export async function submitTopUp({ userId, screenshotPath, form, method = 'tele
     userId,
     screenshotUrl: result.screenshotUrl,
     status: 'complete',
-    senderName: form.senderName,
-    senderAccount: form.senderAccount,
-    receiverName: form.receiverName,
-    receiverAccount: form.receiverAccount,
-    amount: String(form.amount),
+    senderName: details.senderName,
+    senderAccount: details.senderAccount,
+    receiverName: details.receiverName,
+    receiverAccount: details.receiverAccount,
+    amount: String(details.amount || birrAmount),
     transactionCode: result.validation.txCode,
     aiResult: JSON.stringify({ extracted: result.extracted, qrData: result.qrData, validation: result.validation }),
     unitsAdded: birrAmount,
@@ -296,5 +314,7 @@ export async function submitTopUp({ userId, screenshotPath, form, method = 'tele
     newBalance,
     transaction,
     message: 'Top-up verified and balance credited',
+    resolvedDetails: details,
+    validation: result.validation,
   };
 }

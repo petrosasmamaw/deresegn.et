@@ -4,23 +4,31 @@ import { unwrap } from '../../api/unwrap'
 
 export const performCheck = createAsyncThunk(
   'checks/perform',
-  async ({ screenshot, method, form }, { rejectWithValue }) => {
+  async ({ screenshot, method, form, withDetails = true }, { rejectWithValue }) => {
     try {
       const formData = new FormData()
       formData.append('screenshot', screenshot)
       formData.append('method', method)
-      formData.append('senderName', form.senderName)
-      formData.append('senderAccount', form.senderAccount)
-      formData.append('receiverName', form.receiverName)
-      formData.append('receiverAccount', form.receiverAccount)
-      formData.append('amount', form.amount)
-      formData.append('transactionCode', form.transactionCode)
+      formData.append('withDetails', withDetails ? 'true' : 'false')
+      if (withDetails) {
+        formData.append('senderName', form.senderName)
+        formData.append('senderAccount', form.senderAccount)
+        formData.append('receiverName', form.receiverName)
+        formData.append('receiverAccount', form.receiverAccount)
+        formData.append('amount', form.amount)
+        formData.append('transactionCode', form.transactionCode)
+      }
 
       const res = await axios.post('/check', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       const data = unwrap(res)
-      return { check: data.check, newBalance: data.newBalance, issues: data.issues || [] }
+      return {
+        check: data.check,
+        newBalance: data.newBalance,
+        issues: data.issues || [],
+        resolvedDetails: data.resolvedDetails || null,
+      }
     } catch (err) {
       return rejectWithValue(err.response?.data || { message: err.message })
     }
@@ -42,7 +50,7 @@ export const fetchCheckHistory = createAsyncThunk(
 
 const slice = createSlice({
   name: 'checks',
-  initialState: { list: [], loading: false, error: null, submitting: false, lastCheck: null },
+  initialState: { list: [], loading: false, error: null, submitting: false, lastCheck: null, lastResolvedDetails: null },
   reducers: {
     clearError(state) {
       state.error = null
@@ -54,6 +62,7 @@ const slice = createSlice({
       .addCase(performCheck.fulfilled, (s, a) => {
         s.submitting = false
         s.lastCheck = a.payload.check
+        s.lastResolvedDetails = a.payload.resolvedDetails
         s.list.unshift(a.payload.check)
       })
       .addCase(performCheck.rejected, (s, a) => { s.submitting = false; s.error = a.payload })

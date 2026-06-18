@@ -19,7 +19,7 @@ export const user = pgTable('user', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
-  role: varchar('role', { length: 20 }).notNull().default('user'),
+  role: varchar('role', { length: 20 }).notNull().default('client'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -121,3 +121,11 @@ export const receiptChecks = pgTable('receipt_checks', {
   userIdIdx: index('receipt_checks_user_id_idx').on(table.userId),
   transactionCodeUnique: uniqueIndex('receipt_checks_tx_code_unique').on(table.transactionCode),
 }));
+
+export const topUpReceiverAccounts = pgTable('top_up_receiver_accounts', {
+  id: serial('id').primaryKey(),
+  method: varchar('method', { length: 20 }).notNull().unique(),
+  receiverName: text('receiver_name').notNull(),
+  receiverAccount: text('receiver_account').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

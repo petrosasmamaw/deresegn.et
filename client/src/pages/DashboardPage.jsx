@@ -12,7 +12,7 @@ import CheckHistory from '../components/CheckHistory'
 export default function DashboardPage() {
   const dispatch = useDispatch()
   const { current: balance, submitting: topupLoading, error: balanceError } = useSelector(s => s.balance)
-  const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, lastCheck } = useSelector(s => s.checks)
+  const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, lastCheck, lastResolvedDetails } = useSelector(s => s.checks)
   const [topupOpen, setTopupOpen] = useState(false)
   const [checkerOpen, setCheckerOpen] = useState(false)
   const [mobileTab, setMobileTab] = useState('home')
@@ -22,20 +22,32 @@ export default function DashboardPage() {
     dispatch(fetchCheckHistory())
   }, [dispatch])
 
-  const handleTopUpSubmit = async ({ screenshot, form, method }) => {
-    const result = await dispatch(submitTopUp({ screenshot, form, method }))
+  const handleTopUpSubmit = async ({ screenshot, method }) => {
+    const result = await dispatch(submitTopUp({ screenshot, method }))
     if (submitTopUp.fulfilled.match(result)) {
-      setTopupOpen(false)
       dispatch(fetchBalance())
+      return {
+        success: true,
+        resolvedDetails: result.payload.resolvedDetails,
+      }
+    }
+    const payload = result.payload || {}
+    const issues = payload.data?.issues || payload.issues || []
+    return {
+      failed: true,
+      issues: issues.length ? issues : [{ message: payload.message || 'Top-up could not be verified' }],
     }
   }
 
-  const handleCheckSubmit = async ({ screenshot, method, form }) => {
-    const result = await dispatch(performCheck({ screenshot, method, form }))
+  const handleCheckSubmit = async ({ screenshot, method, form, withDetails }) => {
+    const result = await dispatch(performCheck({ screenshot, method, form, withDetails }))
     if (performCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
-      return { success: true }
+      return {
+        success: true,
+        resolvedDetails: result.payload.resolvedDetails,
+      }
     }
     const payload = result.payload || {}
     const issues = payload.data?.issues || payload.issues || []
@@ -73,7 +85,7 @@ export default function DashboardPage() {
                 <p className="font-display font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Action</p>
               </div>
               <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mb-4 leading-relaxed">
-                Upload a receipt to verify its authenticity. QR code + form comparison. Verification costs 2-20 Birr based on amount.
+                Upload a receipt to verify its authenticity. Screenshot + bank QR check, or optional detail entry.
               </p>
             </div>
             <button
@@ -130,7 +142,7 @@ export default function DashboardPage() {
                 <p className="font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Verify</p>
               </div>
               <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-                Tap the + button below to verify a receipt. QR code + form comparison. Cost varies: 2-20 Birr per check.
+                Tap the + button below to verify a receipt. Upload screenshot only, or use With Detail to enter fields.
               </p>
             </div>
 
@@ -183,6 +195,7 @@ export default function DashboardPage() {
         loading={checkLoading}
         error={checkError}
         lastResult={lastCheck}
+        lastResolvedDetails={lastResolvedDetails}
       />
 
       {/* Mobile Bottom Navigation with FAB */}

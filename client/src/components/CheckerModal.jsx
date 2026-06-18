@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload } from 'lucide-react'
+import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload, ListChecks } from 'lucide-react'
 import { VerificationFailureList, VerificationSuccessNote, VerificationWarningList } from './VerificationResult'
+import ReceiptSummaryCard from './ReceiptSummaryCard'
+import ReceiptDetailFields from './ReceiptDetailFields'
 
 const METHODS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt with Invoice No. & QR' },
@@ -23,32 +25,34 @@ const UPLOAD_HINTS = {
   dashen: 'Dashen receipt or "Successfully paid!" screen with QR code',
 }
 
-// Calculate check cost based on receipt amount
 function getCheckCostByAmount(amount) {
-  const numAmount = parseFloat(amount) || 0;
-  
-  if (numAmount < 100) return 2;
-  if (numAmount < 1000) return 5;
-  if (numAmount < 5000) return 10;
-  if (numAmount < 10000) return 15;
-  return 20;
+  const numAmount = parseFloat(amount) || 0
+  if (numAmount < 100) return 2
+  if (numAmount < 1000) return 5
+  if (numAmount < 5000) return 10
+  if (numAmount < 10000) return 15
+  return 20
 }
 
-export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error, lastResult }) {
+const EMPTY_FORM = {
+  senderName: '',
+  senderAccount: '',
+  receiverName: '',
+  receiverAccount: '',
+  amount: '',
+  transactionCode: '',
+}
+
+export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error, lastResult, lastResolvedDetails }) {
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState('')
   const [screenshot, setScreenshot] = useState(null)
   const [preview, setPreview] = useState(null)
   const [rejected, setRejected] = useState(false)
   const [failureIssues, setFailureIssues] = useState([])
-  const [form, setForm] = useState({
-    senderName: '',
-    senderAccount: '',
-    receiverName: '',
-    receiverAccount: '',
-    amount: '',
-    transactionCode: '',
-  })
+  const [withDetails, setWithDetails] = useState(false)
+  const [successDetails, setSuccessDetails] = useState(null)
+  const [form, setForm] = useState(EMPTY_FORM)
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -68,14 +72,9 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
     setPreview(null)
     setRejected(false)
     setFailureIssues([])
-    setForm({
-      senderName: '',
-      senderAccount: '',
-      receiverName: '',
-      receiverAccount: '',
-      amount: '',
-      transactionCode: '',
-    })
+    setWithDetails(false)
+    setSuccessDetails(null)
+    setForm(EMPTY_FORM)
   }
 
   const handleClose = () => {
@@ -83,8 +82,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
     onClose()
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const runVerify = async (useDetails) => {
     if (!screenshot) {
       setFailureIssues([{ code: 'SCREENSHOT_REQUIRED', field: 'screenshot', message: 'Please upload your receipt screenshot.' }])
       setRejected(true)
@@ -94,7 +92,13 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
     setRejected(false)
     setFailureIssues([])
 
-    const result = await onSubmit({ screenshot, method, form })
+    const result = await onSubmit({
+      screenshot,
+      method,
+      form: useDetails ? form : EMPTY_FORM,
+      withDetails: useDetails,
+    })
+
     if (result?.failed) {
       setFailureIssues(result.issues || [])
       setRejected(true)
@@ -102,11 +106,31 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
     }
 
     if (result?.success) {
+      setSuccessDetails(result.resolvedDetails || lastResolvedDetails || null)
       setStep(4)
     }
   }
 
+  const handleQuickVerify = async (e) => {
+    e.preventDefault()
+    await runVerify(false)
+  }
+
+  const handleDetailVerify = async (e) => {
+    e.preventDefault()
+    await runVerify(true)
+  }
+
   if (!isOpen) return null
+
+  const summaryDetails = successDetails || lastResolvedDetails || (lastResult ? {
+    senderName: lastResult.senderName,
+    senderAccount: lastResult.senderAccount,
+    receiverName: lastResult.receiverName,
+    receiverAccount: lastResult.receiverAccount,
+    amount: lastResult.amount,
+    transactionCode: lastResult.transactionCode,
+  } : null)
 
   return (
     <div className="modal-overlay">
@@ -122,7 +146,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
           <div className="modal-body space-y-5">
             <VerificationFailureList issues={failureIssues} />
             <div className="modal-footer gap-3">
-              <button type="button" onClick={() => { setRejected(false); setStep(3) }} className="btn-secondary flex-1 flex items-center justify-center gap-2">
+              <button type="button" onClick={() => { setRejected(false); setStep(withDetails ? 3 : 2) }} className="btn-secondary flex-1 flex items-center justify-center gap-2">
                 <RotateCcw size={16} strokeWidth={2} />
                 Try Again
               </button>
@@ -131,31 +155,32 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
               </button>
             </div>
           </div>
-        ) : step === 4 && lastResult ? (
+        ) : step === 4 ? (
           <div className="modal-body space-y-5">
             <VerificationSuccessNote message="✓ Receipt verified successfully" />
             <div className="card p-4" style={{ background: 'var(--color-success-muted)', borderColor: 'var(--color-success)', borderWidth: '2px' }}>
               <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  <CheckCircle2 size={32} style={{ color: 'var(--color-success)' }} strokeWidth={2} />
-                </div>
-                <div className="flex-1 min-w-0">
+                <CheckCircle2 size={32} style={{ color: 'var(--color-success)' }} strokeWidth={2} />
+                <div>
                   <p className="font-bold text-base" style={{ color: 'var(--color-success)' }}>Valid Receipt Confirmed</p>
-                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] font-mono mt-1">{lastResult.transactionCode}</p>
+                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
+                    {withDetails ? 'Verified with your entered details' : 'Verified from screenshot & QR code'}
+                  </p>
                 </div>
               </div>
             </div>
-            <VerificationWarningList issues={lastResult.validationResult?.issues || []} />
+            {summaryDetails && <ReceiptSummaryCard details={summaryDetails} />}
+            <VerificationWarningList issues={lastResult?.validationResult?.issues || []} />
             <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
               <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Balance Update</p>
-              <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">{lastResult?.balanceDeducted || 5} Birr deducted from your account</p>
+              <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">
+                {lastResult?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount)} Birr deducted from your account
+              </p>
             </div>
-            <button onClick={handleClose} className="btn-primary w-full">
-              Complete
-            </button>
+            <button onClick={handleClose} className="btn-primary w-full">Complete</button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="modal-body space-y-5">
+          <div className="modal-body space-y-5">
             {error && !rejected && (
               <div className="alert alert-error">
                 <p className="font-semibold text-sm">{typeof error === 'string' ? error : error.message || 'Verification failed'}</p>
@@ -166,7 +191,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
               <div className="space-y-4">
                 <div>
                   <p className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Step 1: Select Payment Method</p>
-                  <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">Choose the payment method from your receipt</p>
+                  <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">Choose the bank from your receipt</p>
                 </div>
                 <div className="space-y-2">
                   {METHODS.map((m) => (
@@ -176,8 +201,6 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
                       onClick={() => { setMethod(m.id); setStep(2) }}
                       className="w-full card p-4 text-left cursor-pointer transition-all border-2"
                       style={{ borderColor: 'var(--color-border)' }}
-                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
-                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--color-border)'}
                     >
                       <div className="flex items-center gap-3">
                         <m.icon size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
@@ -194,108 +217,80 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
             )}
 
             {step === 2 && (
-              <div className="space-y-5">
+              <form onSubmit={handleQuickVerify} className="space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(1)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
                     ← Back to Method
                   </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 2: Transaction Details</p>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="label">Sender Name</label>
-                    <input className="input" value={form.senderName} onChange={(e) => handleChange('senderName', e.target.value)} placeholder="Person sending money" required />
-                  </div>
-                  <div>
-                    <label className="label">Sender Account</label>
-                    <input className="input font-mono" value={form.senderAccount} onChange={(e) => handleChange('senderAccount', e.target.value)} placeholder="Phone or account number" required />
-                  </div>
-                  <div>
-                    <label className="label">Receiver Name</label>
-                    <input className="input" value={form.receiverName} onChange={(e) => handleChange('receiverName', e.target.value)} placeholder="Person receiving money" required />
-                  </div>
-                  <div>
-                    <label className="label">Receiver Account</label>
-                    <input className="input font-mono" value={form.receiverAccount} onChange={(e) => handleChange('receiverAccount', e.target.value)} placeholder="Phone or account number" required />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="label">Amount (ETB)</label>
-                      <input type="number" step="0.01" className="input" value={form.amount} onChange={(e) => handleChange('amount', e.target.value)} placeholder="0.00" required />
-                    </div>
-                    <div>
-                      <label className="label">Payment ID</label>
-                      <input className="input font-mono" value={form.transactionCode} onChange={(e) => handleChange('transactionCode', e.target.value)} placeholder={TX_PLACEHOLDERS[method] || 'Transaction reference'} required />
-                    </div>
-                  </div>
-
-                  {form.amount && (
-                    <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
-                      <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Verification Cost</p>
-                      <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">This verification will cost {getCheckCostByAmount(form.amount)} Birr</p>
-                    </div>
-                  )}
-                </div>
-
-                <button type="button" onClick={() => setStep(3)} className="btn-primary w-full flex items-center justify-center gap-2">
-                  Next: Upload Receipt
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-5">
-                <div>
-                  <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
-                    ← Back to Details
-                  </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Upload Receipt Screenshot</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 2: Upload Receipt Screenshot</p>
+                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
+                    We will check the screenshot and official bank QR code.
+                  </p>
                 </div>
 
                 <div>
                   <label className="label mb-3">Receipt Screenshot</label>
-                  <div className="relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors" style={{ borderColor: 'var(--color-primary-border)', background: 'var(--color-primary-muted)' }}>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handleFile}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                      required
-                    />
+                  <div className="relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer" style={{ borderColor: 'var(--color-primary-border)', background: 'var(--color-primary-muted)' }}>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} className="absolute inset-0 opacity-0 cursor-pointer" required />
                     {preview ? (
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-[var(--color-text-primary)]">✓ Screenshot uploaded</p>
-                        <p className="text-xs text-[var(--color-text-secondary)]">Click to change</p>
-                      </div>
+                      <p className="text-sm font-semibold">✓ Screenshot uploaded</p>
                     ) : (
                       <div className="space-y-2">
-                        <Upload size={24} className="mx-auto" style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
-                        <p className="text-sm font-semibold text-[var(--color-text-primary)]">Upload receipt screenshot</p>
-                        <p className="text-xs text-[var(--color-text-secondary)]">{UPLOAD_HINTS[method] || 'Must show QR code'}</p>
+                        <Upload size={24} className="mx-auto" style={{ color: 'var(--color-primary)' }} />
+                        <p className="text-sm font-semibold">Upload receipt screenshot</p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">{UPLOAD_HINTS[method]}</p>
                       </div>
                     )}
                   </div>
                   {preview && (
-                    <div className="mt-3">
-                      <img src={preview} alt="Receipt preview" className="rounded-lg border border-[var(--color-border)] max-h-40 mx-auto object-contain w-full" />
-                    </div>
+                    <img src={preview} alt="Receipt preview" className="mt-3 rounded-lg border max-h-40 mx-auto object-contain w-full" />
                   )}
-                  <p className="helper-text">JPG, PNG, or WebP • QR code required for verification</p>
                 </div>
 
-                <div className="modal-footer gap-3">
-                  <button type="button" onClick={handleClose} className="btn-secondary flex-1">
-                    Cancel
+                <div className="modal-footer gap-3 flex-col sm:flex-row">
+                  <button
+                    type="button"
+                    disabled={loading || !screenshot}
+                    onClick={() => { setWithDetails(true); setStep(3) }}
+                    className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                  >
+                    <ListChecks size={16} />
+                    With Detail
                   </button>
                   <button type="submit" disabled={loading || !screenshot} className="btn-primary flex-1">
-                    {loading ? 'Verifying...' : 'Verify Receipt'}
+                    {loading && !withDetails ? 'Verifying...' : 'Verify'}
                   </button>
                 </div>
-              </div>
+              </form>
             )}
-          </form>
+
+            {step === 3 && (
+              <form onSubmit={handleDetailVerify} className="space-y-5">
+                <div>
+                  <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
+                    ← Back to Screenshot
+                  </button>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Enter Transaction Details</p>
+                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
+                    We will match your details against the screenshot text and QR code.
+                  </p>
+                </div>
+
+                <ReceiptDetailFields form={form} onChange={handleChange} txPlaceholder={TX_PLACEHOLDERS[method]} />
+
+                {form.amount && (
+                  <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
+                    <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Verification Cost</p>
+                    <p className="text-[var(--text-sm)]">This verification will cost {getCheckCostByAmount(form.amount)} Birr</p>
+                  </div>
+                )}
+
+                <button type="submit" disabled={loading} className="btn-primary w-full">
+                  {loading ? 'Verifying...' : 'Verify with Details'}
+                </button>
+              </form>
+            )}
+          </div>
         )}
       </div>
     </div>

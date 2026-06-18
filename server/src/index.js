@@ -10,6 +10,7 @@ import appAuthRoutes from './routes/appAuthRoutes.js'
 import adminRoutes from './routes/adminRoutes.js'
 import errorHandler from './middleware/errorHandler.js'
 import { testConnection } from './db/index.js'
+import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
 
 dotenv.config()
 
@@ -74,6 +75,12 @@ async function start() {
   const connected = await testConnection()
   if (!connected) {
     console.error('⚠️  Warning: Database connection test failed, but starting server anyway')
+  } else {
+    try {
+      await ensureTopUpReceiverDefaults()
+    } catch (err) {
+      console.error('⚠️  Warning: Could not seed top-up receiver accounts:', err.message)
+    }
   }
 
   app.listen(PORT, () => {
