@@ -48,12 +48,18 @@ function isRetryableModelError(err) {
 }
 
 export async function extractPaymentFromScreenshot(imagePath, method = 'telebirr') {
+  const buffer = await fs.readFile(imagePath);
+  const mimeType = imagePath.toLowerCase().endsWith('.png') ? 'image/png'
+    : imagePath.toLowerCase().endsWith('.webp') ? 'image/webp'
+      : 'image/jpeg';
+  return extractPaymentFromBuffer(buffer, method, mimeType);
+}
+
+export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mimeType = 'image/jpeg') {
   const apiKey = process.env.GEMINI_API_KEY;
   assertValidApiKey(apiKey);
 
-  const buffer = await fs.readFile(imagePath);
   const base64 = buffer.toString('base64');
-  const mimeType = imagePath.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   const prompt = buildExtractionPrompt(method);
 
   let lastError = null;

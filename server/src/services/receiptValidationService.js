@@ -427,7 +427,13 @@ export function validateReceiptSubmission({
       if (qrAuthentic) {
         const cropMsg = qrFields?.cbeApiSource
           ? 'Receipt text appears cut off. Transaction details were loaded from the official CBE QR code.'
-          : `Receipt text appears cut off. Verification used the official ${getMethodLabel(method)} QR code only.`;
+          : qrFields?.dashenApiSource
+            ? 'Receipt text appears cut off. Transaction details were loaded from the official Dashen Bank receipt.'
+            : qrFields?.dashenSuperAppSource
+              ? 'Dashen Super App success screen verified using the official QR code and visible receipt details.'
+              : qrFields?.boaApiSource
+              ? 'Receipt text appears cut off. Transaction details were loaded from the official Bank of Abyssinia QR code.'
+              : `Receipt text appears cut off. Verification used the official ${getMethodLabel(method)} QR code only.`;
         issues.push(issue('warning', 'SCREENSHOT_CROPPED', null, cropMsg));
       }
       const amt = parseFloat(qrFields.amount) || parseFloat(extracted?.amount);
@@ -460,7 +466,8 @@ export function validateReceiptSubmission({
   }
 
   const txCode = qrTx || screenshotTx || (withDetails ? formTx : null);
-  if (!txCode && !(isTopUp && qrAuthentic && method === 'cbe' && qrData?.verificationToken)) {
+  if (!txCode && !(isTopUp && qrAuthentic && method === 'cbe' && qrData?.verificationToken)
+    && !(qrAuthentic && method === 'dashen' && (qrFields?.dashenApiSource || qrFields?.dashenSuperAppSource || qrData?.dashenReceiptToken))) {
     issues.push(issue('error', 'TX_CODE_INVALID', 'transactionCode',
       withDetails
         ? 'Payment ID error: could not determine a valid payment ID from your form, screenshot, or QR code.'
@@ -469,7 +476,7 @@ export function validateReceiptSubmission({
 
   const preferQr = screenshotCropped || isTopUp || (
     !extracted?.senderName && Boolean(qrFields?.senderName)
-  );
+  ) || qrFields?.cbeApiSource || qrFields?.dashenApiSource || qrFields?.dashenSuperAppSource || qrFields?.boaApiSource;
   const merged = mergeReceiptSources({
     extracted,
     qrFields,

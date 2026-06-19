@@ -15,8 +15,8 @@ const FAKE_QR_HOSTS = [
 
 const BANK_DOMAINS = {
   cbe: ['mbreciept.cbe.com.et'],
-  boa: ['bankofabyssinia.com', 'boa.com.et', 'verify.bankofabyssinia.com'],
-  dashen: ['dashenbanksc.com', 'dashensuperapp.com', 'dashenbank.com'],
+  boa: ['bankofabyssinia.com', 'boa.com.et', 'verify.bankofabyssinia.com', 'cs.bankofabyssinia.com'],
+  dashen: ['dashenbanksc.com', 'dashensuperapp.com', 'dashenbank.com', 'receipt.dashensuperapp.com'],
 };
 
 function isPlainTransactionCode(text) {
@@ -79,12 +79,13 @@ function detectQrFormat(raw) {
   if (url) {
     if (isFakeQrHost(url.hostname)) return 'fake_generator_url';
     if (/mbreciept\.cbe\.com\.et$/i.test(url.hostname)) return 'cbe_url';
-    if (/dashen/i.test(url.hostname)) return 'dashen_url';
-    if (/bankofabyssinia|boa\.com/i.test(url.hostname)) return 'boa_url';
+    if (/dashen|receipt\.dashensuperapp/i.test(url.hostname)) return 'dashen_url';
+    if (/bankofabyssinia|boa\.com|cs\.bankofabyssinia/i.test(url.hostname)) return 'boa_url';
     return 'generic_url';
   }
 
   if (extractTelebirrInvoiceFromPayload(text)) return 'telebirr_signed';
+  if (/^superappreceipt_/i.test(text)) return 'dashen_receipt_token';
   if (isPlainTransactionCode(text)) return 'plain_tx_code';
   if (isSignedBankBinaryQr(text)) return 'bank_signed_binary';
   if (isHighEntropyBase64(text, 80)) return 'signed_binary';
@@ -177,6 +178,8 @@ export function analyzeQrAuthenticity(method, raw) {
       if (format === 'boa_url' && url && hasOfficialDomain('boa', url.hostname)) {
         result.authentic = true;
         result.verificationUrl = text;
+        const trx = url.searchParams.get('trx');
+        if (trx) result.transactionReference = trx;
         result.reasons.push('Official Bank of Abyssinia verification URL detected.');
         return result;
       }
@@ -199,9 +202,19 @@ export function analyzeQrAuthenticity(method, raw) {
 
     case 'dashen': {
       const url = parseUrl(text);
+      if (/^superappreceipt_/i.test(text)) {
+        result.authentic = true;
+        result.verificationToken = text;
+        result.reasons.push('Official Dashen Super App receipt QR token detected.');
+        return result;
+      }
       if (format === 'dashen_url' && url && hasOfficialDomain('dashen', url.hostname)) {
         result.authentic = true;
         result.verificationUrl = text;
+        const ref = url.pathname.replace(/^\/receipt\//, '');
+        if (ref && !ref.startsWith('superappreceipt')) {
+          result.transactionReference = ref;
+        }
         result.reasons.push('Official Dashen Bank verification URL detected.');
         return result;
       }
@@ -251,10 +264,12 @@ export function isQrTrustworthyForMethod(method, { authenticity, transactionCode
     case 'cbe':
       return Boolean(form && screenshot && txCodesMatch(screenshot, form));
 
-    case 'boa':
+    case 'dashen':
+      if (qrTx && form && txCodesMatch(qrTx, form)) return true;
+      if (qrTx && screenshot && txCodesMatch(qrTx, screenshot)) return true;
       return Boolean(form && screenshot && txCodesMatch(screenshot, form));
 
-    case 'dashen':
+    case 'boa':
       if (qrTx && form && txCodesMatch(qrTx, form)) return true;
       return Boolean(form && screenshot && txCodesMatch(screenshot, form));
 

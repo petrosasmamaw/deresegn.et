@@ -106,15 +106,56 @@ export function extractQrReceiptFields(method, qrData) {
     }
   }
 
-  if (method === 'boa' || method === 'dashen') {
+  if (method === 'dashen') {
+    fields.verificationUrl = qrData?.verificationUrl || fields.verificationUrl;
+    fields.dashenReceiptToken = qrData?.dashenReceiptToken || null;
+    
+    for (const chunk of chunks) {
+      // Extract amount - prioritize "Transaction Amount" 
+      if (!fields.amount) {
+        const txAmtMatch = chunk.match(/transaction\s*amount[^\d]{0,10}([\d,]+\.?\d{2})/i);
+        fields.amount = fields.amount || parseAmount(txAmtMatch?.[1]) || extractAmountFromPayloadText(chunk);
+      }
+
+      // Extract Dashen-specific transaction reference (3 formats):
+      // 1. Direct format: 110IPSS2616900WO (starts with digits + IPSS/OBTS)
+      // 2. URL format: receipt.dashensuperapp.com/receipt/XXXXX
+      // 3. Backup formats: IPSS patterns
+      if (!fields.transactionCode) {
+        // Format 1: Standard Dashen reference
+        const dashenRef = chunk.match(/\b(\d{2,3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i);
+        if (dashenRef) {
+          fields.transactionCode = normalizeTxCode(dashenRef[1]);
+        } else {
+          // Format 2: From dashboard token
+          fields.transactionCode = fields.transactionCode
+            || normalizeTxCode(qrData?.dashenReference)
+            || normalizeTxCode(chunk.match(/receipt\.dashensuperapp\.com\/receipt\/([A-Z0-9]+)/i)?.[1])
+            || normalizeTxCode(chunk.match(/\b(IPSS\d+[A-Z0-9]+)\b/i)?.[1]);
+        }
+      }
+
+      fields.receiverName = fields.receiverName || extractNameFromPayloadText(chunk, 'receiver');
+      fields.receiverAccount = fields.receiverAccount
+        || chunk.match(/\b(1\d{11,14})\b/)?.[1]
+        || chunk.match(/receiver\s*account[^\d]{0,20}([0-9*]+)/i)?.[1]
+        || null;
+      fields.senderName = fields.senderName || extractNameFromPayloadText(chunk, 'sender');
+      fields.senderAccount = fields.senderAccount
+        || chunk.match(/sender\s*account[^\d]{0,20}([0-9*]+)/i)?.[1]
+        || null;
+    }
+  }
+
+  if (method === 'boa') {
     for (const chunk of chunks) {
       fields.amount = fields.amount || extractAmountFromPayloadText(chunk);
       fields.transactionCode = fields.transactionCode
-        || normalizeTxCode(chunk.match(/\b(FT[A-Z0-9]{8,14})\b/i)?.[1])
-        || normalizeTxCode(chunk.match(/\b(\d{3}IPSS[A-Z0-9]{8,})\b/i)?.[1])
-        || normalizeTxCode(chunk.match(/\b(IPSS\d+[A-Z0-9]+)\b/i)?.[1]);
+        || normalizeTxCode(chunk.match(/[?&]trx=([A-Z0-9]+)/i)?.[1])
+        || normalizeTxCode(chunk.match(/\b(FT[A-Z0-9]{8,14})\b/i)?.[1]);
       fields.receiverName = fields.receiverName || extractNameFromPayloadText(chunk, 'receiver');
-      fields.receiverAccount = fields.receiverAccount || extractNameFromPayloadText(chunk, 'receiver');
+      fields.receiverAccount = fields.receiverAccount || chunk.match(/\b(1\d{11,14})\b/)?.[1] || null;
+      fields.senderName = fields.senderName || extractNameFromPayloadText(chunk, 'sender');
     }
   }
 
@@ -131,13 +172,18 @@ export function detectScreenshotCropped({
 }) {
   if (!qrAuthentic) return false;
 
+  if (qrFields?.dashenSuperAppSource) return false;
+
   if (screenshotTx && qrTx) {
     const s = normalizeTxCode(screenshotTx);
     const q = normalizeTxCode(qrTx);
     if (s && q && s !== q && (q.startsWith(s) || s.startsWith(q))) return true;
   }
 
-  if (qrTx && !screenshotTx && !extracted?.transactionCode) return true;
+  if (qrTx && !screenshotTx && !extracted?.transactionCode) {
+    if (/^SUPERAPPRECEIPT_/i.test(normalizeTxCode(qrTx))) return false;
+    return true;
+  }
 
   if (extracted?.amount == null && qrFields?.amount) return true;
 

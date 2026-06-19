@@ -31,7 +31,8 @@ export async function performCheck(req, res) {
       userId: req.userId,
       method,
       form,
-      screenshotPath: req.file.path,
+      screenshotBuffer: req.file.buffer,
+      screenshotMime: req.file.mimetype,
       withDetails,
     });
 

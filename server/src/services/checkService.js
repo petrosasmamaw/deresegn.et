@@ -3,13 +3,26 @@ import cloudinary from '../config/cloudinary.js';
 import { db } from '../db/index.js';
 import { balances, receiptChecks, topUpTransactions } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
-import { extractPaymentFromScreenshot } from './geminiService.js';
-import { decodeQrFromImage } from './qrService.js';
+import { extractPaymentFromScreenshot, extractPaymentFromBuffer } from './geminiService.js';
+import { decodeQrFromImage, decodeQrFromBuffer } from './qrService.js';
 import { validateReceiptSubmission, buildDuplicateTxIssue } from './receiptValidationService.js';
 import { getTopUpReceiverAccount } from './topUpAccountService.js';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { fetchCbeTransactionFromQr, mergeCbeApiIntoQrFields } from './cbeReceiptService.js';
+import {
+  fetchDashenTransactionFromQr,
+  mergeDashenApiIntoQrFields,
+  resolveDashenQrData,
+  extractDashenReferenceFromText,
+} from './dashenReceiptService.js';
+import {
+  decodeDashenUploadQr,
+  decodeDashenUploadQrFromPath,
+  enrichDashenSuccessReceiptFields,
+  isDashenSuperAppReceiptToken,
+} from './dashenSuccessReceiptService.js';
+import { fetchBoaTransactionFromQr, mergeBoaApiIntoQrFields } from './boaReceiptService.js';
 
 function toMoney(value) {
   return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
@@ -26,6 +39,9 @@ export function resolvePaymentId(method, { validation, qrData, extracted }) {
   }
   if (method === 'cbe') {
     return qrTx || screenshotTx || qrData?.verificationToken || fallbackTx || null;
+  }
+  if (method === 'dashen') {
+    return qrTx || screenshotTx || qrData?.dashenReference || qrData?.dashenReceiptToken || qrData?.verificationToken || fallbackTx || null;
   }
   return qrTx || screenshotTx || fallbackTx || null;
 }
@@ -66,6 +82,16 @@ async function deleteCloudinaryImage(publicId) {
 async function uploadScreenshot(screenshotPath) {
   const folder = process.env.CLOUDINARY_FOLDER || 'deresegn';
   const result = await cloudinary.uploader.upload(screenshotPath, {
+    folder: `${folder}/receipts`,
+    resource_type: 'image',
+  });
+  return { url: result.secure_url, publicId: result.public_id };
+}
+
+async function uploadScreenshotBuffer(buffer, mimeType = 'image/jpeg') {
+  const folder = process.env.CLOUDINARY_FOLDER || 'deresegn';
+  const dataUri = `data:${mimeType};base64,${buffer.toString('base64')}`;
+  const result = await cloudinary.uploader.upload(dataUri, {
     folder: `${folder}/receipts`,
     resource_type: 'image',
   });
@@ -149,21 +175,52 @@ export async function getCheckHistory(userId, limit = 50) {
   return rows.map(parseCheckRow);
 }
 
-async function runReceiptVerification({ method, form, screenshotPath, withDetails = true, expectedReceiver = null }) {
-  let screenshotUrl = null;
-  let screenshotPublicId = null;
-
-  try {
-    const upload = await uploadScreenshot(screenshotPath);
-    screenshotUrl = upload.url;
-    screenshotPublicId = upload.publicId;
-
-    let geminiUsed = true;
-    let geminiError = null;
-    let extracted = null;
-
+async function readScreenshotBuffer(screenshotPath) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      extracted = await extractPaymentFromScreenshot(screenshotPath, method);
+      return await fs.readFile(screenshotPath);
+    } catch {
+      await new Promise((resolve) => { setTimeout(resolve, 80 * (attempt + 1)); });
+    }
+  }
+  return null;
+}
+
+async function resolveScreenshotInput({ screenshotBuffer, screenshotMime, screenshotPath }) {
+  if (screenshotBuffer && Buffer.isBuffer(screenshotBuffer) && screenshotBuffer.length > 0) {
+    return {
+      buffer: screenshotBuffer,
+      mime: screenshotMime || 'image/jpeg',
+    };
+  }
+  if (screenshotPath) {
+    const buffer = await readScreenshotBuffer(screenshotPath);
+    const mime = screenshotPath.toLowerCase().endsWith('.png') ? 'image/png'
+      : screenshotPath.toLowerCase().endsWith('.webp') ? 'image/webp'
+        : 'image/jpeg';
+    return { buffer, mime };
+  }
+  return { buffer: null, mime: null };
+}
+
+async function extractScreenshotData({ screenshotBuffer, screenshotMime, screenshotPath }, method) {
+  let geminiUsed = true;
+  let geminiError = null;
+
+  const { buffer, mime } = await resolveScreenshotInput({ screenshotBuffer, screenshotMime, screenshotPath });
+
+  if (method === 'dashen') {
+    console.log('[Dashen] Upload buffer:', buffer?.length || 0, 'bytes', mime || 'unknown');
+
+    let initialQr = buffer
+      ? await decodeDashenUploadQr(buffer, { maxMs: 40000, vatMode: false })
+      : await decodeDashenUploadQrFromPath(screenshotPath, { maxMs: 40000, vatMode: false });
+
+    let extracted;
+    try {
+      extracted = buffer
+        ? await extractPaymentFromBuffer(buffer, method, mime)
+        : await extractPaymentFromScreenshot(screenshotPath, method);
     } catch (err) {
       geminiError = err.message;
       console.warn('[Gemini]', geminiError);
@@ -179,128 +236,248 @@ async function runReceiptVerification({ method, form, screenshotPath, withDetail
       };
     }
 
-    const qrData = await decodeQrFromImage(screenshotPath);
-    if (qrData?.transactionCode) {
-      console.log('[QR] Payment ID from QR:', qrData.transactionCode);
+    const vatRef = extractDashenReferenceFromText(extracted?.transactionCode);
+
+    if (!initialQr?.raw && vatRef && buffer) {
+      initialQr = await decodeDashenUploadQr(buffer, { maxMs: 12000, vatMode: true });
     }
 
-    let qrFields = extractQrReceiptFields(method, qrData);
-    if (method === 'cbe' && qrData?.verificationToken) {
-      const cbeApiFields = await fetchCbeTransactionFromQr(qrData);
-      qrFields = mergeCbeApiIntoQrFields(qrFields, cbeApiFields);
-      if (cbeApiFields?.transactionCode) {
-        console.log('[CBE API] Loaded transaction:', cbeApiFields.transactionCode);
-      }
+    if (!initialQr?.raw) {
+      console.warn('[Dashen] QR not found after primary scan', vatRef ? '(VAT path)' : '(success screen)');
     }
 
-    const validation = validateReceiptSubmission({
-      method,
-      form,
-      extracted,
-      qrData,
-      qrFields,
-      geminiUsed,
-      geminiError,
-      withDetails,
-      expectedReceiver,
-    });
-
-    const paymentId = resolvePaymentId(method, { validation, qrData, extracted });
-    if (paymentId) {
-      validation.txCode = paymentId;
-      if (validation.resolvedDetails) {
-        validation.resolvedDetails.transactionCode = paymentId;
-      }
-    }
-
-    if (validation.txCode) {
-      const duplicateCheck = await findCheckByTxCode(validation.txCode);
-      if (duplicateCheck) {
-        const dupIssue = buildDuplicateTxIssue(validation.txCode);
-        validation.passed = false;
-        validation.issues = [dupIssue, ...validation.issues];
-        validation.errors = [dupIssue.message, ...validation.errors];
-      }
-
-      const duplicateTopUp = await findTopUpByTxCode(validation.txCode);
-      if (duplicateTopUp?.status === 'complete') {
-        const dupIssue = buildDuplicateTxIssue(validation.txCode);
-        validation.passed = false;
-        validation.issues = [dupIssue, ...validation.issues];
-        validation.errors = [dupIssue.message, ...validation.errors];
-      }
-    }
-
-    return {
-      passed: validation.passed,
-      validation,
-      extracted,
-      qrData,
-      screenshotUrl,
-      screenshotPublicId,
-    };
-  } catch (err) {
-    await deleteCloudinaryImage(screenshotPublicId);
-    throw err;
-  } finally {
-    await cleanupTempFile(screenshotPath);
+    return { extracted, geminiUsed, geminiError, initialQr, buffer };
   }
+
+  const geminiPromise = (buffer
+    ? extractPaymentFromBuffer(buffer, method, mime)
+    : extractPaymentFromScreenshot(screenshotPath, method)
+  )
+    .then((data) => ({ data }))
+    .catch((err) => ({ error: err }));
+
+  const qrPromise = buffer
+    ? decodeQrFromBuffer(buffer, { maxMs: 14000 })
+    : decodeQrFromImage(screenshotPath);
+
+  const [geminiOutcome, initialQr] = await Promise.all([geminiPromise, qrPromise]);
+
+  let extracted;
+  if (geminiOutcome.error) {
+    geminiError = geminiOutcome.error.message;
+    console.warn('[Gemini]', geminiError);
+    geminiUsed = false;
+    extracted = {
+      senderName: null,
+      senderAccount: null,
+      receiverName: null,
+      receiverAccount: null,
+      amount: null,
+      date: null,
+      transactionCode: null,
+    };
+  } else {
+    extracted = geminiOutcome.data;
+  }
+
+  return { extracted, geminiUsed, geminiError, initialQr, buffer };
 }
 
-export async function submitReceiptCheck({ userId, method, form, screenshotPath, withDetails = true }) {
-  const result = await runReceiptVerification({ method, form, screenshotPath, withDetails });
+async function runReceiptVerification({
+  method,
+  form,
+  screenshotBuffer,
+  screenshotMime,
+  screenshotPath,
+  withDetails = true,
+  expectedReceiver = null,
+}) {
+  const { extracted, geminiUsed, geminiError, initialQr, buffer } = await extractScreenshotData(
+    { screenshotBuffer, screenshotMime, screenshotPath },
+    method,
+  );
 
-  if (!result.passed) {
-    await deleteCloudinaryImage(result.screenshotPublicId);
-    const firstError = result.validation.errors[0] || 'Receipt could not be verified';
-    throw new CheckError(firstError, 422, {
-      validation: result.validation,
-      issues: result.validation.issues.filter((i) => i.type === 'error'),
-    });
+  let qrData = initialQr;
+  if (method === 'dashen') {
+    qrData = await resolveDashenQrData(qrData, extracted);
+    if (!qrData?.raw && !extractDashenReferenceFromText(extracted?.transactionCode)) {
+      const retrySource = buffer || await readScreenshotBuffer(screenshotPath);
+      if (retrySource) {
+        const retry = await decodeDashenUploadQr(retrySource, { maxMs: 45000, vatMode: false });
+        if (retry?.raw) qrData = retry;
+      } else {
+        const retry = await decodeDashenUploadQrFromPath(screenshotPath, { maxMs: 45000, vatMode: false });
+        if (retry?.raw) qrData = retry;
+      }
+    }
   }
 
-  const details = result.validation.resolvedDetails;
-  const checkCost = getCheckCostByAmount(details.amount);
-  const newBalance = await deductBalance(userId, checkCost);
+  if (qrData?.transactionCode) {
+    console.log('[QR] Payment ID from QR:', qrData.transactionCode);
+  }
+
+  let qrFields = extractQrReceiptFields(method, qrData);
+  if (method === 'cbe' && qrData?.verificationToken) {
+    const cbeApiFields = await fetchCbeTransactionFromQr(qrData);
+    qrFields = mergeCbeApiIntoQrFields(qrFields, cbeApiFields);
+    if (cbeApiFields?.transactionCode) {
+      console.log('[CBE API] Loaded transaction:', cbeApiFields.transactionCode);
+    }
+  }
+  if (method === 'dashen' && (qrData?.raw || qrData?.dashenReference)) {
+    qrFields = enrichDashenSuccessReceiptFields(qrData, extracted, qrFields);
+    if (!isDashenSuperAppReceiptToken(qrData?.raw)) {
+      const dashenApiFields = qrData?.officialFields
+        || await fetchDashenTransactionFromQr(qrData, {
+          screenshotReference: extracted?.transactionCode,
+        });
+      qrFields = mergeDashenApiIntoQrFields(qrFields, dashenApiFields);
+      if (dashenApiFields?.transactionCode) {
+        console.log('[Dashen PDF] Loaded transaction:', dashenApiFields.transactionCode);
+      }
+    } else {
+      console.log('[Dashen] Success screen QR verified:', qrData.dashenReceiptToken?.slice(0, 40));
+    }
+  }
+  if (method === 'boa' && qrData?.raw) {
+    const boaApiFields = await fetchBoaTransactionFromQr(qrData, {
+      receiverAccount: extracted?.receiverAccount,
+      senderAccount: extracted?.senderAccount,
+    });
+    qrFields = mergeBoaApiIntoQrFields(qrFields, boaApiFields);
+    if (boaApiFields?.transactionCode) {
+      console.log('[BOA API] Loaded transaction:', boaApiFields.transactionCode);
+    }
+  }
+
+  const validation = validateReceiptSubmission({
+    method,
+    form,
+    extracted,
+    qrData,
+    qrFields,
+    geminiUsed,
+    geminiError,
+    withDetails,
+    expectedReceiver,
+  });
+
+  const paymentId = resolvePaymentId(method, { validation, qrData, extracted });
+  if (paymentId) {
+    validation.txCode = paymentId;
+    if (validation.resolvedDetails) {
+      validation.resolvedDetails.transactionCode = paymentId;
+    }
+  }
+
+  if (validation.txCode) {
+    const duplicateCheck = await findCheckByTxCode(validation.txCode);
+    if (duplicateCheck) {
+      const dupIssue = buildDuplicateTxIssue(validation.txCode);
+      validation.passed = false;
+      validation.issues = [dupIssue, ...validation.issues];
+      validation.errors = [dupIssue.message, ...validation.errors];
+    }
+
+    const duplicateTopUp = await findTopUpByTxCode(validation.txCode);
+    if (duplicateTopUp?.status === 'complete') {
+      const dupIssue = buildDuplicateTxIssue(validation.txCode);
+      validation.passed = false;
+      validation.issues = [dupIssue, ...validation.issues];
+      validation.errors = [dupIssue.message, ...validation.errors];
+    }
+  }
+
+  return {
+    passed: validation.passed,
+    validation,
+    extracted,
+    qrData,
+  };
+}
+
+export async function submitReceiptCheck({
+  userId,
+  method,
+  form,
+  screenshotBuffer,
+  screenshotMime,
+  screenshotPath,
+  withDetails = true,
+}) {
+  let screenshotUrl = null;
+  let screenshotPublicId = null;
 
   try {
-    const [saved] = await db.insert(receiptChecks).values({
-      userId,
-      paymentMethod: method,
-      senderName: details.senderName,
-      senderAccount: details.senderAccount,
-      receiverName: details.receiverName,
-      receiverAccount: details.receiverAccount,
-      amount: String(details.amount || 0),
-      transactionCode: result.validation.txCode,
-      screenshotUrl: result.screenshotUrl,
-      enteredDetails: JSON.stringify(withDetails ? form : { withDetails: false }),
-      extractedDetails: JSON.stringify(result.extracted),
-      qrData: JSON.stringify(result.qrData),
-      validationResult: JSON.stringify(result.validation),
-      isValid: true,
-      balanceDeducted: checkCost,
-    }).returning();
+    const result = await runReceiptVerification({
+      method,
+      form,
+      screenshotBuffer,
+      screenshotMime,
+      screenshotPath,
+      withDetails,
+    });
 
-    return {
-      check: parseCheckRow(saved),
-      newBalance,
-      message: result.validation.warnings.length
-        ? 'Receipt verified (with warnings)'
-        : 'Receipt verified successfully',
-      validation: result.validation,
-      issues: result.validation.issues,
-      resolvedDetails: details,
-    };
-  } catch (err) {
-    await addBalance(userId, checkCost);
-    await deleteCloudinaryImage(result.screenshotPublicId);
-
-    if (err.code === '23505') {
-      const dupIssue = buildDuplicateTxIssue(result.validation.txCode);
-      throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+    if (!result.passed) {
+      const firstError = result.validation.errors[0] || 'Receipt could not be verified';
+      throw new CheckError(firstError, 422, {
+        validation: result.validation,
+        issues: result.validation.issues.filter((i) => i.type === 'error'),
+      });
     }
-    throw err;
+
+    const upload = screenshotBuffer
+      ? await uploadScreenshotBuffer(screenshotBuffer, screenshotMime)
+      : await uploadScreenshot(screenshotPath);
+    screenshotUrl = upload.url;
+    screenshotPublicId = upload.publicId;
+
+    const details = result.validation.resolvedDetails;
+    const checkCost = getCheckCostByAmount(details.amount);
+    const newBalance = await deductBalance(userId, checkCost);
+
+    try {
+      const [saved] = await db.insert(receiptChecks).values({
+        userId,
+        paymentMethod: method,
+        senderName: details.senderName,
+        senderAccount: details.senderAccount,
+        receiverName: details.receiverName,
+        receiverAccount: details.receiverAccount,
+        amount: String(details.amount || 0),
+        transactionCode: result.validation.txCode,
+        screenshotUrl,
+        enteredDetails: JSON.stringify(withDetails ? form : { withDetails: false }),
+        extractedDetails: JSON.stringify(result.extracted),
+        qrData: JSON.stringify(result.qrData),
+        validationResult: JSON.stringify(result.validation),
+        isValid: true,
+        balanceDeducted: checkCost,
+      }).returning();
+
+      return {
+        check: parseCheckRow(saved),
+        newBalance,
+        message: result.validation.warnings.length
+          ? 'Receipt verified (with warnings)'
+          : 'Receipt verified successfully',
+        validation: result.validation,
+        issues: result.validation.issues,
+        resolvedDetails: details,
+      };
+    } catch (err) {
+      await addBalance(userId, checkCost);
+      await deleteCloudinaryImage(screenshotPublicId);
+      screenshotPublicId = null;
+
+      if (err.code === '23505') {
+        const dupIssue = buildDuplicateTxIssue(result.validation.txCode);
+        throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+      }
+      throw err;
+    }
+  } finally {
+    await cleanupTempFile(screenshotPath);
   }
 }
 
@@ -310,108 +487,117 @@ export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' 
     throw new TopUpError('Top-up is only supported for Telebirr and CBE', 400);
   }
 
-  const result = await runReceiptVerification({
-    method,
-    form: {},
-    screenshotPath,
-    withDetails: false,
-    expectedReceiver: {
-      receiverName: receiverConfig.receiverName,
-      receiverAccount: receiverConfig.receiverAccount,
-    },
-  });
-
-  if (!result.passed) {
-    await deleteCloudinaryImage(result.screenshotPublicId);
-    const firstError = result.validation.errors[0] || 'Top-up receipt could not be verified';
-    throw new TopUpError(firstError, 422, {
-      validation: result.validation,
-      issues: result.validation.issues.filter((i) => i.type === 'error'),
-    });
-  }
-
-  const details = result.validation.resolvedDetails;
-  const birrAmount = parseFloat(details.amount) || 0;
-  const paymentId = result.validation.txCode || resolvePaymentId(method, {
-    validation: result.validation,
-    qrData: result.qrData,
-    extracted: result.extracted,
-  });
-
-  if (!paymentId) {
-    await deleteCloudinaryImage(result.screenshotPublicId);
-    throw new TopUpError('Payment ID error: could not determine a unique payment ID from the QR code or receipt.', 422);
-  }
-
-  if (birrAmount <= 0) {
-    await deleteCloudinaryImage(result.screenshotPublicId);
-    throw new TopUpError('Invalid amount. Please deposit a valid Birr amount.', 422);
-  }
-
-  details.transactionCode = paymentId;
+  let screenshotUrl = null;
+  let screenshotPublicId = null;
 
   try {
-    const outcome = await db.transaction(async (tx) => {
-      const [existingBalance] = await tx
-        .select()
-        .from(balances)
-        .where(eq(balances.userId, userId))
-        .limit(1);
-
-      let balanceRow = existingBalance;
-      if (!balanceRow) {
-        const [created] = await tx.insert(balances).values({ userId, amount: '0.00' }).returning();
-        balanceRow = created;
-      }
-
-      const current = parseFloat(toMoney(balanceRow.amount));
-      const nextBalance = toMoney(current + birrAmount);
-
-      const [transaction] = await tx.insert(topUpTransactions).values({
-        userId,
-        screenshotUrl: result.screenshotUrl,
-        status: 'complete',
-        senderName: details.senderName,
-        senderAccount: details.senderAccount,
-        receiverName: details.receiverName,
-        receiverAccount: details.receiverAccount,
-        amount: toMoney(birrAmount),
-        transactionCode: paymentId,
-        aiResult: JSON.stringify({
-          extracted: result.extracted,
-          qrData: result.qrData,
-          validation: result.validation,
-        }),
-        unitsAdded: Math.round(birrAmount),
-        submittedAt: new Date(),
-      }).returning();
-
-      const [updatedBalance] = await tx
-        .update(balances)
-        .set({ amount: nextBalance, updatedAt: new Date() })
-        .where(eq(balances.userId, userId))
-        .returning();
-
-      return {
-        transaction,
-        newBalance: parseFloat(toMoney(updatedBalance.amount)),
-      };
+    const result = await runReceiptVerification({
+      method,
+      form: {},
+      screenshotPath,
+      withDetails: false,
+      expectedReceiver: {
+        receiverName: receiverConfig.receiverName,
+        receiverAccount: receiverConfig.receiverAccount,
+      },
     });
 
-    return {
-      newBalance: outcome.newBalance,
-      transaction: outcome.transaction,
-      message: 'Top-up verified and balance credited',
-      resolvedDetails: details,
-      validation: result.validation,
-    };
-  } catch (err) {
-    await deleteCloudinaryImage(result.screenshotPublicId);
-
-    if (err.code === '23505') {
-      const dupIssue = buildDuplicateTxIssue(paymentId);
-      throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
+    if (!result.passed) {
+      const firstError = result.validation.errors[0] || 'Top-up receipt could not be verified';
+      throw new TopUpError(firstError, 422, {
+        validation: result.validation,
+        issues: result.validation.issues.filter((i) => i.type === 'error'),
+      });
     }
-    throw err;
+
+    const details = result.validation.resolvedDetails;
+    const birrAmount = parseFloat(details.amount) || 0;
+    const paymentId = result.validation.txCode || resolvePaymentId(method, {
+      validation: result.validation,
+      qrData: result.qrData,
+      extracted: result.extracted,
+    });
+
+    if (!paymentId) {
+      throw new TopUpError('Payment ID error: could not determine a unique payment ID from the QR code or receipt.', 422);
+    }
+
+    if (birrAmount <= 0) {
+      throw new TopUpError('Invalid amount. Please deposit a valid Birr amount.', 422);
+    }
+
+    details.transactionCode = paymentId;
+
+    const upload = await uploadScreenshot(screenshotPath);
+    screenshotUrl = upload.url;
+    screenshotPublicId = upload.publicId;
+
+    try {
+      const outcome = await db.transaction(async (tx) => {
+        const [existingBalance] = await tx
+          .select()
+          .from(balances)
+          .where(eq(balances.userId, userId))
+          .limit(1);
+
+        let balanceRow = existingBalance;
+        if (!balanceRow) {
+          const [created] = await tx.insert(balances).values({ userId, amount: '0.00' }).returning();
+          balanceRow = created;
+        }
+
+        const current = parseFloat(toMoney(balanceRow.amount));
+        const nextBalance = toMoney(current + birrAmount);
+
+        const [transaction] = await tx.insert(topUpTransactions).values({
+          userId,
+          screenshotUrl,
+          status: 'complete',
+          senderName: details.senderName,
+          senderAccount: details.senderAccount,
+          receiverName: details.receiverName,
+          receiverAccount: details.receiverAccount,
+          amount: toMoney(birrAmount),
+          transactionCode: paymentId,
+          aiResult: JSON.stringify({
+            extracted: result.extracted,
+            qrData: result.qrData,
+            validation: result.validation,
+          }),
+          unitsAdded: Math.round(birrAmount),
+          submittedAt: new Date(),
+        }).returning();
+
+        const [updatedBalance] = await tx
+          .update(balances)
+          .set({ amount: nextBalance, updatedAt: new Date() })
+          .where(eq(balances.userId, userId))
+          .returning();
+
+        return {
+          transaction,
+          newBalance: parseFloat(toMoney(updatedBalance.amount)),
+        };
+      });
+
+      return {
+        newBalance: outcome.newBalance,
+        transaction: outcome.transaction,
+        message: 'Top-up verified and balance credited',
+        resolvedDetails: details,
+        validation: result.validation,
+      };
+    } catch (err) {
+      await deleteCloudinaryImage(screenshotPublicId);
+      screenshotPublicId = null;
+
+      if (err.code === '23505') {
+        const dupIssue = buildDuplicateTxIssue(paymentId);
+        throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
+      }
+      throw err;
+    }
+  } finally {
+    await cleanupTempFile(screenshotPath);
   }
 }

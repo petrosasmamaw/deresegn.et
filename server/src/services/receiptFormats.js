@@ -100,18 +100,31 @@ Field mapping:
 
   dashen: `${BASE_RULES}
 
-This is a Dashen Bank receipt. Two common layouts:
-1) Formal "Dashen Bank Super App Electronic Value Added Tax Receipt" with a transaction table
-2) Dark app screen titled "Successfully paid!" with sender/recipient details and QR overlay
+This is a Dashen Bank receipt. Two distinct layouts you might see:
 
-Field mapping:
-- senderName = "Sender Name" or sender on success screen
-- senderAccount = "Sender Account" / "Sender Account Number" (masked OK)
-- receiverName = "Receiver Name" / "Recipient Name"
-- receiverAccount = "Receiver Account" / "Recipient Account"
-- amount = "Transaction Amount" or main paid amount (e.g. 100.00), NOT total with service charge/VAT
-- transactionCode = "Transaction Reference" (e.g. 110IPSS2616900WO). Prefer this over "Transfer Reference".
-- date = "Transaction Date" as shown`,
+LAYOUT 1 - "Successfully Paid!" (Mobile app success screen - DARK BLUE background)
+- Shows transaction confirmation on user's phone
+- Has: "Successfully paid!" header, sender/receiver names and accounts, amount (ETB), QR code overlay
+- Transaction Reference at bottom of receipt or in QR code
+- Extract from visible text: transaction amount, sender/receiver details
+
+LAYOUT 2 - "Dashen Bank Super App Electronic Value Added Tax Receipt" (Formal bank receipt)
+- White/light background with Dashen Bank logo and branding
+- Structured table format with clear row labels
+- Has: Bank details, transaction table, VAT breakdown, QR code at bottom
+- Look for: "Transaction Amount" row (this is the actual transfer amount, NOT total with fees)
+- Transaction Reference: typically labeled as "Transaction Reference" or visible in data rows
+
+IMPORTANT FOR DASHEN:
+- transactionCode examples: 110IPSS2616900WO, 11OBTS2616900XX (starts with digits + IPSS/OBTS/ETAP)
+- amount: Extract from "Transaction Amount" row or paid amount field (NOT "Total" which includes charges)
+- Sender/Receiver accounts may be MASKED (e.g. 5110****011, 1000333687112)
+- senderName = "Sender Name" field
+- senderAccount = "Sender Account" or "Sender Account Number"
+- receiverName = "Receiver Name" or "Recipient Name"
+- receiverAccount = "Receiver Account" or "Recipient Account" or "Institution Name"
+
+Return only visible and clearly labeled fields as null if not found.`,
 };
 
 export function buildExtractionPrompt(method) {

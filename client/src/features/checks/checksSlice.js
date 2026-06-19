@@ -21,6 +21,7 @@ export const performCheck = createAsyncThunk(
 
       const res = await axios.post('/check', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000,
       })
       const data = unwrap(res)
       return {
