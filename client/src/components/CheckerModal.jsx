@@ -1,15 +1,39 @@
 import { useState } from 'react'
-import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload, ListChecks } from 'lucide-react'
+import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload, ListChecks, Hash, Camera } from 'lucide-react'
 import { VerificationFailureList, VerificationSuccessNote, VerificationWarningList } from './VerificationResult'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 import ReceiptDetailFields from './ReceiptDetailFields'
 
 const METHODS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt with Invoice No. & QR' },
-  { id: 'cbe', label: 'Commercial Bank of Ethiopia (CBE)', icon: Building2, desc: 'CBE mobile success receipt with FT reference' },
+  { id: 'cbe', label: 'Commercial Bank of Ethiopia (CBE)', icon: Building2, desc: 'CBE success screen or VAT/web receipt with FT reference & QR' },
   { id: 'boa', label: 'Bank of Abyssinia', icon: Building2, desc: 'BOA transfer receipt with FT reference' },
-  { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen Super App receipt with IPSS reference' },
+  { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen VAT receipt with IPSS reference' },
 ]
+
+const REFERENCE_DETAIL_BY_METHOD = {
+  telebirr: 'Invoice No. only',
+  dashen: 'IPSS reference only (VAT receipts)',
+  cbe: 'FT reference + last 8 digits of sender account',
+  boa: 'FT reference + last 5 digits of sender account',
+}
+
+const REFERENCE_FIELDS = {
+  telebirr: [
+    { key: 'transactionCode', label: 'Invoice No.', placeholder: 'DF52MV8ILW', hint: '10-character invoice number' },
+  ],
+  dashen: [
+    { key: 'transactionCode', label: 'IPSS Reference', placeholder: '110IPSS2616900WO', hint: 'VAT receipt reference only — not Super App QR' },
+  ],
+  cbe: [
+    { key: 'transactionCode', label: 'FT Reference', placeholder: 'FT26169D8C5M', hint: 'Transaction reference starting with FT' },
+    { key: 'accountSuffix', label: 'Last 8 digits of sender account', placeholder: '12345678', hint: 'Last 8 digits of the account that sent the money (your CBE account)' },
+  ],
+  boa: [
+    { key: 'transactionCode', label: 'FT Reference', placeholder: 'FT26169X4SRS', hint: 'Transaction reference starting with FT' },
+    { key: 'accountSuffix', label: 'Last 5 digits of sender account', placeholder: '12345', hint: 'Last 5 digits of the account that sent the money (your BOA account)' },
+  ],
+}
 
 const TX_PLACEHOLDERS = {
   telebirr: 'e.g. DFC7TG1O11',
@@ -20,7 +44,7 @@ const TX_PLACEHOLDERS = {
 
 const UPLOAD_HINTS = {
   telebirr: 'Full Telebirr receipt with QR code at the bottom',
-  cbe: 'CBE success screen showing transaction ID and QR code',
+  cbe: 'CBE mobile success screen or VAT/web receipt with QR code at the bottom',
   boa: 'Bank of Abyssinia receipt with "Scan the QR to Verify"',
   dashen: 'Dashen receipt or "Successfully paid!" screen with QR code',
 }
@@ -43,9 +67,24 @@ const EMPTY_FORM = {
   transactionCode: '',
 }
 
-export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error, lastResult, lastResolvedDetails }) {
+const EMPTY_REFERENCE = {
+  transactionCode: '',
+  accountSuffix: '',
+}
+
+export default function CheckerModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  onReferenceSubmit,
+  loading,
+  error,
+  lastResult,
+  lastResolvedDetails,
+}) {
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState('')
+  const [verifyMode, setVerifyMode] = useState('')
   const [screenshot, setScreenshot] = useState(null)
   const [preview, setPreview] = useState(null)
   const [rejected, setRejected] = useState(false)
@@ -53,9 +92,14 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
   const [withDetails, setWithDetails] = useState(false)
   const [successDetails, setSuccessDetails] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [referenceForm, setReferenceForm] = useState(EMPTY_REFERENCE)
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleReferenceChange = (field, value) => {
+    setReferenceForm((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleFile = (e) => {
@@ -68,6 +112,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
   const resetForm = () => {
     setStep(1)
     setMethod('')
+    setVerifyMode('')
     setScreenshot(null)
     setPreview(null)
     setRejected(false)
@@ -75,12 +120,15 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
     setWithDetails(false)
     setSuccessDetails(null)
     setForm(EMPTY_FORM)
+    setReferenceForm(EMPTY_REFERENCE)
   }
 
   const handleClose = () => {
     resetForm()
     onClose()
   }
+
+  const successStep = verifyMode === 'reference' ? 4 : (withDetails ? 5 : 4)
 
   const runVerify = async (useDetails) => {
     if (!screenshot) {
@@ -107,6 +155,29 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
 
     if (result?.success) {
       setSuccessDetails(result.resolvedDetails || lastResolvedDetails || null)
+      setStep(successStep)
+    }
+  }
+
+  const runReferenceVerify = async (e) => {
+    e.preventDefault()
+    setRejected(false)
+    setFailureIssues([])
+
+    const result = await onReferenceSubmit({
+      method,
+      transactionCode: referenceForm.transactionCode,
+      accountSuffix: referenceForm.accountSuffix,
+    })
+
+    if (result?.failed) {
+      setFailureIssues(result.issues || [])
+      setRejected(true)
+      return
+    }
+
+    if (result?.success) {
+      setSuccessDetails(result.resolvedDetails || lastResolvedDetails || null)
       setStep(4)
     }
   }
@@ -121,6 +192,9 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
     await runVerify(true)
   }
 
+  const referenceFields = REFERENCE_FIELDS[method] || []
+  const referenceReady = referenceFields.every((f) => String(referenceForm[f.key] || '').trim())
+
   if (!isOpen) return null
 
   const summaryDetails = successDetails || lastResolvedDetails || (lastResult ? {
@@ -131,6 +205,16 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
     amount: lastResult.amount,
     transactionCode: lastResult.transactionCode,
   } : null)
+
+  const successMessage = verifyMode === 'reference'
+    ? '✓ Payment ID verified successfully'
+    : '✓ Receipt verified successfully'
+
+  const successSubtext = verifyMode === 'reference'
+    ? 'Verified from official bank record (no screenshot)'
+    : withDetails
+      ? 'Verified with your entered details'
+      : 'Verified from screenshot & QR code'
 
   return (
     <div className="modal-overlay">
@@ -146,7 +230,15 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
           <div className="modal-body space-y-5">
             <VerificationFailureList issues={failureIssues} />
             <div className="modal-footer gap-3">
-              <button type="button" onClick={() => { setRejected(false); setStep(withDetails ? 3 : 2) }} className="btn-secondary flex-1 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejected(false)
+                  if (verifyMode === 'reference') setStep(3)
+                  else setStep(withDetails ? 4 : 3)
+                }}
+                className="btn-secondary flex-1 flex items-center justify-center gap-2"
+              >
                 <RotateCcw size={16} strokeWidth={2} />
                 Try Again
               </button>
@@ -155,16 +247,16 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
               </button>
             </div>
           </div>
-        ) : step === 4 ? (
+        ) : step === successStep ? (
           <div className="modal-body space-y-5">
-            <VerificationSuccessNote message="✓ Receipt verified successfully" />
+            <VerificationSuccessNote message={successMessage} />
             <div className="card p-4" style={{ background: 'var(--color-success-muted)', borderColor: 'var(--color-success)', borderWidth: '2px' }}>
               <div className="flex items-center gap-4">
                 <CheckCircle2 size={32} style={{ color: 'var(--color-success)' }} strokeWidth={2} />
                 <div>
-                  <p className="font-bold text-base" style={{ color: 'var(--color-success)' }}>Valid Receipt Confirmed</p>
+                  <p className="font-bold text-base" style={{ color: 'var(--color-success)' }}>Valid Payment Confirmed</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    {withDetails ? 'Verified with your entered details' : 'Verified from screenshot & QR code'}
+                    {successSubtext}
                   </p>
                 </div>
               </div>
@@ -217,12 +309,66 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
             )}
 
             {step === 2 && (
-              <form onSubmit={handleQuickVerify} className="space-y-5">
+              <div className="space-y-4">
                 <div>
                   <button type="button" onClick={() => setStep(1)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
                     ← Back to Method
                   </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 2: Upload Receipt Screenshot</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 2: Choose Verification Type</p>
+                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
+                    Screenshot uses QR + OCR. Payment ID looks up the official bank record directly.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setVerifyMode('screenshot'); setStep(3) }}
+                  className="w-full card p-4 text-left border-2"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <Camera size={20} style={{ color: 'var(--color-primary)' }} />
+                    <div>
+                      <p className="font-semibold text-[var(--text-sm)]">Screenshot + QR</p>
+                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">Upload receipt image for QR and text verification</p>
+                    </div>
+                    <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-primary)' }} />
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setVerifyMode('reference'); setStep(3) }}
+                  className="w-full card p-4 text-left border-2"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <Hash size={20} style={{ color: 'var(--color-accent)' }} />
+                    <div>
+                      <p className="font-semibold text-[var(--text-sm)]">Payment ID only</p>
+                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">No screenshot — official bank lookup by reference</p>
+                    </div>
+                    <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-accent)' }} />
+                  </div>
+                </button>
+
+                <div className="rounded-lg p-4 border text-[var(--text-xs)] font-mono leading-relaxed" style={{ background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border)' }}>
+                  <p className="font-semibold text-[var(--text-sm)] font-sans mb-2">Payment ID guide</p>
+                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">Telebirr</span> → Invoice No. only</p>
+                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">Dashen</span> → IPSS reference only (VAT receipts)</p>
+                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">CBE</span> → FT reference + last 8 digits of sender account</p>
+                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">BOA</span> → FT reference + last 5 digits of sender account</p>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && verifyMode === 'screenshot' && (
+              <form onSubmit={handleQuickVerify} className="space-y-5">
+                <div>
+                  <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
+                    ← Back to Type
+                  </button>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Upload Receipt Screenshot</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
                     We check the official bank QR code (must not be fake). Full screenshot: text + QR are compared. Cropped screenshot: QR code only.
                   </p>
@@ -251,7 +397,7 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
                   <button
                     type="button"
                     disabled={loading || !screenshot}
-                    onClick={() => { setWithDetails(true); setStep(3) }}
+                    onClick={() => { setWithDetails(true); setStep(4) }}
                     className="btn-secondary flex-1 flex items-center justify-center gap-2"
                   >
                     <ListChecks size={16} />
@@ -264,13 +410,57 @@ export default function CheckerModal({ isOpen, onClose, onSubmit, loading, error
               </form>
             )}
 
-            {step === 3 && (
-              <form onSubmit={handleDetailVerify} className="space-y-5">
+            {step === 3 && verifyMode === 'reference' && (
+              <form onSubmit={runReferenceVerify} className="space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
+                    ← Back to Type
+                  </button>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Enter Payment ID</p>
+                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
+                    We verify directly against the official bank record. Each payment ID can only be verified once.
+                  </p>
+                </div>
+
+                <div className="rounded-lg p-3 border text-[var(--text-xs)]" style={{ background: 'var(--color-accent-muted)', borderColor: 'var(--color-accent-border)' }}>
+                  <p className="font-semibold text-[var(--text-sm)] mb-1">
+                    {METHODS.find((m) => m.id === method)?.label}
+                  </p>
+                  <p className="text-[var(--color-text-secondary)]">
+                    {REFERENCE_DETAIL_BY_METHOD[method]}
+                  </p>
+                </div>
+
+                {referenceFields.map((field) => (
+                  <div key={field.key}>
+                    <label className="label">{field.label}</label>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder={field.placeholder}
+                      value={referenceForm[field.key]}
+                      onChange={(e) => handleReferenceChange(field.key, e.target.value)}
+                      required
+                    />
+                    {field.hint && (
+                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">{field.hint}</p>
+                    )}
+                  </div>
+                ))}
+
+                <button type="submit" disabled={loading || !referenceReady} className="btn-primary w-full">
+                  {loading ? 'Verifying...' : 'Verify Payment ID'}
+                </button>
+              </form>
+            )}
+
+            {step === 4 && verifyMode === 'screenshot' && (
+              <form onSubmit={handleDetailVerify} className="space-y-5">
+                <div>
+                  <button type="button" onClick={() => setStep(3)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
                     ← Back to Screenshot
                   </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Enter Transaction Details</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 4: Enter Transaction Details</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
                     We will match your details against screenshot + QR when visible, or QR only if the image is cropped.
                   </p>

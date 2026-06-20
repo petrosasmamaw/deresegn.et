@@ -10,16 +10,18 @@ import { getTopUpReceiverAccount } from './topUpAccountService.js';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { fetchCbeTransactionFromQr, mergeCbeApiIntoQrFields } from './cbeReceiptService.js';
-import {
-  fetchTelebirrTransactionFromQr,
-  mergeTelebirrApiIntoQrFields,
-} from './telebirrReceiptService.js';
+import { verifyTelebirrReceipt } from './telebirrVerifyService.js';
 import {
   verifyDashenReceipt,
 } from './dashenService.js';
 import {
   verifyBoaReceipt,
 } from './boaReceiptService.js';
+import {
+  lookupOfficialByReference,
+  REFERENCE_SCREENSHOT_PLACEHOLDER,
+  validateReferenceInput,
+} from './referenceVerifyService.js';
 
 function toMoney(value) {
   return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
@@ -32,7 +34,7 @@ export function resolvePaymentId(method, { validation, qrData, extracted }) {
   const fallbackTx = normalizeTxCode(validation?.txCode);
 
   if (method === 'telebirr') {
-    if (qrFields?.telebirrApiSource) {
+    if (qrFields?.telebirrApiSource || qrFields?.transactionCode) {
       return qrTx || fallbackTx || screenshotTx || null;
     }
     return qrTx || screenshotTx || fallbackTx || null;
@@ -240,6 +242,19 @@ async function extractScreenshotData({ screenshotBuffer, screenshotMime, screens
     };
   }
 
+  if (method === 'telebirr') {
+    const telebirr = await verifyTelebirrReceipt({ buffer, mime, screenshotPath });
+    return {
+      extracted: telebirr.extracted,
+      geminiUsed: telebirr.geminiUsed,
+      geminiError: telebirr.geminiError,
+      initialQr: telebirr.qrData,
+      telebirrQrFields: telebirr.qrFields,
+      telebirrResolve: telebirr.telebirrResolve,
+      buffer,
+    };
+  }
+
   const geminiPromise = (buffer
     ? extractPaymentFromBuffer(buffer, method, mime)
     : extractPaymentFromScreenshot(screenshotPath, method)
@@ -285,6 +300,7 @@ async function runReceiptVerification({
 }) {
   const {
     extracted, geminiUsed, geminiError, initialQr, buffer, dashenQrFields, boaQrFields, boaResolve,
+    telebirrQrFields, telebirrResolve,
   } = await extractScreenshotData(
     { screenshotBuffer, screenshotMime, screenshotPath },
     method,
@@ -300,18 +316,15 @@ async function runReceiptVerification({
     ? dashenQrFields
     : method === 'boa' && boaQrFields
       ? boaQrFields
-      : extractQrReceiptFields(method, qrData);
+      : method === 'telebirr' && telebirrQrFields
+        ? telebirrQrFields
+        : extractQrReceiptFields(method, qrData);
   if (method === 'cbe' && qrData?.verificationToken) {
     const cbeApiFields = await fetchCbeTransactionFromQr(qrData);
     qrFields = mergeCbeApiIntoQrFields(qrFields, cbeApiFields);
     if (cbeApiFields?.transactionCode) {
       console.log('[CBE API] Loaded transaction:', cbeApiFields.transactionCode);
     }
-  }
-
-  if (method === 'telebirr' && qrData?.raw) {
-    const telebirrFields = await fetchTelebirrTransactionFromQr(qrData, extracted);
-    qrFields = mergeTelebirrApiIntoQrFields(qrFields, telebirrFields);
   }
 
   const validation = validateReceiptSubmission({
@@ -325,6 +338,7 @@ async function runReceiptVerification({
     withDetails,
     expectedReceiver,
     boaResolve,
+    telebirrResolve,
   });
 
   const paymentId = resolvePaymentId(method, { validation, qrData, extracted });
@@ -443,6 +457,110 @@ export async function submitReceiptCheck({
     }
   } finally {
     await cleanupTempFile(screenshotPath);
+  }
+}
+
+export async function submitReferenceCheck({
+  userId,
+  method,
+  transactionCode,
+  accountSuffix = '',
+}) {
+  try {
+    validateReferenceInput(method, { transactionCode, accountSuffix });
+  } catch (err) {
+    if (err.isValidation) {
+      throw new CheckError(err.message, 400, {
+        issues: [{
+          type: 'error',
+          code: 'INVALID_REFERENCE_INPUT',
+          field: err.field,
+          message: err.message,
+        }],
+      });
+    }
+    throw err;
+  }
+
+  const result = await lookupOfficialByReference(method, { transactionCode, accountSuffix });
+
+  if (!result.passed) {
+    throw new CheckError(result.message, 422, {
+      issues: [{
+        type: 'error',
+        code: 'OFFICIAL_RECORD_NOT_FOUND',
+        field: 'transactionCode',
+        message: result.message,
+      }],
+    });
+  }
+
+  const duplicateCheck = await findCheckByTxCode(result.txCode);
+  if (duplicateCheck) {
+    const dupIssue = buildDuplicateTxIssue(result.txCode);
+    throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+  }
+
+  const duplicateTopUp = await findTopUpByTxCode(result.txCode);
+  if (duplicateTopUp?.status === 'complete') {
+    const dupIssue = buildDuplicateTxIssue(result.txCode);
+    throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+  }
+
+  const details = result.resolvedDetails;
+  const checkCost = getCheckCostByAmount(details.amount);
+  const newBalance = await deductBalance(userId, checkCost);
+
+  const validation = {
+    passed: true,
+    verifyMode: 'reference',
+    txCode: result.txCode,
+    resolvedDetails: details,
+    officialSource: result.official?.source || 'official_api',
+    issues: [],
+    warnings: [],
+    errors: [],
+  };
+
+  try {
+    const [saved] = await db.insert(receiptChecks).values({
+      userId,
+      paymentMethod: method,
+      senderName: details.senderName,
+      senderAccount: details.senderAccount,
+      receiverName: details.receiverName,
+      receiverAccount: details.receiverAccount,
+      amount: String(details.amount || 0),
+      transactionCode: result.txCode,
+      screenshotUrl: REFERENCE_SCREENSHOT_PLACEHOLDER,
+      enteredDetails: JSON.stringify({
+        verifyMode: 'reference',
+        transactionCode: result.validated.transactionCode,
+        accountSuffix: result.validated.accountSuffix || null,
+      }),
+      extractedDetails: JSON.stringify({ official: result.official }),
+      qrData: JSON.stringify(null),
+      validationResult: JSON.stringify(validation),
+      isValid: true,
+      balanceDeducted: checkCost,
+    }).returning();
+
+    return {
+      check: parseCheckRow(saved),
+      newBalance,
+      message: 'Payment ID verified successfully',
+      validation,
+      issues: [],
+      resolvedDetails: details,
+    };
+  } catch (err) {
+    await addBalance(userId, checkCost);
+
+    if (err.code === '23505') {
+      const dupIssue = buildDuplicateTxIssue(result.txCode);
+      throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+    }
+    throw err;
   }
 }
 

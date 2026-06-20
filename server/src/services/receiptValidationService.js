@@ -71,6 +71,27 @@ function amountsMatch(a, b) {
   return Math.abs(p - f) <= 1;
 }
 
+/** Telebirr receipts show Settled Amount and Total Paid Amount (fees differ by a few birr). */
+function telebirrAmountsCompatible(officialAmount, screenshotAmount) {
+  if (officialAmount == null || screenshotAmount == null) return true;
+  const o = Number(String(officialAmount).replace(/,/g, ''));
+  const s = Number(String(screenshotAmount).replace(/,/g, ''));
+  if (Number.isNaN(o) || Number.isNaN(s)) return false;
+  if (amountsMatch(o, s)) return true;
+  return Math.abs(o - s) <= 15;
+}
+
+/** CBE VAT receipts may show total debited (transfer + fees) while the official API returns transfer amount. */
+function cbeAmountsCompatible(officialAmount, screenshotAmount) {
+  if (officialAmount == null || screenshotAmount == null) return true;
+  const o = Number(String(officialAmount).replace(/,/g, ''));
+  const s = Number(String(screenshotAmount).replace(/,/g, ''));
+  if (Number.isNaN(o) || Number.isNaN(s)) return false;
+  if (amountsMatch(o, s)) return true;
+  if (s > o && s - o <= 2) return true;
+  return false;
+}
+
 function txCodesConflict(qr, screenshot) {
   const qrCode = normalizeTxCode(qr);
   const screenshotCode = normalizeTxCode(screenshot);
@@ -265,6 +286,125 @@ function validateScreenshotAgainstTruth({ issues, extracted, qrFields, truthLabe
   }
 }
 
+function validateTelebirrReceipt({
+  issues,
+  extracted,
+  qrFields,
+  qrFound,
+  screenshotCropped,
+  geminiUsed,
+  telebirrResolve,
+}) {
+  const hasOfficial = Boolean(qrFields?.telebirrApiSource);
+
+  if (!hasOfficial && !qrFound) {
+    issues.push(issue('error', 'TELEBIRR_VERIFY_FAILED', 'transactionCode',
+      'Could not verify this Telebirr receipt. Upload a screenshot with the QR code visible, or a clear invoice number.'));
+    return;
+  }
+
+  if (!hasOfficial) return;
+
+  if (telebirrResolve?.screenshotEdited) {
+    const shotTx = normalizeTxCode(extracted?.transactionCode);
+    const officialTx = normalizeTxCode(telebirrResolve.official?.transactionCode);
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'transactionCode',
+      `Payment ID error: screenshot shows "${shotTx}" but the official Telebirr record is "${officialTx}". The receipt appears edited.`,
+      { screenshotValue: shotTx, qrValue: officialTx }));
+  }
+
+  if (screenshotCropped || !geminiUsed) return;
+
+  const shotTx = normalizeTxCode(extracted?.transactionCode);
+  const officialTx = normalizeTxCode(qrFields?.transactionCode);
+  if (shotTx && officialTx && !txCodesMatch(shotTx, officialTx)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'transactionCode',
+      `Payment ID error: screenshot shows "${shotTx}" but the official Telebirr record is "${officialTx}". The receipt appears edited.`,
+      { screenshotValue: shotTx, qrValue: officialTx }));
+  }
+
+  if (extracted?.receiverName && qrFields?.receiverName
+    && !namesMatch(extracted.receiverName, qrFields.receiverName)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'receiverName',
+      `Receiver name error: screenshot shows "${extracted.receiverName}" but the official Telebirr record shows "${qrFields.receiverName}". The receipt appears edited.`,
+      { screenshotValue: extracted.receiverName, qrValue: qrFields.receiverName }));
+  }
+
+  if (extracted?.amount != null && qrFields?.amount
+    && !telebirrAmountsCompatible(qrFields.amount, extracted.amount)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'amount',
+      `Amount error: screenshot shows ${extracted.amount} but the official Telebirr record shows ${qrFields.amount}. The receipt appears edited.`,
+      { screenshotValue: extracted.amount, qrValue: qrFields.amount }));
+  }
+}
+
+function validateCbeOfficialReceipt({
+  issues,
+  extracted,
+  qrFields,
+  qrFound,
+  qrAuthentic,
+  screenshotCropped,
+  geminiUsed,
+}) {
+  if (!qrFound) {
+    issues.push(issue('error', 'QR_MISSING', 'screenshot',
+      'Your CBE receipt screenshot must include the QR code (mobile success screen or VAT/web receipt).'));
+    return;
+  }
+
+  if (!qrAuthentic) return;
+
+  if (!qrFields?.cbeApiSource) {
+    issues.push(issue('error', 'CBE_VERIFY_FAILED', 'transactionCode',
+      'Could not load the official CBE record from the QR code. Upload a sharper screenshot with the full QR visible.'));
+    return;
+  }
+
+  if (screenshotCropped || !geminiUsed) return;
+
+  const shotTx = normalizeTxCode(extracted?.transactionCode);
+  const officialTx = normalizeTxCode(qrFields?.transactionCode);
+  if (shotTx && officialTx && !txCodesMatch(shotTx, officialTx)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'transactionCode',
+      `Payment ID error: screenshot shows "${shotTx}" but the official CBE record is "${officialTx}". The receipt appears edited.`,
+      { screenshotValue: shotTx, qrValue: officialTx }));
+  }
+
+  if (extracted?.amount != null && qrFields?.amount
+    && !cbeAmountsCompatible(qrFields.amount, extracted.amount)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'amount',
+      `Amount error: screenshot shows ${extracted.amount} but the official CBE record shows ${qrFields.amount}. The receipt appears edited.`,
+      { screenshotValue: extracted.amount, qrValue: qrFields.amount }));
+  }
+
+  for (const [field, label] of [
+    ['senderName', 'Sender name'],
+    ['receiverName', 'Receiver name'],
+  ]) {
+    const shotVal = extracted?.[field];
+    const truthVal = qrFields?.[field];
+    if (shotVal && truthVal && !namesMatch(shotVal, truthVal)) {
+      issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', field,
+        `${label} error: screenshot shows "${shotVal}" but the official CBE record shows "${truthVal}". The receipt appears edited.`,
+        { screenshotValue: shotVal, qrValue: truthVal }));
+    }
+  }
+
+  for (const [field, label] of [
+    ['senderAccount', 'Sender account'],
+    ['receiverAccount', 'Receiver account'],
+  ]) {
+    const shotVal = extracted?.[field];
+    const truthVal = qrFields?.[field];
+    if (shotVal && truthVal && !accountsMatch(shotVal, truthVal)) {
+      issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', field,
+        `${label} error: screenshot shows "${shotVal}" but the official CBE record shows "${truthVal}". The receipt appears edited.`,
+        { screenshotValue: shotVal, qrValue: truthVal }));
+    }
+  }
+}
+
 function validateScreenshotAgainstQr({ issues, extracted, qrFields }) {
   validateScreenshotAgainstTruth({ issues, extracted, qrFields, truthLabel: 'QR code' });
 }
@@ -367,6 +507,7 @@ export function validateReceiptSubmission({
   expectedReceiver = null,
   qrFields: providedQrFields = null,
   boaResolve = null,
+  telebirrResolve = null,
 }) {
   const issues = [];
   const isTopUp = Boolean(expectedReceiver);
@@ -411,18 +552,22 @@ export function validateReceiptSubmission({
 
   if (requiresQrCode(method)) {
     if (!qrFound) {
-      issues.push(issue('error', 'QR_MISSING', 'screenshot', getQrMissingMessage(method), { qrValue: null }));
+      if (!(method === 'telebirr' && qrFields?.telebirrApiSource)) {
+        issues.push(issue('error', 'QR_MISSING', 'screenshot', getQrMissingMessage(method), { qrValue: null }));
+      }
     } else if (qrAuthenticity && !qrAuthenticity.authentic) {
       const fakeIssue = buildFakeQrIssue(qrAuthenticity, method);
       issues.push(issue('error', fakeIssue.code, fakeIssue.field, fakeIssue.message, { qrFormat: qrAuthenticity.format }));
-    } else if (method === 'telebirr' && !qrTx) {
+    } else if (method === 'telebirr' && !qrTx && !qrFields?.telebirrApiSource) {
       issues.push(issue('error', 'QR_UNREADABLE', 'transactionCode',
         `A QR code was found on your ${getMethodLabel(method)} receipt but could not be read clearly. Upload a sharper screenshot with the full QR code visible.`,
         { qrValue: null }));
     }
   }
 
-  if (!screenshotCropped && qrTx && screenshotTx && txCodesConflict(qrTx, screenshotTx)) {
+  if (!screenshotCropped && qrTx && screenshotTx && txCodesConflict(qrTx, screenshotTx)
+    && !(method === 'telebirr' && qrFields?.telebirrApiSource)
+    && !(method === 'boa' && qrFields?.boaApiSource)) {
     issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'transactionCode',
       `Payment ID error: screenshot shows "${screenshotTx}" but the QR code shows "${qrTx}".`,
       { screenshotValue: screenshotTx, qrValue: qrTx }));
@@ -439,7 +584,28 @@ export function validateReceiptSubmission({
       geminiUsed,
       boaResolve,
     });
-  } else if (!screenshotCropped && geminiUsed && qrAuthentic) {
+  } else if (method === 'telebirr') {
+    validateTelebirrReceipt({
+      issues,
+      extracted,
+      qrFields,
+      qrFound,
+      qrAuthentic,
+      screenshotCropped,
+      geminiUsed,
+      telebirrResolve,
+    });
+  } else if (method === 'cbe') {
+    validateCbeOfficialReceipt({
+      issues,
+      extracted,
+      qrFields,
+      qrFound,
+      qrAuthentic,
+      screenshotCropped,
+      geminiUsed,
+    });
+  } else if (!screenshotCropped && geminiUsed && qrAuthentic && hasOfficialQrTruth(qrFields)) {
     const truthLabel = hasOfficialQrTruth(qrFields)
       ? ({
         telebirr: 'official Telebirr record',
@@ -547,7 +713,9 @@ export function validateReceiptSubmission({
       const amt = parseFloat(qrFields.amount);
       if (!amt || amt <= 0) {
         issues.push(issue('error', 'AMOUNT_UNREADABLE', 'amount',
-          'Amount error: could not read amount from QR code. Upload a clearer screenshot with the full QR code visible.'));
+          method === 'telebirr' && qrFields?.telebirrApiSource
+            ? 'Amount error: could not read amount from the official Telebirr record.'
+            : 'Amount error: could not read amount from QR code. Upload a clearer screenshot with the full QR code visible.'));
       }
     } else if (geminiUsed) {
       if (method === 'boa') {
@@ -570,8 +738,9 @@ export function validateReceiptSubmission({
       `${geminiError || 'AI screenshot reading was unavailable.'} QR code was still checked.`));
   }
 
-  if (qrAuthentic && !isTopUp && !(method === 'boa' && !qrFields?.boaApiSource && !qrFields?.boaQrDecrypted)
-    && !(method === 'telebirr' && !qrFields?.telebirrApiSource && !hasOfficialQrTruth(qrFields))) {
+  if ((qrAuthentic || qrFields?.telebirrApiSource) && !isTopUp
+    && !(method === 'boa' && !qrFields?.boaApiSource && !qrFields?.boaQrDecrypted)
+    && !(method === 'telebirr' && !qrFields?.telebirrApiSource && !qrAuthentic)) {
     issues.push(issue('warning', 'QR_VERIFIED', 'transactionCode',
       `Official ${getMethodLabel(method)} QR code verified — not fake.`));
   }

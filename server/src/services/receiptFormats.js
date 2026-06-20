@@ -84,19 +84,28 @@ The QR code appears at the bottom with "Scan the QR to Verify".`,
 
   cbe: `${BASE_RULES}
 
-This is a Commercial Bank of Ethiopia (CBE) mobile banking success receipt (purple header, gold CBE logo).
-Common layouts:
-1) Success card showing recipient, account (ETB-XXXX), and "transaction ID: FT..."
-2) Transaction summary paragraph: "ETB X has been debited from [sender] for [receiver] ... transaction ID: FT..."
+This is a Commercial Bank of Ethiopia (CBE) receipt. It may be one of these layouts:
 
-Field mapping:
-- senderName = person/account debited (sender in summary)
-- senderAccount = sender account (may appear as ETB-0027 style)
-- receiverName = person/account credited
-- receiverAccount = receiver account (may appear as ETB-7112 style)
-- amount = transfer amount in the summary (e.g. 10.0), NOT "Total Amount Debited" with fees
-- transactionCode = "transaction ID" or "Transaction ID" (FT prefix)
-- date = transaction date/time as shown`,
+### TYPE 1: Mobile success screen (purple header, gold CBE logo)
+- Shows recipient, account (ETB-XXXX), and "transaction ID: FT..."
+- Amount in summary is the transfer amount (e.g. 10.0), NOT "Total Amount Debited" with fees
+
+### TYPE 2: VAT / web receipt (white page, "Payment / Transaction Informations" table)
+- Header may show "VAT Receipt No" matching the Reference No (FT…)
+- Table rows: Payer, Account (sender), Receiver, Account (receiver), Reference No., Transferred Amount, Service Charge, Total amount debited
+- amount = "Transferred Amount" row ONLY (e.g. 50.00) — NOT "Total amount debited" (e.g. 50.61 with fees)
+- transactionCode = "Reference No." or "VAT Receipt No" (FT prefix)
+- senderAccount / receiverAccount = masked accounts as shown (e.g. 1****7112)
+- QR code at bottom (official mbreciept.cbe.com.et link)
+
+Field mapping (both types):
+- senderName = payer / person debited
+- senderAccount = payer account (may be ETB-7112 or 1****7112)
+- receiverName = receiver / credited party
+- receiverAccount = receiver account
+- amount = transferred amount only (exclude service charge, VAT, disaster recovery)
+- transactionCode = FT reference
+- date = payment date/time as shown`,
 
   dashen: `${BASE_RULES}
 

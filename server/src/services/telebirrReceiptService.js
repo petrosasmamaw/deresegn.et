@@ -10,19 +10,29 @@ function parseAmount(value) {
   return Number.isNaN(n) || n <= 0 ? null : n;
 }
 
+function cleanCell(raw) {
+  return String(raw || '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Pick value cell immediately after a bilingual label row — mirrors ethiobank_receipts tele.py */
 function pickLabel(html, labelPattern) {
   const re = new RegExp(
-    `<td[^>]*>\\s*(?:[^<]*?${labelPattern}[^<]*?)\\s*</td>\\s*<td[^>]*>\\s*([^<]+?)\\s*</td>`,
+    `<td[^>]*>[\\s\\S]*?${labelPattern}[\\s\\S]*?</td>\\s*<td[^>]*>([\\s\\S]*?)</td>`,
     'i',
   );
-  return html.match(re)?.[1]?.trim() || null;
+  const value = cleanCell(html.match(re)?.[1]);
+  return value || null;
 }
 
 function mapTelebirrHtml(html, invoiceId) {
-  if (!html || /not found|invalid|error/i.test(html.slice(0, 500))) return null;
+  if (!html || /receipt not found|invalid receipt|transaction not found/i.test(html)) return null;
 
-  const status = pickLabel(html, 'transaction\\s*status');
+  const statusMatch = html.match(/transaction\s*status[\s\S]{0,120}?<td[^>]*>([\s\S]*?)<\/td>/i);
+  const status = cleanCell(statusMatch?.[1]);
   if (status && !/success|completed|paid|approved/i.test(status)) {
     return null;
   }
@@ -39,20 +49,60 @@ function mapTelebirrHtml(html, invoiceId) {
     senderAccount: pickLabel(html, 'Payer\\s*telebirr') || null,
     receiverName: pickLabel(html, 'Credited\\s*Party\\s*name') || null,
     receiverAccount: pickLabel(html, 'Credited\\s*party\\s*account\\s*no') || null,
-    status: status || pickLabel(html, 'transaction\\s*status'),
+    status: status || null,
     source: 'telebirr_official_web',
   };
 }
 
-export function resolveTelebirrInvoiceId(qrData, extracted = null) {
+/** Telebirr invoice IDs are 10 chars: DFC + 7 or DF + 8. */
+export function normalizeTelebirrInvoiceId(value) {
+  const id = normalizeTxCode(value);
+  if (!id || !/^DF[A-Z0-9]{6,12}$/i.test(id)) return null;
+
+  const exact = id.match(/^(DFC[A-Z0-9]{7}|DF[A-Z0-9]{8})$/i);
+  if (exact) return exact[1].toUpperCase();
+
+  if (id.length > 10 && /^DF/i.test(id)) {
+    const trimmed = id.slice(0, 10);
+    const t = trimmed.match(/^(DFC[A-Z0-9]{7}|DF[A-Z0-9]{8})$/i);
+    if (t) return t[1].toUpperCase();
+  }
+
+  return id.toUpperCase();
+}
+
+function nearbyTelebirrInvoices(invoiceId) {
+  const id = normalizeTelebirrInvoiceId(invoiceId);
+  if (!id || id.length < 8) return [];
+
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const prefix = id.slice(0, -1);
+  const last = id.slice(-1);
+  const variants = [];
+
+  if (id.length > 10) variants.push(id.slice(0, 10));
+
+  for (const ch of chars) {
+    if (ch !== last) variants.push(prefix + ch);
+  }
+  return variants;
+}
+
+export function collectTelebirrInvoiceCandidates(qrData, extracted = null) {
+  const candidates = new Set();
   const fromQr = extractTelebirrInvoiceFromPayload(qrData?.raw)
-    || normalizeTxCode(qrData?.transactionCode);
-  const fromShot = normalizeTxCode(extracted?.transactionCode);
-  return fromQr || fromShot || null;
+    || normalizeTelebirrInvoiceId(qrData?.transactionCode);
+  const fromShot = normalizeTelebirrInvoiceId(extracted?.transactionCode);
+
+  if (fromShot) candidates.add(fromShot);
+  if (fromQr) candidates.add(fromQr);
+  if (fromQr?.length > 10) candidates.add(fromQr.slice(0, 10));
+
+  return { candidates: [...candidates], qrInvoice: fromQr, screenshotInvoice: fromShot };
 }
 
 export async function fetchTelebirrReceipt(invoiceId) {
-  const id = normalizeTxCode(invoiceId);
+  const id = normalizeTelebirrInvoiceId(invoiceId) || normalizeTxCode(invoiceId);
   if (!id) return null;
 
   const url = `${TELEBIRR_RECEIPT_BASE}${encodeURIComponent(id)}`;
@@ -86,9 +136,90 @@ export async function fetchTelebirrReceipt(invoiceId) {
 }
 
 export async function fetchTelebirrTransactionFromQr(qrData, extracted = null) {
-  const invoiceId = resolveTelebirrInvoiceId(qrData, extracted);
-  if (!invoiceId) return null;
-  return fetchTelebirrReceipt(invoiceId);
+  const result = await resolveTelebirrOfficialReceipt({ qrData, extracted });
+  return result?.official || null;
+}
+
+/**
+ * Load official Telebirr record — tries screenshot invoice, QR invoice, then nearby corrections.
+ * Fixes QR scan typos like DF52MV8ILWC → DF52MV8ILW via official web lookup.
+ */
+export async function resolveTelebirrOfficialReceipt({ qrData, extracted = null } = {}) {
+  const { candidates, qrInvoice, screenshotInvoice } = collectTelebirrInvoiceCandidates(qrData, extracted);
+
+  const empty = {
+    official: null,
+    matchedInvoice: null,
+    qrInvoice,
+    screenshotInvoice,
+    qrMisread: false,
+    screenshotEdited: false,
+    verifiedVia: null,
+  };
+
+  if (!candidates.length) return empty;
+
+  // Prefer screenshot invoice when readable (usually more accurate than noisy QR parse)
+  const ordered = screenshotInvoice
+    ? [screenshotInvoice, ...candidates.filter((c) => c !== screenshotInvoice)]
+    : candidates;
+
+  for (const id of ordered) {
+    const official = await fetchTelebirrReceipt(id);
+    if (official) {
+      const qrMisread = Boolean(qrInvoice && qrInvoice !== official.transactionCode);
+      const screenshotEdited = Boolean(
+        screenshotInvoice
+        && screenshotInvoice !== official.transactionCode,
+      );
+      return {
+        official,
+        matchedInvoice: official.transactionCode,
+        qrInvoice,
+        screenshotInvoice,
+        qrMisread,
+        screenshotEdited,
+        verifiedVia: id === screenshotInvoice
+          ? 'screenshot_invoice'
+          : id === qrInvoice
+            ? 'qr_invoice'
+            : 'nearby_invoice',
+      };
+    }
+  }
+
+  // QR misread: try single-character mutations on the QR-parsed invoice
+  if (qrInvoice) {
+    const nearby = nearbyTelebirrInvoices(qrInvoice);
+    for (let i = 0; i < nearby.length; i += 8) {
+      const batch = nearby.slice(i, i + 8);
+      const results = await Promise.all(batch.map((id) => fetchTelebirrReceipt(id)));
+      const idx = results.findIndex(Boolean);
+      if (idx >= 0) {
+        const official = results[idx];
+        console.warn('[Telebirr] QR invoice corrected:', qrInvoice, '→', official.transactionCode);
+        return {
+          official,
+          matchedInvoice: official.transactionCode,
+          qrInvoice,
+          screenshotInvoice,
+          qrMisread: true,
+          screenshotEdited: Boolean(
+            screenshotInvoice
+            && screenshotInvoice !== official.transactionCode,
+          ),
+          verifiedVia: 'nearby_invoice',
+        };
+      }
+    }
+  }
+
+  return empty;
+}
+
+export function resolveTelebirrInvoiceId(qrData, extracted = null) {
+  const { candidates, qrInvoice, screenshotInvoice } = collectTelebirrInvoiceCandidates(qrData, extracted);
+  return screenshotInvoice || qrInvoice || candidates[0] || null;
 }
 
 export function mergeTelebirrApiIntoQrFields(qrFields, telebirrFields) {

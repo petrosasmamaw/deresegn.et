@@ -37,18 +37,21 @@ export function extractTelebirrInvoiceFromPayload(payload) {
     }
     if (hex.length >= 10) {
       const ascii = Buffer.from(hex, 'hex').toString('ascii');
+      const exact = ascii.match(/\b(DFC[A-Z0-9]{7}|DF[A-Z0-9]{8})\b/i);
+      if (exact) return exact[1].toUpperCase();
       if (/^DFC[A-Z0-9]{7}/i.test(ascii)) {
         return ascii.slice(0, 10).toUpperCase();
       }
-      const telebirr = ascii.match(/^(DFC[A-Z0-9]{7})(?=[a-z]|[^A-Za-z0-9]|$)/i);
+      const telebirr = ascii.match(/^(DFC[A-Z0-9]{7})(?=[^A-Z0-9]|$)/i)
+        || ascii.match(/^(DF[A-Z0-9]{8})(?=[^A-Z0-9]|$)/i);
       if (telebirr) return telebirr[1].toUpperCase();
-      const inv = ascii.match(/^([A-Z]{2,4}[A-Z0-9]{6,10})(?=[a-z]|[^A-Za-z0-9]|$)/i);
-      if (inv) return inv[1].toUpperCase();
     }
   }
 
-  const direct = text.match(/\b(DFC[A-Z0-9]{6,14})\b/i)
-    || text.match(/\b([A-Z]{2,4}[A-Z0-9]{6,14})\b/);
+  const direct = text.match(/\b(DFC[A-Z0-9]{7})\b/i)
+    || text.match(/\b(DF[A-Z0-9]{8})\b/i)
+    || text.match(/\b(DFC[A-Z0-9]{6,7})\b/i)
+    || text.match(/\b(DF[A-Z0-9]{7,8})\b/i);
   if (direct) return direct[1].toUpperCase();
 
   return null;
@@ -83,7 +86,7 @@ export function parseTransactionFromQr(qrText) {
 
   const trimmed = qrText.trim();
 
-  if (/^https?:\/\/mbreciept\.cbe\.com\.et\/v2-/i.test(trimmed)) {
+  if (/^https?:\/\/mbreciept\.cbe\.com\.et\//i.test(trimmed)) {
     return null;
   }
 
@@ -125,6 +128,16 @@ export function parseTransactionFromQr(qrText) {
   return trimmed.length >= 8 && trimmed.length <= 32 ? trimmed.toUpperCase() : null;
 }
 
+/** Token from CBE mbreciept QR — mobile success uses v2-…, VAT/web receipt uses opaque id. */
+export function extractCbeMbReceiptToken(text) {
+  const trimmed = String(text || '').trim();
+  const match = trimmed.match(/^https?:\/\/mbreciept\.cbe\.com\.et\/([^/?#]+)/i);
+  if (!match?.[1]) return null;
+  const token = decodeURIComponent(match[1]).trim();
+  if (!token || token.length < 8) return null;
+  return token;
+}
+
 export function parseQrPayload(raw) {
   const text = String(raw || '').trim();
   if (!text) {
@@ -137,12 +150,12 @@ export function parseQrPayload(raw) {
     };
   }
 
-  const cbeMatch = text.match(/^https?:\/\/mbreciept\.cbe\.com\.et\/(v2-[a-z0-9]+)/i);
-  if (cbeMatch) {
+  const cbeToken = extractCbeMbReceiptToken(text);
+  if (cbeToken) {
     return {
       transactionCode: null,
       verificationUrl: text,
-      verificationToken: cbeMatch[1],
+      verificationToken: cbeToken,
       dashenReference: null,
       dashenReceiptToken: null,
     };

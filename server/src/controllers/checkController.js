@@ -1,4 +1,4 @@
-import { submitReceiptCheck, getCheckHistory, CheckError } from '../services/checkService.js';
+import { submitReceiptCheck, submitReferenceCheck, getCheckHistory, CheckError } from '../services/checkService.js';
 import { success, error } from '../utils/response.js';
 
 export async function performCheck(req, res) {
@@ -52,6 +52,45 @@ export async function performCheck(req, res) {
       });
     }
     return error(res, 'Receipt check failed', 500, err.message);
+  }
+}
+
+export async function performReferenceCheck(req, res) {
+  try {
+    const method = req.body.method?.trim();
+    const transactionCode = req.body.transactionCode?.trim() || '';
+    const accountSuffix = req.body.accountSuffix?.trim() || '';
+
+    if (!method) {
+      return error(res, 'Payment method is required', 400);
+    }
+    if (!transactionCode) {
+      return error(res, 'Payment reference is required', 400);
+    }
+
+    const result = await submitReferenceCheck({
+      userId: req.userId,
+      method,
+      transactionCode,
+      accountSuffix,
+    });
+
+    return success(res, {
+      check: result.check,
+      newBalance: result.newBalance,
+      validation: result.validation,
+      issues: result.issues,
+      resolvedDetails: result.resolvedDetails,
+    }, result.message, 200);
+  } catch (err) {
+    if (err instanceof CheckError) {
+      return res.status(err.status).json({
+        success: false,
+        message: err.message,
+        data: err.details,
+      });
+    }
+    return error(res, 'Payment ID verification failed', 500, err.message);
   }
 }
 

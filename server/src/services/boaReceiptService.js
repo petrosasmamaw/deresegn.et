@@ -152,6 +152,14 @@ async function fetchBoaByReference(reference, accounts = []) {
   return results.find(Boolean) || null;
 }
 
+/** Reference-only BOA verify: FT + last 5 digits of payer account. */
+export async function fetchBoaTransactionByReference(reference, accountSuffix) {
+  const ft = normalizeTxCode(reference);
+  const digits = String(accountSuffix || '').replace(/\D/g, '');
+  if (!ft || !/^FT[A-Z0-9]{8,}$/i.test(ft) || digits.length < 5) return null;
+  return fetchBoaByReference(ft, [digits.slice(-5)]);
+}
+
 function nearbyReferences(reference) {
   const ref = normalizeTxCode(reference);
   if (!ref || !/^FT[A-Z0-9]{8,}$/i.test(ref)) return [];

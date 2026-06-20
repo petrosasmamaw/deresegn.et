@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { CheckCircle2, Zap, TrendingUp, ChevronLeft } from 'lucide-react'
 import { fetchBalance, submitTopUp } from '../features/balance/balanceSlice'
-import { fetchCheckHistory, performCheck } from '../features/checks/checksSlice'
+import { fetchCheckHistory, performCheck, performReferenceCheck } from '../features/checks/checksSlice'
 import BalanceCard from '../components/BalanceCard'
 import BottomNav from '../components/BottomNav'
 import TopUpModal from '../components/TopUpModal'
@@ -59,6 +59,26 @@ export default function DashboardPage() {
     }
   }
 
+  const handleReferenceCheckSubmit = async ({ method, transactionCode, accountSuffix }) => {
+    const result = await dispatch(performReferenceCheck({ method, transactionCode, accountSuffix }))
+    if (performReferenceCheck.fulfilled.match(result)) {
+      dispatch(fetchBalance())
+      dispatch(fetchCheckHistory())
+      return {
+        success: true,
+        resolvedDetails: result.payload.resolvedDetails,
+      }
+    }
+    const payload = result.payload || {}
+    const issues = payload.data?.issues || payload.issues || []
+    return {
+      failed: true,
+      issues: issues.length
+        ? issues
+        : [{ message: payload.message || 'Payment ID could not be verified' }],
+    }
+  }
+
   return (
     <main className="flex-1" style={{ background: 'linear-gradient(180deg, var(--color-bg-base) 0%, var(--color-bg-subtle) 100%)' }}>
       {/* Desktop Layout */}
@@ -85,7 +105,7 @@ export default function DashboardPage() {
                 <p className="font-display font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Action</p>
               </div>
               <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mb-4 leading-relaxed">
-                Upload a receipt to verify its authenticity. Screenshot + bank QR check, or optional detail entry.
+                Verify with a receipt screenshot + QR, or enter the payment ID only (Invoice / FT / IPSS).
               </p>
             </div>
             <button
@@ -142,7 +162,7 @@ export default function DashboardPage() {
                 <p className="font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Verify</p>
               </div>
               <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-                Tap the + button below to verify a receipt. Upload screenshot only, or use With Detail to enter fields.
+                Tap the + button below to verify. Use screenshot + QR or payment ID only (no image).
               </p>
             </div>
 
@@ -192,6 +212,7 @@ export default function DashboardPage() {
         isOpen={checkerOpen}
         onClose={() => setCheckerOpen(false)}
         onSubmit={handleCheckSubmit}
+        onReferenceSubmit={handleReferenceCheckSubmit}
         loading={checkLoading}
         error={checkError}
         lastResult={lastCheck}

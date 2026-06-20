@@ -150,19 +150,21 @@ export function analyzeQrAuthenticity(method, raw) {
     case 'cbe': {
       const url = parseUrl(text);
       if (format === 'cbe_url' && url) {
-        const token = url.pathname.replace(/^\//, '');
-        if (/^v2-[a-z0-9]{10,}$/i.test(token)) {
+        const token = url.pathname.replace(/^\//, '').trim();
+        if (/^v2-[a-z0-9]{10,}$/i.test(token) || /^[a-zA-Z0-9]{10,}$/.test(token)) {
           result.authentic = true;
           result.verificationToken = token;
           result.verificationUrl = text;
-          result.reasons.push('Official CBE Mbreciept verification URL detected.');
+          result.reasons.push(token.startsWith('v2-')
+            ? 'Official CBE mobile receipt QR detected.'
+            : 'Official CBE VAT/web receipt QR detected.');
           return result;
         }
         result.reasons.push('CBE QR URL format is invalid.');
         return result;
       }
       if (format === 'plain_tx_code' || format === 'plain_text') {
-        result.reasons.push('CBE receipts use https://mbreciept.cbe.com.et/v2-… verification URLs, not plain text QR codes.');
+        result.reasons.push('CBE receipts use official https://mbreciept.cbe.com.et/… verification URLs, not plain text QR codes.');
         return result;
       }
       if (url && !hasOfficialDomain('cbe', url.hostname)) {
