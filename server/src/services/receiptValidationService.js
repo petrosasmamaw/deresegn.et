@@ -14,6 +14,7 @@ import {
   extractQrReceiptFields,
   detectScreenshotCropped,
   mergeReceiptSources,
+  hasOfficialQrTruth,
 } from './qrFieldExtractor.js';
 
 function issue(type, code, field, message, extra = {}) {
@@ -139,6 +140,20 @@ function validateTopUpReceiver({
   }
 
   if (screenshotCropped && method === 'cbe') {
+    if (qrFields?.cbeApiSource) {
+      if (!qrFields.receiverAccount || !accountsMatch(qrFields.receiverAccount, expectedAccount)) {
+        issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
+          `Receiver account error: QR data does not match your registered account "${expectedAccount}".`,
+          { qrValue: qrFields.receiverAccount, expectedValue: expectedAccount }));
+      }
+      if (qrFields.receiverName && !namesMatch(qrFields.receiverName, expectedName)) {
+        issues.push(issue('error', 'RECEIVER_NAME_MISMATCH', 'receiverName',
+          `Receiver name error: QR data shows "${qrFields.receiverName}" but top-up must be sent to "${expectedName}".`,
+          { qrValue: qrFields.receiverName, expectedValue: expectedName }));
+      }
+      return;
+    }
+
     if (!geminiUsed) {
       issues.push(issue('error', 'AI_UNAVAILABLE', null,
         'Could not read receipt screenshot. Upload a clearer image showing receiver details.'));
@@ -223,7 +238,7 @@ function validateFormAgainstQr({ issues, form, qrFields, method }) {
   }
 }
 
-function validateScreenshotAgainstQr({ issues, extracted, qrFields }) {
+function validateScreenshotAgainstTruth({ issues, extracted, qrFields, truthLabel = 'QR code' }) {
   const pairs = [
     ['transactionCode', 'Payment ID'],
     ['senderName', 'Sender name'],
@@ -235,16 +250,83 @@ function validateScreenshotAgainstQr({ issues, extracted, qrFields }) {
 
   for (const [field, label] of pairs) {
     const shotVal = field === 'transactionCode' ? extracted?.transactionCode : extracted?.[field];
-    const qrVal = field === 'transactionCode' ? qrFields.transactionCode : qrFields[field];
+    const truthVal = field === 'transactionCode' ? qrFields.transactionCode : qrFields[field];
     if (field === 'amount') {
       const s = shotVal != null ? String(shotVal) : null;
-      const q = qrVal != null ? String(qrVal) : null;
-      const mismatch = fieldMismatch(field, label, s, q, 'screenshot', 'QR code');
+      const q = truthVal != null ? String(truthVal) : null;
+      if (!s || !q) continue;
+      const mismatch = fieldMismatch(field, label, s, q, 'screenshot', truthLabel);
       if (mismatch) issues.push(mismatch);
       continue;
     }
-    const mismatch = fieldMismatch(field, label, shotVal, qrVal, 'screenshot', 'QR code');
+    if (!shotVal || !truthVal) continue;
+    const mismatch = fieldMismatch(field, label, shotVal, truthVal, 'screenshot', truthLabel);
     if (mismatch) issues.push(mismatch);
+  }
+}
+
+function validateScreenshotAgainstQr({ issues, extracted, qrFields }) {
+  validateScreenshotAgainstTruth({ issues, extracted, qrFields, truthLabel: 'QR code' });
+}
+
+function validateBoaOfficialReceipt({
+  issues,
+  extracted,
+  qrFields,
+  qrAuthentic,
+  qrFound,
+  screenshotCropped,
+  geminiUsed,
+  boaResolve,
+}) {
+  const hasQrTruth = Boolean(qrFields?.boaQrDecrypted);
+  const hasApiTruth = Boolean(qrFields?.boaApiSource && boaResolve?.official);
+  const hasTruth = hasQrTruth || hasApiTruth;
+  const truthLabel = hasApiTruth
+    ? 'official Bank of Abyssinia record'
+    : 'QR code';
+
+  if (boaResolve?.screenshotEdited && boaResolve?.official) {
+    const shotTx = normalizeTxCode(extracted?.transactionCode);
+    const officialTx = normalizeTxCode(boaResolve.official.transactionCode);
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'transactionCode',
+      `Payment ID error: screenshot shows "${shotTx}" but the official Bank of Abyssinia record is "${officialTx}". The receipt appears edited.`,
+      { screenshotValue: shotTx, qrValue: officialTx }));
+  }
+
+  if (!qrFound || !qrAuthentic) return;
+  if (!geminiUsed) return;
+
+  if (hasTruth) {
+    if (!screenshotCropped) {
+      const fraudFields = [
+        ['transactionCode', extracted?.transactionCode, qrFields?.transactionCode, 'Payment ID'],
+        ['amount', extracted?.amount, qrFields?.amount, 'Amount'],
+        ['receiverName', extracted?.receiverName, qrFields?.receiverName, 'Receiver name'],
+      ];
+      for (const [field, shotVal, truthVal, label] of fraudFields) {
+        if (shotVal == null || shotVal === '' || !truthVal) continue;
+        const mismatch = fieldMismatch(
+          field,
+          label,
+          field === 'amount' ? String(shotVal) : shotVal,
+          field === 'amount' ? String(truthVal) : truthVal,
+          'screenshot',
+          truthLabel,
+        );
+        if (mismatch) {
+          issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', field,
+            `${label} error: screenshot shows "${shotVal}" but the ${truthLabel} shows "${truthVal}". The receipt appears edited.`,
+            { screenshotValue: shotVal, qrValue: truthVal }));
+        }
+      }
+    }
+    return;
+  }
+
+  if (!screenshotCropped) {
+    issues.push(issue('error', 'BOA_VERIFY_FAILED', 'transactionCode',
+      'Could not verify this Bank of Abyssinia receipt. Screenshot payment ID, amount, and receiver name must match the official QR code — the receipt may be edited or invalid.'));
   }
 }
 
@@ -284,6 +366,7 @@ export function validateReceiptSubmission({
   withDetails = true,
   expectedReceiver = null,
   qrFields: providedQrFields = null,
+  boaResolve = null,
 }) {
   const issues = [];
   const isTopUp = Boolean(expectedReceiver);
@@ -345,6 +428,33 @@ export function validateReceiptSubmission({
       { screenshotValue: screenshotTx, qrValue: qrTx }));
   }
 
+  if (method === 'boa') {
+    validateBoaOfficialReceipt({
+      issues,
+      extracted,
+      qrFields,
+      qrAuthentic,
+      qrFound,
+      screenshotCropped,
+      geminiUsed,
+      boaResolve,
+    });
+  } else if (!screenshotCropped && geminiUsed && qrAuthentic) {
+    const truthLabel = hasOfficialQrTruth(qrFields)
+      ? ({
+        telebirr: 'official Telebirr record',
+        cbe: 'official CBE record',
+        dashen: 'official Dashen Bank record',
+      }[method] || 'QR code')
+      : 'QR code';
+    validateScreenshotAgainstTruth({ issues, extracted, qrFields, truthLabel });
+  }
+
+  if (method === 'telebirr' && qrFound && qrAuthentic && !qrFields?.telebirrApiSource && !screenshotCropped) {
+    issues.push(issue('warning', 'TELEBIRR_VERIFY_PARTIAL', null,
+      'Could not load the official Telebirr receipt page. Verification used the signed QR code and screenshot text only.'));
+  }
+
   const qrVerifiedWithForm = withDetails && !isTopUp && isQrTrustworthyForMethod(method, {
     authenticity: qrAuthenticity,
     transactionCode: qrTx,
@@ -386,19 +496,13 @@ export function validateReceiptSubmission({
           'Receipt text appears cut off. Verification used your entered details and the QR code only.'));
       }
     } else {
-      if (!qrVerifiedWithForm) {
-        validateFormAgainstScreenshot({ issues, form, extracted });
-        validateFormAgainstQr({ issues, form, qrFields, method });
+      validateFormAgainstScreenshot({ issues, form, extracted });
+      validateFormAgainstQr({ issues, form, qrFields, method });
 
-        if (qrTx && screenshotTx && formTx && !allTxCodesMatch(formTx, screenshotTx, qrTx)) {
-          issues.push(issue('error', 'TX_CODE_MISMATCH', 'transactionCode',
-            `Payment ID error: form "${formTx}", screenshot "${screenshotTx}", and QR "${qrTx}" do not all match.`,
-            { formValue: formTx, screenshotValue: screenshotTx, qrValue: qrTx }));
-        }
-
-        if (geminiUsed) {
-          validateScreenshotAgainstQr({ issues, extracted, qrFields });
-        }
+      if (qrTx && screenshotTx && formTx && !allTxCodesMatch(formTx, screenshotTx, qrTx)) {
+        issues.push(issue('error', 'TX_CODE_MISMATCH', 'transactionCode',
+          `Payment ID error: form "${formTx}", screenshot "${screenshotTx}", and QR "${qrTx}" do not all match.`,
+          { formValue: formTx, screenshotValue: screenshotTx, qrValue: qrTx }));
       }
 
     if (qrVerifiedWithForm) {
@@ -425,24 +529,30 @@ export function validateReceiptSubmission({
   } else {
     if (screenshotCropped) {
       if (qrAuthentic) {
-        const cropMsg = qrFields?.cbeApiSource
+        const cropMsg = qrFields?.telebirrApiSource
+          ? 'Receipt text appears cut off. Transaction details were loaded from the official Telebirr receipt.'
+          : qrFields?.cbeApiSource
           ? 'Receipt text appears cut off. Transaction details were loaded from the official CBE QR code.'
           : qrFields?.dashenApiSource
             ? 'Receipt text appears cut off. Transaction details were loaded from the official Dashen Bank receipt.'
             : qrFields?.dashenSuperAppSource
-              ? 'Dashen Super App success screen verified using the official QR code and visible receipt details.'
+              ? 'Receipt text appears cut off. Verification used the official Dashen Super App QR code only.'
               : qrFields?.boaApiSource
               ? 'Receipt text appears cut off. Transaction details were loaded from the official Bank of Abyssinia QR code.'
+              : qrFields?.boaQrDecrypted
+                ? 'Receipt text appears cut off. Transaction details were loaded from the official Bank of Abyssinia QR code.'
               : `Receipt text appears cut off. Verification used the official ${getMethodLabel(method)} QR code only.`;
         issues.push(issue('warning', 'SCREENSHOT_CROPPED', null, cropMsg));
       }
-      const amt = parseFloat(qrFields.amount) || parseFloat(extracted?.amount);
+      const amt = parseFloat(qrFields.amount);
       if (!amt || amt <= 0) {
         issues.push(issue('error', 'AMOUNT_UNREADABLE', 'amount',
           'Amount error: could not read amount from QR code. Upload a clearer screenshot with the full QR code visible.'));
       }
     } else if (geminiUsed) {
-      validateScreenshotAgainstQr({ issues, extracted, qrFields });
+      if (method === 'boa') {
+        // validateBoaOfficialReceipt handles non-cropped BOA cross-check
+      }
 
       const amt = parseFloat(qrFields.amount) || parseFloat(extracted?.amount);
       if (!amt || amt <= 0) {
@@ -460,12 +570,15 @@ export function validateReceiptSubmission({
       `${geminiError || 'AI screenshot reading was unavailable.'} QR code was still checked.`));
   }
 
-  if (qrAuthentic && !isTopUp) {
+  if (qrAuthentic && !isTopUp && !(method === 'boa' && !qrFields?.boaApiSource && !qrFields?.boaQrDecrypted)
+    && !(method === 'telebirr' && !qrFields?.telebirrApiSource && !hasOfficialQrTruth(qrFields))) {
     issues.push(issue('warning', 'QR_VERIFIED', 'transactionCode',
       `Official ${getMethodLabel(method)} QR code verified — not fake.`));
   }
 
-  const txCode = qrTx || screenshotTx || (withDetails ? formTx : null);
+  const txCode = (method === 'boa' && (qrFields?.boaApiSource || qrFields?.boaQrDecrypted) && qrFields?.transactionCode)
+    ? qrFields.transactionCode
+    : (qrTx || screenshotTx || (withDetails ? formTx : null));
   if (!txCode && !(isTopUp && qrAuthentic && method === 'cbe' && qrData?.verificationToken)
     && !(qrAuthentic && method === 'dashen' && (qrFields?.dashenApiSource || qrFields?.dashenSuperAppSource || qrData?.dashenReceiptToken))) {
     issues.push(issue('error', 'TX_CODE_INVALID', 'transactionCode',
@@ -476,7 +589,7 @@ export function validateReceiptSubmission({
 
   const preferQr = screenshotCropped || isTopUp || (
     !extracted?.senderName && Boolean(qrFields?.senderName)
-  ) || qrFields?.cbeApiSource || qrFields?.dashenApiSource || qrFields?.dashenSuperAppSource || qrFields?.boaApiSource;
+  ) || qrFields?.telebirrApiSource || qrFields?.cbeApiSource || qrFields?.dashenApiSource || qrFields?.dashenSuperAppSource || qrFields?.boaApiSource || qrFields?.boaQrDecrypted;
   const merged = mergeReceiptSources({
     extracted,
     qrFields,

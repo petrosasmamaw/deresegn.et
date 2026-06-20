@@ -11,18 +11,15 @@ import { normalizeTxCode } from '../utils/txCode.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { fetchCbeTransactionFromQr, mergeCbeApiIntoQrFields } from './cbeReceiptService.js';
 import {
-  fetchDashenTransactionFromQr,
-  mergeDashenApiIntoQrFields,
-  resolveDashenQrData,
-  extractDashenReferenceFromText,
-} from './dashenReceiptService.js';
+  fetchTelebirrTransactionFromQr,
+  mergeTelebirrApiIntoQrFields,
+} from './telebirrReceiptService.js';
 import {
-  decodeDashenUploadQr,
-  decodeDashenUploadQrFromPath,
-  enrichDashenSuccessReceiptFields,
-  isDashenSuperAppReceiptToken,
-} from './dashenSuccessReceiptService.js';
-import { fetchBoaTransactionFromQr, mergeBoaApiIntoQrFields } from './boaReceiptService.js';
+  verifyDashenReceipt,
+} from './dashenService.js';
+import {
+  verifyBoaReceipt,
+} from './boaReceiptService.js';
 
 function toMoney(value) {
   return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
@@ -35,6 +32,9 @@ export function resolvePaymentId(method, { validation, qrData, extracted }) {
   const fallbackTx = normalizeTxCode(validation?.txCode);
 
   if (method === 'telebirr') {
+    if (qrFields?.telebirrApiSource) {
+      return qrTx || fallbackTx || screenshotTx || null;
+    }
     return qrTx || screenshotTx || fallbackTx || null;
   }
   if (method === 'cbe') {
@@ -42,6 +42,12 @@ export function resolvePaymentId(method, { validation, qrData, extracted }) {
   }
   if (method === 'dashen') {
     return qrTx || screenshotTx || qrData?.dashenReference || qrData?.dashenReceiptToken || qrData?.verificationToken || fallbackTx || null;
+  }
+  if (method === 'boa') {
+    if (qrFields?.boaApiSource || qrFields?.boaQrDecrypted) {
+      return qrTx || fallbackTx || screenshotTx || null;
+    }
+    return null;
   }
   return qrTx || screenshotTx || fallbackTx || null;
 }
@@ -210,43 +216,28 @@ async function extractScreenshotData({ screenshotBuffer, screenshotMime, screens
   const { buffer, mime } = await resolveScreenshotInput({ screenshotBuffer, screenshotMime, screenshotPath });
 
   if (method === 'dashen') {
-    console.log('[Dashen] Upload buffer:', buffer?.length || 0, 'bytes', mime || 'unknown');
+    const dashen = await verifyDashenReceipt({ buffer, mime, screenshotPath });
+    return {
+      extracted: dashen.extracted,
+      geminiUsed: dashen.geminiUsed,
+      geminiError: dashen.geminiError,
+      initialQr: dashen.qrData,
+      dashenQrFields: dashen.qrFields,
+      buffer,
+    };
+  }
 
-    let initialQr = buffer
-      ? await decodeDashenUploadQr(buffer, { maxMs: 40000, vatMode: false })
-      : await decodeDashenUploadQrFromPath(screenshotPath, { maxMs: 40000, vatMode: false });
-
-    let extracted;
-    try {
-      extracted = buffer
-        ? await extractPaymentFromBuffer(buffer, method, mime)
-        : await extractPaymentFromScreenshot(screenshotPath, method);
-    } catch (err) {
-      geminiError = err.message;
-      console.warn('[Gemini]', geminiError);
-      geminiUsed = false;
-      extracted = {
-        senderName: null,
-        senderAccount: null,
-        receiverName: null,
-        receiverAccount: null,
-        amount: null,
-        date: null,
-        transactionCode: null,
-      };
-    }
-
-    const vatRef = extractDashenReferenceFromText(extracted?.transactionCode);
-
-    if (!initialQr?.raw && vatRef && buffer) {
-      initialQr = await decodeDashenUploadQr(buffer, { maxMs: 12000, vatMode: true });
-    }
-
-    if (!initialQr?.raw) {
-      console.warn('[Dashen] QR not found after primary scan', vatRef ? '(VAT path)' : '(success screen)');
-    }
-
-    return { extracted, geminiUsed, geminiError, initialQr, buffer };
+  if (method === 'boa') {
+    const boa = await verifyBoaReceipt({ buffer, mime, screenshotPath });
+    return {
+      extracted: boa.extracted,
+      geminiUsed: boa.geminiUsed,
+      geminiError: boa.geminiError,
+      initialQr: boa.qrData,
+      boaQrFields: boa.qrFields,
+      boaResolve: boa.boaResolve,
+      buffer,
+    };
   }
 
   const geminiPromise = (buffer
@@ -292,31 +283,24 @@ async function runReceiptVerification({
   withDetails = true,
   expectedReceiver = null,
 }) {
-  const { extracted, geminiUsed, geminiError, initialQr, buffer } = await extractScreenshotData(
+  const {
+    extracted, geminiUsed, geminiError, initialQr, buffer, dashenQrFields, boaQrFields, boaResolve,
+  } = await extractScreenshotData(
     { screenshotBuffer, screenshotMime, screenshotPath },
     method,
   );
 
   let qrData = initialQr;
-  if (method === 'dashen') {
-    qrData = await resolveDashenQrData(qrData, extracted);
-    if (!qrData?.raw && !extractDashenReferenceFromText(extracted?.transactionCode)) {
-      const retrySource = buffer || await readScreenshotBuffer(screenshotPath);
-      if (retrySource) {
-        const retry = await decodeDashenUploadQr(retrySource, { maxMs: 45000, vatMode: false });
-        if (retry?.raw) qrData = retry;
-      } else {
-        const retry = await decodeDashenUploadQrFromPath(screenshotPath, { maxMs: 45000, vatMode: false });
-        if (retry?.raw) qrData = retry;
-      }
-    }
-  }
 
   if (qrData?.transactionCode) {
     console.log('[QR] Payment ID from QR:', qrData.transactionCode);
   }
 
-  let qrFields = extractQrReceiptFields(method, qrData);
+  let qrFields = method === 'dashen' && dashenQrFields
+    ? dashenQrFields
+    : method === 'boa' && boaQrFields
+      ? boaQrFields
+      : extractQrReceiptFields(method, qrData);
   if (method === 'cbe' && qrData?.verificationToken) {
     const cbeApiFields = await fetchCbeTransactionFromQr(qrData);
     qrFields = mergeCbeApiIntoQrFields(qrFields, cbeApiFields);
@@ -324,30 +308,10 @@ async function runReceiptVerification({
       console.log('[CBE API] Loaded transaction:', cbeApiFields.transactionCode);
     }
   }
-  if (method === 'dashen' && (qrData?.raw || qrData?.dashenReference)) {
-    qrFields = enrichDashenSuccessReceiptFields(qrData, extracted, qrFields);
-    if (!isDashenSuperAppReceiptToken(qrData?.raw)) {
-      const dashenApiFields = qrData?.officialFields
-        || await fetchDashenTransactionFromQr(qrData, {
-          screenshotReference: extracted?.transactionCode,
-        });
-      qrFields = mergeDashenApiIntoQrFields(qrFields, dashenApiFields);
-      if (dashenApiFields?.transactionCode) {
-        console.log('[Dashen PDF] Loaded transaction:', dashenApiFields.transactionCode);
-      }
-    } else {
-      console.log('[Dashen] Success screen QR verified:', qrData.dashenReceiptToken?.slice(0, 40));
-    }
-  }
-  if (method === 'boa' && qrData?.raw) {
-    const boaApiFields = await fetchBoaTransactionFromQr(qrData, {
-      receiverAccount: extracted?.receiverAccount,
-      senderAccount: extracted?.senderAccount,
-    });
-    qrFields = mergeBoaApiIntoQrFields(qrFields, boaApiFields);
-    if (boaApiFields?.transactionCode) {
-      console.log('[BOA API] Loaded transaction:', boaApiFields.transactionCode);
-    }
+
+  if (method === 'telebirr' && qrData?.raw) {
+    const telebirrFields = await fetchTelebirrTransactionFromQr(qrData, extracted);
+    qrFields = mergeTelebirrApiIntoQrFields(qrFields, telebirrFields);
   }
 
   const validation = validateReceiptSubmission({
@@ -360,6 +324,7 @@ async function runReceiptVerification({
     geminiError,
     withDetails,
     expectedReceiver,
+    boaResolve,
   });
 
   const paymentId = resolvePaymentId(method, { validation, qrData, extracted });

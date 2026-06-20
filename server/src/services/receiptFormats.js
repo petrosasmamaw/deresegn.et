@@ -100,31 +100,72 @@ Field mapping:
 
   dashen: `${BASE_RULES}
 
-This is a Dashen Bank receipt. Two distinct layouts you might see:
+## DASHEN BANK RECEIPT ANALYSIS
 
-LAYOUT 1 - "Successfully Paid!" (Mobile app success screen - DARK BLUE background)
-- Shows transaction confirmation on user's phone
-- Has: "Successfully paid!" header, sender/receiver names and accounts, amount (ETB), QR code overlay
-- Transaction Reference at bottom of receipt or in QR code
-- Extract from visible text: transaction amount, sender/receiver details
+You are analyzing a Dashen Bank Super App payment receipt. CRITICAL: This could be one of two types:
 
-LAYOUT 2 - "Dashen Bank Super App Electronic Value Added Tax Receipt" (Formal bank receipt)
-- White/light background with Dashen Bank logo and branding
-- Structured table format with clear row labels
-- Has: Bank details, transaction table, VAT breakdown, QR code at bottom
-- Look for: "Transaction Amount" row (this is the actual transfer amount, NOT total with fees)
-- Transaction Reference: typically labeled as "Transaction Reference" or visible in data rows
+### RECEIPT TYPE 1: SUCCESS SCREEN ("Successfully paid!" - DARK BLUE app screen)
+**Appearance:** Mobile app confirmation screen with green checkmark
+**Layout:**
+- Header: "Successfully paid!" (green circle with checkmark)
+- "You have paid successfully. Thank you!"
+- Amount display: "100.00 (ETB)" or similar
+- Sender details: "Sender Name: ...", "Sender Account: ..."
+- Receiver details: "Recipient Account: ...", "Recipient Name: ..."
+- QR code (often overlaid at bottom)
 
-IMPORTANT FOR DASHEN:
-- transactionCode examples: 110IPSS2616900WO, 11OBTS2616900XX (starts with digits + IPSS/OBTS/ETAP)
-- amount: Extract from "Transaction Amount" row or paid amount field (NOT "Total" which includes charges)
-- Sender/Receiver accounts may be MASKED (e.g. 5110****011, 1000333687112)
-- senderName = "Sender Name" field
-- senderAccount = "Sender Account" or "Sender Account Number"
-- receiverName = "Receiver Name" or "Recipient Name"
-- receiverAccount = "Receiver Account" or "Recipient Account" or "Institution Name"
+**Extraction:**
+- senderName = "Sender Name:" value
+- senderAccount = "Sender Account:" value (may be masked: 5110****011)
+- receiverName = "Recipient Name:" or "Recipient:" value
+- receiverAccount = "Recipient Account:" or account number shown
+- amount = the main amount displayed (100.00), NOT fees
+- transactionCode = in QR code or visible as transaction ID
 
-Return only visible and clearly labeled fields as null if not found.`,
+### RECEIPT TYPE 2: VAT RECEIPT (Formal bank receipt - WHITE/light background)
+**Appearance:** Formal Dashen Bank receipt with official branding and logo
+**Layout:**
+- Header: "Dashen Bank Super App Electronic Value Added Tax Receipt"
+- Bank details section (address, contact, VAT ID)
+- "Transaction Details" section with a TABLE containing rows
+- QR code at bottom
+
+**CRITICAL TABLE ROWS (extract ONLY these):**
+- "Transaction Amount" = THE ACTUAL TRANSFER AMOUNT (use this for amount field)
+- "Service Charge" = fee (ignore)
+- "Excise Tax (15%)" = tax (ignore)
+- "VAT (15%)" = VAT (ignore)
+- "Total" = amount + all charges (ignore for amount field, use Transaction Amount only)
+- "Transaction Reference" = transactionCode (e.g., 110IPSS2616900WO)
+
+**Extraction:**
+- senderName = "Sender Name:" value
+- senderAccount = "Sender Account Number:" value (usually masked)
+- receiverName = "Receiver Name:" value
+- receiverAccount = "Receiver Account Number:" value
+- amount = "Transaction Amount" row value ONLY (NOT Total)
+- transactionCode = "Transaction Reference:" value or visible in receipt
+
+## CRITICAL RULES:
+
+1. **Transaction Amount vs Total:** 
+   - Use "Transaction Amount" for amount field (the actual transfer)
+   - Ignore "Total" (which includes fees, service charges, VAT, excise tax, DRRF fee, etc.)
+   - This is a common fraud check - scammers show Total as amount
+
+2. **Transaction Code Format:**
+   - Valid format: 110IPSS2616900WO, 11OBTS..., 11ETAP... (digits + IPSS/OBTS/ETAP + alphanumeric)
+   - MUST have this pattern to be valid
+
+3. **Masked Accounts:**
+   - Accounts may be masked: 5110****011, 1000333687112 (this is normal and valid)
+   - Extract as shown, including mask characters
+
+4. **Screenshot Completeness:**
+   - Success Screen: Should show sender/receiver names AND accounts AND amount
+   - VAT Receipt: Should show transaction table with labeled rows
+
+Return ONLY the extracted JSON with actual values. If field not visible/labeled, set to null.`,
 };
 
 export function buildExtractionPrompt(method) {

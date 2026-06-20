@@ -111,35 +111,27 @@ export function extractQrReceiptFields(method, qrData) {
     fields.dashenReceiptToken = qrData?.dashenReceiptToken || null;
     
     for (const chunk of chunks) {
-      // Extract amount - prioritize "Transaction Amount" 
+      // Extract amount - simple numeric extraction
       if (!fields.amount) {
-        const txAmtMatch = chunk.match(/transaction\s*amount[^\d]{0,10}([\d,]+\.?\d{2})/i);
-        fields.amount = fields.amount || parseAmount(txAmtMatch?.[1]) || extractAmountFromPayloadText(chunk);
+        const amount = extractAmountFromPayloadText(chunk);
+        if (amount) fields.amount = amount;
       }
 
-      // Extract Dashen-specific transaction reference (3 formats):
-      // 1. Direct format: 110IPSS2616900WO (starts with digits + IPSS/OBTS)
-      // 2. URL format: receipt.dashensuperapp.com/receipt/XXXXX
-      // 3. Backup formats: IPSS patterns
+      // Extract Dashen transaction reference (pattern: 110IPSS2616900WO)
       if (!fields.transactionCode) {
-        // Format 1: Standard Dashen reference
         const dashenRef = chunk.match(/\b(\d{2,3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i);
         if (dashenRef) {
           fields.transactionCode = normalizeTxCode(dashenRef[1]);
-        } else {
-          // Format 2: From dashboard token
-          fields.transactionCode = fields.transactionCode
-            || normalizeTxCode(qrData?.dashenReference)
-            || normalizeTxCode(chunk.match(/receipt\.dashensuperapp\.com\/receipt\/([A-Z0-9]+)/i)?.[1])
-            || normalizeTxCode(chunk.match(/\b(IPSS\d+[A-Z0-9]+)\b/i)?.[1]);
         }
       }
 
+      // Extract sender/receiver from labeled fields
       fields.receiverName = fields.receiverName || extractNameFromPayloadText(chunk, 'receiver');
       fields.receiverAccount = fields.receiverAccount
-        || chunk.match(/\b(1\d{11,14})\b/)?.[1]
         || chunk.match(/receiver\s*account[^\d]{0,20}([0-9*]+)/i)?.[1]
+        || chunk.match(/\b(1\d{11,14})\b/)?.[1]
         || null;
+      
       fields.senderName = fields.senderName || extractNameFromPayloadText(chunk, 'sender');
       fields.senderAccount = fields.senderAccount
         || chunk.match(/sender\s*account[^\d]{0,20}([0-9*]+)/i)?.[1]
@@ -163,6 +155,17 @@ export function extractQrReceiptFields(method, qrData) {
   return fields;
 }
 
+/** True when QR fields were loaded from an official bank source (API, PDF, decrypt, web). */
+export function hasOfficialQrTruth(qrFields) {
+  return Boolean(
+    qrFields?.telebirrApiSource
+    || qrFields?.cbeApiSource
+    || qrFields?.dashenApiSource
+    || qrFields?.boaApiSource
+    || qrFields?.boaQrDecrypted,
+  );
+}
+
 export function detectScreenshotCropped({
   extracted,
   qrTx,
@@ -171,8 +174,6 @@ export function detectScreenshotCropped({
   qrFields,
 }) {
   if (!qrAuthentic) return false;
-
-  if (qrFields?.dashenSuperAppSource) return false;
 
   if (screenshotTx && qrTx) {
     const s = normalizeTxCode(screenshotTx);
