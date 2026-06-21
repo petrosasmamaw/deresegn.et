@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload, ListChecks, Hash, Camera } from 'lucide-react'
+import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload, ListChecks, Hash, Camera, MessageSquare } from 'lucide-react'
 import { VerificationFailureList, VerificationSuccessNote, VerificationWarningList } from './VerificationResult'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 import ReceiptDetailFields from './ReceiptDetailFields'
@@ -42,13 +42,22 @@ const TX_PLACEHOLDERS = {
   dashen: 'e.g. 110IPSS2616900WO',
 }
 
+const SMS_SUPPORTED = new Set(['telebirr', 'cbe'])
+
+const SMS_PLACEHOLDERS = {
+  telebirr: `Dear customer
+You have transferred ETB 60.00 to Receiver Name (2519****4025) on 17/06/2026 18:14:15. Your transaction number is DFH51OFIED...
+https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
+  cbe: `Dear Mr Petros your Account 1****7112 has been credited with ETB 100...
+for Reciept https://apps.cbe.com.et:100/BranchReceipt/FT2616987RR0&33687112`,
+}
+
 const UPLOAD_HINTS = {
   telebirr: 'Full Telebirr receipt with QR code at the bottom',
   cbe: 'CBE mobile success screen or VAT/web receipt with QR code at the bottom',
   boa: 'Bank of Abyssinia receipt with "Scan the QR to Verify"',
   dashen: 'Dashen receipt or "Successfully paid!" screen with QR code',
 }
-
 function getCheckCostByAmount(amount) {
   const numAmount = parseFloat(amount) || 0
   if (numAmount < 100) return 2
@@ -77,6 +86,7 @@ export default function CheckerModal({
   onClose,
   onSubmit,
   onReferenceSubmit,
+  onSmsSubmit,
   loading,
   error,
   lastResult,
@@ -93,6 +103,7 @@ export default function CheckerModal({
   const [successDetails, setSuccessDetails] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [referenceForm, setReferenceForm] = useState(EMPTY_REFERENCE)
+  const [smsText, setSmsText] = useState('')
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -121,6 +132,7 @@ export default function CheckerModal({
     setSuccessDetails(null)
     setForm(EMPTY_FORM)
     setReferenceForm(EMPTY_REFERENCE)
+    setSmsText('')
   }
 
   const handleClose = () => {
@@ -128,7 +140,9 @@ export default function CheckerModal({
     onClose()
   }
 
-  const successStep = verifyMode === 'reference' ? 4 : (withDetails ? 5 : 4)
+  const successStep = verifyMode === 'reference' || verifyMode === 'sms'
+    ? 4
+    : (withDetails ? 5 : 4)
 
   const runVerify = async (useDetails) => {
     if (!screenshot) {
@@ -182,6 +196,25 @@ export default function CheckerModal({
     }
   }
 
+  const runSmsVerify = async (e) => {
+    e.preventDefault()
+    setRejected(false)
+    setFailureIssues([])
+
+    const result = await onSmsSubmit({ method, smsText })
+
+    if (result?.failed) {
+      setFailureIssues(result.issues || [])
+      setRejected(true)
+      return
+    }
+
+    if (result?.success) {
+      setSuccessDetails(result.resolvedDetails || lastResolvedDetails || null)
+      setStep(4)
+    }
+  }
+
   const handleQuickVerify = async (e) => {
     e.preventDefault()
     await runVerify(false)
@@ -206,15 +239,19 @@ export default function CheckerModal({
     transactionCode: lastResult.transactionCode,
   } : null)
 
-  const successMessage = verifyMode === 'reference'
-    ? '✓ Payment ID verified successfully'
-    : '✓ Receipt verified successfully'
+  const successMessage = verifyMode === 'sms'
+    ? '✓ SMS verified successfully'
+    : verifyMode === 'reference'
+      ? '✓ Payment ID verified successfully'
+      : '✓ Receipt verified successfully'
 
-  const successSubtext = verifyMode === 'reference'
-    ? 'Verified from official bank record (no screenshot)'
-    : withDetails
-      ? 'Verified with your entered details'
-      : 'Verified from screenshot & QR code'
+  const successSubtext = verifyMode === 'sms'
+    ? 'SMS details matched the official bank receipt'
+    : verifyMode === 'reference'
+      ? 'Verified from official bank record (no screenshot)'
+      : withDetails
+        ? 'Verified with your entered details'
+        : 'Verified from screenshot & QR code'
 
   return (
     <div className="modal-overlay">
@@ -234,7 +271,7 @@ export default function CheckerModal({
                 type="button"
                 onClick={() => {
                   setRejected(false)
-                  if (verifyMode === 'reference') setStep(3)
+                  if (verifyMode === 'reference' || verifyMode === 'sms') setStep(3)
                   else setStep(withDetails ? 4 : 3)
                 }}
                 className="btn-secondary flex-1 flex items-center justify-center gap-2"
@@ -316,7 +353,7 @@ export default function CheckerModal({
                   </button>
                   <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 2: Choose Verification Type</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    Screenshot uses QR + OCR. Payment ID looks up the official bank record directly.
+                    Screenshot uses QR + OCR. Payment ID or SMS looks up the official bank record.
                   </p>
                 </div>
 
@@ -352,12 +389,33 @@ export default function CheckerModal({
                   </div>
                 </button>
 
+                {SMS_SUPPORTED.has(method) && (
+                  <button
+                    type="button"
+                    onClick={() => { setVerifyMode('sms'); setStep(3) }}
+                    className="w-full card p-4 text-left border-2"
+                    style={{ borderColor: 'var(--color-border)' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <MessageSquare size={20} style={{ color: 'var(--color-info)' }} />
+                      <div>
+                        <p className="font-semibold text-[var(--text-sm)]">Bank SMS</p>
+                        <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">Paste the transaction SMS — we fetch the official receipt and compare</p>
+                      </div>
+                      <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-info)' }} />
+                    </div>
+                  </button>
+                )}
+
                 <div className="rounded-lg p-4 border text-[var(--text-xs)] font-mono leading-relaxed" style={{ background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border)' }}>
                   <p className="font-semibold text-[var(--text-sm)] font-sans mb-2">Payment ID guide</p>
                   <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">Telebirr</span> → Invoice No. only</p>
                   <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">Dashen</span> → IPSS reference only (VAT receipts)</p>
                   <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">CBE</span> → FT reference + last 8 digits of sender account</p>
                   <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">BOA</span> → FT reference + last 5 digits of sender account</p>
+                  {SMS_SUPPORTED.has(method) && (
+                    <p className="text-[var(--color-text-secondary)] mt-2 font-sans"><span className="text-[var(--color-text-primary)]">SMS</span> → paste full Telebirr or CBE transaction SMS with receipt link</p>
+                  )}
                 </div>
               </div>
             )}
@@ -450,6 +508,40 @@ export default function CheckerModal({
 
                 <button type="submit" disabled={loading || !referenceReady} className="btn-primary w-full">
                   {loading ? 'Verifying...' : 'Verify Payment ID'}
+                </button>
+              </form>
+            )}
+
+            {step === 3 && verifyMode === 'sms' && (
+              <form onSubmit={runSmsVerify} className="space-y-5">
+                <div>
+                  <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
+                    ← Back to Type
+                  </button>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Paste Transaction SMS</p>
+                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
+                    We parse the SMS, fetch the official receipt from the link inside it, and verify amount, account, and payment ID match.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="label">Transaction SMS</label>
+                  <textarea
+                    className="input w-full min-h-[180px] font-mono text-[var(--text-xs)]"
+                    placeholder={SMS_PLACEHOLDERS[method]}
+                    value={smsText}
+                    onChange={(e) => setSmsText(e.target.value)}
+                    required
+                  />
+                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-2">
+                    {method === 'telebirr'
+                      ? 'Include the full message with transaction number and ethiotelecom.et/receipt link.'
+                      : 'Include the full message with credited/debited amount and apps.cbe.com.et BranchReceipt link.'}
+                  </p>
+                </div>
+
+                <button type="submit" disabled={loading || smsText.trim().length < 40} className="btn-primary w-full">
+                  {loading ? 'Verifying...' : 'Verify SMS'}
                 </button>
               </form>
             )}

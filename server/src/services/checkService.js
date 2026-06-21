@@ -5,7 +5,7 @@ import { balances, receiptChecks, topUpTransactions } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { extractPaymentFromScreenshot, extractPaymentFromBuffer } from './geminiService.js';
 import { decodeQrFromImage, decodeQrFromBuffer } from './qrService.js';
-import { validateReceiptSubmission, buildDuplicateTxIssue } from './receiptValidationService.js';
+import { validateReceiptSubmission, buildDuplicateTxIssue, validateOfficialTopUpReceiver } from './receiptValidationService.js';
 import { getTopUpReceiverAccount } from './topUpAccountService.js';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
@@ -22,6 +22,10 @@ import {
   REFERENCE_SCREENSHOT_PLACEHOLDER,
   validateReferenceInput,
 } from './referenceVerifyService.js';
+import {
+  verifySmsTransaction,
+  SMS_SCREENSHOT_PLACEHOLDER,
+} from './smsVerifyService.js';
 
 function toMoney(value) {
   return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
@@ -564,6 +568,126 @@ export async function submitReferenceCheck({
   }
 }
 
+export async function submitSmsCheck({
+  userId,
+  method,
+  smsText,
+}) {
+  if (!['telebirr', 'cbe'].includes(method)) {
+    throw new CheckError('SMS verification is only supported for Telebirr and CBE', 400, {
+      issues: [{
+        type: 'error',
+        code: 'UNSUPPORTED_METHOD',
+        field: 'method',
+        message: 'SMS verification is only supported for Telebirr and CBE',
+      }],
+    });
+  }
+
+  const trimmed = String(smsText || '').trim();
+  if (!trimmed || trimmed.length < 40) {
+    throw new CheckError('Paste the full transaction SMS including the receipt link', 400, {
+      issues: [{
+        type: 'error',
+        code: 'SMS_REQUIRED',
+        field: 'smsText',
+        message: 'Paste the full transaction SMS including the receipt link',
+      }],
+    });
+  }
+
+  let result;
+  try {
+    result = await verifySmsTransaction(method, trimmed);
+  } catch (err) {
+    if (err.isValidation) {
+      throw new CheckError(err.message, 400, {
+        issues: [{
+          type: 'error',
+          code: 'INVALID_SMS',
+          field: err.field || 'smsText',
+          message: err.message,
+        }],
+      });
+    }
+    throw err;
+  }
+
+  if (!result.passed) {
+    throw new CheckError(result.message, 422, {
+      issues: result.issues.filter((i) => i.type === 'error'),
+    });
+  }
+
+  const duplicateCheck = await findCheckByTxCode(result.txCode);
+  if (duplicateCheck) {
+    const dupIssue = buildDuplicateTxIssue(result.txCode);
+    throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+  }
+
+  const duplicateTopUp = await findTopUpByTxCode(result.txCode);
+  if (duplicateTopUp?.status === 'complete') {
+    const dupIssue = buildDuplicateTxIssue(result.txCode);
+    throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+  }
+
+  const details = result.resolvedDetails;
+  const checkCost = getCheckCostByAmount(details.amount);
+  const newBalance = await deductBalance(userId, checkCost);
+
+  const validation = {
+    passed: true,
+    verifyMode: 'sms',
+    txCode: result.txCode,
+    resolvedDetails: details,
+    officialSource: result.official?.source || 'official_receipt',
+    smsParsed: result.parsed,
+    issues: result.issues,
+    warnings: result.issues.filter((i) => i.type === 'warning'),
+    errors: [],
+  };
+
+  try {
+    const [saved] = await db.insert(receiptChecks).values({
+      userId,
+      paymentMethod: method,
+      senderName: details.senderName,
+      senderAccount: details.senderAccount,
+      receiverName: details.receiverName,
+      receiverAccount: details.receiverAccount,
+      amount: String(details.amount || 0),
+      transactionCode: result.txCode,
+      screenshotUrl: SMS_SCREENSHOT_PLACEHOLDER,
+      enteredDetails: JSON.stringify({
+        verifyMode: 'sms',
+        smsTextPreview: trimmed.slice(0, 500),
+      }),
+      extractedDetails: JSON.stringify({ sms: result.parsed, official: result.official }),
+      qrData: JSON.stringify(null),
+      validationResult: JSON.stringify(validation),
+      isValid: true,
+      balanceDeducted: checkCost,
+    }).returning();
+
+    return {
+      check: parseCheckRow(saved),
+      newBalance,
+      message: 'SMS verified successfully',
+      validation,
+      issues: result.issues,
+      resolvedDetails: details,
+    };
+  } catch (err) {
+    await addBalance(userId, checkCost);
+
+    if (err.code === '23505') {
+      const dupIssue = buildDuplicateTxIssue(result.txCode);
+      throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+    }
+    throw err;
+  }
+}
+
 export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' }) {
   const receiverConfig = await getTopUpReceiverAccount(method);
   if (!receiverConfig) {
@@ -594,7 +718,6 @@ export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' 
     }
 
     const details = result.validation.resolvedDetails;
-    const birrAmount = parseFloat(details.amount) || 0;
     const paymentId = result.validation.txCode || resolvePaymentId(method, {
       validation: result.validation,
       qrData: result.qrData,
@@ -605,10 +728,6 @@ export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' 
       throw new TopUpError('Payment ID error: could not determine a unique payment ID from the QR code or receipt.', 422);
     }
 
-    if (birrAmount <= 0) {
-      throw new TopUpError('Invalid amount. Please deposit a valid Birr amount.', 422);
-    }
-
     details.transactionCode = paymentId;
 
     const upload = await uploadScreenshot(screenshotPath);
@@ -616,51 +735,17 @@ export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' 
     screenshotPublicId = upload.publicId;
 
     try {
-      const outcome = await db.transaction(async (tx) => {
-        const [existingBalance] = await tx
-          .select()
-          .from(balances)
-          .where(eq(balances.userId, userId))
-          .limit(1);
-
-        let balanceRow = existingBalance;
-        if (!balanceRow) {
-          const [created] = await tx.insert(balances).values({ userId, amount: '0.00' }).returning();
-          balanceRow = created;
-        }
-
-        const current = parseFloat(toMoney(balanceRow.amount));
-        const nextBalance = toMoney(current + birrAmount);
-
-        const [transaction] = await tx.insert(topUpTransactions).values({
-          userId,
-          screenshotUrl,
-          status: 'complete',
-          senderName: details.senderName,
-          senderAccount: details.senderAccount,
-          receiverName: details.receiverName,
-          receiverAccount: details.receiverAccount,
-          amount: toMoney(birrAmount),
-          transactionCode: paymentId,
-          aiResult: JSON.stringify({
-            extracted: result.extracted,
-            qrData: result.qrData,
-            validation: result.validation,
-          }),
-          unitsAdded: Math.round(birrAmount),
-          submittedAt: new Date(),
-        }).returning();
-
-        const [updatedBalance] = await tx
-          .update(balances)
-          .set({ amount: nextBalance, updatedAt: new Date() })
-          .where(eq(balances.userId, userId))
-          .returning();
-
-        return {
-          transaction,
-          newBalance: parseFloat(toMoney(updatedBalance.amount)),
-        };
+      const outcome = await creditTopUpBalance({
+        userId,
+        details,
+        paymentId,
+        screenshotUrl,
+        aiResult: {
+          verifyMode: 'screenshot',
+          extracted: result.extracted,
+          qrData: result.qrData,
+          validation: result.validation,
+        },
       });
 
       return {
@@ -673,14 +758,232 @@ export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' 
     } catch (err) {
       await deleteCloudinaryImage(screenshotPublicId);
       screenshotPublicId = null;
-
-      if (err.code === '23505') {
-        const dupIssue = buildDuplicateTxIssue(paymentId);
-        throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
-      }
       throw err;
     }
   } finally {
     await cleanupTempFile(screenshotPath);
+  }
+}
+
+export async function submitTopUpReference({
+  userId,
+  method,
+  transactionCode,
+  accountSuffix = '',
+}) {
+  const receiverConfig = await getTopUpReceiverAccount(method);
+  if (!receiverConfig) {
+    throw new TopUpError('Top-up is only supported for Telebirr and CBE', 400);
+  }
+
+  try {
+    validateReferenceInput(method, { transactionCode, accountSuffix });
+  } catch (err) {
+    if (err.isValidation) {
+      throw new TopUpError(err.message, 400, {
+        issues: [{
+          type: 'error',
+          code: 'INVALID_REFERENCE_INPUT',
+          field: err.field,
+          message: err.message,
+        }],
+      });
+    }
+    throw err;
+  }
+
+  const result = await lookupOfficialByReference(method, { transactionCode, accountSuffix });
+  if (!result.passed) {
+    throw new TopUpError(result.message, 422, {
+      issues: [{
+        type: 'error',
+        code: 'OFFICIAL_RECORD_NOT_FOUND',
+        field: 'transactionCode',
+        message: result.message,
+      }],
+    });
+  }
+
+  const receiverIssues = validateOfficialTopUpReceiver(result.official, receiverConfig);
+  if (receiverIssues.length) {
+    throw new TopUpError(receiverIssues[0].message, 422, { issues: receiverIssues });
+  }
+
+  const details = result.resolvedDetails;
+  details.transactionCode = result.txCode;
+
+  const outcome = await creditTopUpBalance({
+    userId,
+    details,
+    paymentId: result.txCode,
+    screenshotUrl: REFERENCE_SCREENSHOT_PLACEHOLDER,
+    aiResult: {
+      verifyMode: 'reference',
+      official: result.official,
+      validated: result.validated,
+    },
+  });
+
+  return {
+    newBalance: outcome.newBalance,
+    transaction: outcome.transaction,
+    message: 'Top-up verified and balance credited',
+    resolvedDetails: details,
+    validation: { passed: true, verifyMode: 'reference', txCode: result.txCode },
+  };
+}
+
+export async function submitTopUpSms({
+  userId,
+  method,
+  smsText,
+}) {
+  const receiverConfig = await getTopUpReceiverAccount(method);
+  if (!receiverConfig) {
+    throw new TopUpError('Top-up is only supported for Telebirr and CBE', 400);
+  }
+
+  const trimmed = String(smsText || '').trim();
+  if (!trimmed || trimmed.length < 40) {
+    throw new TopUpError('Paste the full transaction SMS including the receipt link', 400, {
+      issues: [{
+        type: 'error',
+        code: 'SMS_REQUIRED',
+        field: 'smsText',
+        message: 'Paste the full transaction SMS including the receipt link',
+      }],
+    });
+  }
+
+  let result;
+  try {
+    result = await verifySmsTransaction(method, trimmed);
+  } catch (err) {
+    if (err.isValidation) {
+      throw new TopUpError(err.message, 400, {
+        issues: [{
+          type: 'error',
+          code: 'INVALID_SMS',
+          field: err.field || 'smsText',
+          message: err.message,
+        }],
+      });
+    }
+    throw err;
+  }
+
+  if (!result.passed) {
+    throw new TopUpError(result.message, 422, {
+      issues: result.issues.filter((i) => i.type === 'error'),
+    });
+  }
+
+  const receiverIssues = validateOfficialTopUpReceiver(result.official, receiverConfig);
+  if (receiverIssues.length) {
+    throw new TopUpError(receiverIssues[0].message, 422, { issues: receiverIssues });
+  }
+
+  const details = result.resolvedDetails;
+  details.transactionCode = result.txCode;
+
+  const outcome = await creditTopUpBalance({
+    userId,
+    details,
+    paymentId: result.txCode,
+    screenshotUrl: SMS_SCREENSHOT_PLACEHOLDER,
+    aiResult: {
+      verifyMode: 'sms',
+      sms: result.parsed,
+      official: result.official,
+      smsTextPreview: trimmed.slice(0, 500),
+    },
+  });
+
+  return {
+    newBalance: outcome.newBalance,
+    transaction: outcome.transaction,
+    message: 'Top-up verified and balance credited',
+    resolvedDetails: details,
+    validation: { passed: true, verifyMode: 'sms', txCode: result.txCode },
+  };
+}
+
+async function assertTopUpPaymentIdAvailable(paymentId) {
+  const duplicateCheck = await findCheckByTxCode(paymentId);
+  if (duplicateCheck) {
+    const dupIssue = buildDuplicateTxIssue(paymentId);
+    throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
+  }
+
+  const duplicateTopUp = await findTopUpByTxCode(paymentId);
+  if (duplicateTopUp?.status === 'complete') {
+    const dupIssue = buildDuplicateTxIssue(paymentId);
+    throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
+  }
+}
+
+async function creditTopUpBalance({
+  userId,
+  details,
+  paymentId,
+  screenshotUrl,
+  aiResult,
+}) {
+  const birrAmount = parseFloat(details.amount) || 0;
+  if (birrAmount <= 0) {
+    throw new TopUpError('Invalid amount. Please deposit a valid Birr amount.', 422);
+  }
+
+  await assertTopUpPaymentIdAvailable(paymentId);
+
+  try {
+    return await db.transaction(async (tx) => {
+      const [existingBalance] = await tx
+        .select()
+        .from(balances)
+        .where(eq(balances.userId, userId))
+        .limit(1);
+
+      let balanceRow = existingBalance;
+      if (!balanceRow) {
+        const [created] = await tx.insert(balances).values({ userId, amount: '0.00' }).returning();
+        balanceRow = created;
+      }
+
+      const current = parseFloat(toMoney(balanceRow.amount));
+      const nextBalance = toMoney(current + birrAmount);
+
+      const [transaction] = await tx.insert(topUpTransactions).values({
+        userId,
+        screenshotUrl,
+        status: 'complete',
+        senderName: details.senderName,
+        senderAccount: details.senderAccount,
+        receiverName: details.receiverName,
+        receiverAccount: details.receiverAccount,
+        amount: toMoney(birrAmount),
+        transactionCode: paymentId,
+        aiResult: JSON.stringify(aiResult),
+        unitsAdded: Math.round(birrAmount),
+        submittedAt: new Date(),
+      }).returning();
+
+      const [updatedBalance] = await tx
+        .update(balances)
+        .set({ amount: nextBalance, updatedAt: new Date() })
+        .where(eq(balances.userId, userId))
+        .returning();
+
+      return {
+        transaction,
+        newBalance: parseFloat(toMoney(updatedBalance.amount)),
+      };
+    });
+  } catch (err) {
+    if (err.code === '23505') {
+      const dupIssue = buildDuplicateTxIssue(paymentId);
+      throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
+    }
+    throw err;
   }
 }

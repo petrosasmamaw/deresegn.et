@@ -58,6 +58,24 @@ export const performReferenceCheck = createAsyncThunk(
   }
 )
 
+export const performSmsCheck = createAsyncThunk(
+  'checks/performSms',
+  async ({ method, smsText }, { rejectWithValue }) => {
+    try {
+      const res = await axios.post('/check/sms', { method, smsText }, { timeout: 60000 })
+      const data = unwrap(res)
+      return {
+        check: data.check,
+        newBalance: data.newBalance,
+        issues: data.issues || [],
+        resolvedDetails: data.resolvedDetails || null,
+      }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || { message: err.message })
+    }
+  }
+)
+
 export const fetchCheckHistory = createAsyncThunk(
   'checks/history',
   async (limit = 50, { rejectWithValue }) => {
@@ -98,6 +116,15 @@ const slice = createSlice({
         s.list.unshift(a.payload.check)
       })
       .addCase(performReferenceCheck.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
+
+      .addCase(performSmsCheck.pending, (s) => { s.submitting = true; s.error = null })
+      .addCase(performSmsCheck.fulfilled, (s, a) => {
+        s.submitting = false
+        s.lastCheck = a.payload.check
+        s.lastResolvedDetails = a.payload.resolvedDetails
+        s.list.unshift(a.payload.check)
+      })
+      .addCase(performSmsCheck.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
 
       .addCase(fetchCheckHistory.pending, (s) => { s.loading = true; s.error = null })
       .addCase(fetchCheckHistory.fulfilled, (s, a) => { s.loading = false; s.list = a.payload })

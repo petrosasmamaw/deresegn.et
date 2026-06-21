@@ -35,6 +35,44 @@ export const submitTopUp = createAsyncThunk(
   }
 )
 
+export const submitTopUpReference = createAsyncThunk(
+  'balance/topupReference',
+  async ({ method, transactionCode, accountSuffix = '' }, { rejectWithValue }) => {
+    try {
+      const res = await axios.post('/balance/topup/reference', {
+        method,
+        transactionCode,
+        accountSuffix,
+      }, { timeout: 60000 })
+      const data = unwrap(res)
+      return {
+        balance: data.newBalance,
+        transaction: data.transaction,
+        resolvedDetails: data.resolvedDetails || null,
+      }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message)
+    }
+  }
+)
+
+export const submitTopUpSms = createAsyncThunk(
+  'balance/topupSms',
+  async ({ method, smsText }, { rejectWithValue }) => {
+    try {
+      const res = await axios.post('/balance/topup/sms', { method, smsText }, { timeout: 60000 })
+      const data = unwrap(res)
+      return {
+        balance: data.newBalance,
+        transaction: data.transaction,
+        resolvedDetails: data.resolvedDetails || null,
+      }
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message)
+    }
+  }
+)
+
 const slice = createSlice({
   name: 'balance',
   initialState: { current: 0, loading: false, error: null, submitting: false },
@@ -58,6 +96,20 @@ const slice = createSlice({
         s.current = parseFloat(a.payload.balance) || 0
       })
       .addCase(submitTopUp.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
+
+      .addCase(submitTopUpReference.pending, (s) => { s.submitting = true; s.error = null })
+      .addCase(submitTopUpReference.fulfilled, (s, a) => {
+        s.submitting = false
+        s.current = parseFloat(a.payload.balance) || 0
+      })
+      .addCase(submitTopUpReference.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
+
+      .addCase(submitTopUpSms.pending, (s) => { s.submitting = true; s.error = null })
+      .addCase(submitTopUpSms.fulfilled, (s, a) => {
+        s.submitting = false
+        s.current = parseFloat(a.payload.balance) || 0
+      })
+      .addCase(submitTopUpSms.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
   },
 })
 

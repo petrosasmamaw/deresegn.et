@@ -1,4 +1,4 @@
-import { submitReceiptCheck, submitReferenceCheck, getCheckHistory, CheckError } from '../services/checkService.js';
+import { submitReceiptCheck, submitReferenceCheck, submitSmsCheck, getCheckHistory, CheckError } from '../services/checkService.js';
 import { success, error } from '../utils/response.js';
 
 export async function performCheck(req, res) {
@@ -91,6 +91,40 @@ export async function performReferenceCheck(req, res) {
       });
     }
     return error(res, 'Payment ID verification failed', 500, err.message);
+  }
+}
+
+export async function performSmsCheck(req, res) {
+  try {
+    const method = req.body.method?.trim();
+    const smsText = req.body.smsText || '';
+
+    if (!method) {
+      return error(res, 'Payment method is required', 400);
+    }
+
+    const result = await submitSmsCheck({
+      userId: req.userId,
+      method,
+      smsText,
+    });
+
+    return success(res, {
+      check: result.check,
+      newBalance: result.newBalance,
+      validation: result.validation,
+      issues: result.issues,
+      resolvedDetails: result.resolvedDetails,
+    }, result.message, 200);
+  } catch (err) {
+    if (err instanceof CheckError) {
+      return res.status(err.status).json({
+        success: false,
+        message: err.message,
+        data: err.details,
+      });
+    }
+    return error(res, 'SMS verification failed', 500, err.message);
   }
 }
 

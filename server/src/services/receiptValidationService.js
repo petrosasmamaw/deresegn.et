@@ -125,6 +125,25 @@ export function buildDuplicateTxIssue(txCode) {
     { actual: txCode });
 }
 
+/** Top-up via payment ID or SMS: official record receiver must match configured account. */
+export function validateOfficialTopUpReceiver(official, expectedReceiver) {
+  const issues = [];
+  const expectedName = expectedReceiver?.receiverName;
+  const expectedAccount = expectedReceiver?.receiverAccount;
+
+  if (!official?.receiverAccount || !accountsMatch(official.receiverAccount, expectedAccount)) {
+    issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
+      `Receiver account error: official record shows "${official?.receiverAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
+      { officialValue: official?.receiverAccount, expectedValue: expectedAccount }));
+  }
+  if (!official?.receiverName || !namesMatch(official.receiverName, expectedName)) {
+    issues.push(issue('error', 'RECEIVER_NAME_MISMATCH', 'receiverName',
+      `Receiver name error: official record shows "${official?.receiverName || 'unknown'}" but top-up must be sent to "${expectedName}".`,
+      { officialValue: official?.receiverName, expectedValue: expectedName }));
+  }
+  return issues;
+}
+
 function validateTopUpReceiver({
   issues,
   method,

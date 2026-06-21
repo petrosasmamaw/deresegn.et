@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
-import { X, Smartphone, Building2, Upload, CheckCircle2, RotateCcw } from 'lucide-react'
+import { X, Smartphone, Building2, Upload, CheckCircle2, RotateCcw, ArrowRight, Camera, Hash, MessageSquare } from 'lucide-react'
 import axios from '../api/axiosInstance'
 import { unwrap } from '../api/unwrap'
 import { VerificationFailureList } from './VerificationResult'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 
 const METHODS = [
-  { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt' },
-  { id: 'cbe', label: 'Commercial Bank of Ethiopia (CBE)', icon: Building2, desc: 'CBE mobile receipt' },
+  { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet payment' },
+  { id: 'cbe', label: 'Commercial Bank of Ethiopia (CBE)', icon: Building2, desc: 'CBE bank transfer' },
 ]
 
 const METHOD_LABELS = {
@@ -15,15 +15,54 @@ const METHOD_LABELS = {
   cbe: 'CBE',
 }
 
-export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }) {
+const REFERENCE_DETAIL_BY_METHOD = {
+  telebirr: 'Invoice No. only',
+  cbe: 'FT reference + last 8 digits of sender account',
+}
+
+const REFERENCE_FIELDS = {
+  telebirr: [
+    { key: 'transactionCode', label: 'Invoice No.', placeholder: 'DF52MV8ILW', hint: '10-character invoice number' },
+  ],
+  cbe: [
+    { key: 'transactionCode', label: 'FT Reference', placeholder: 'FT26169D8C5M', hint: 'Transaction reference starting with FT' },
+    { key: 'accountSuffix', label: 'Last 8 digits of sender account', placeholder: '12345678', hint: 'Last 8 digits of the account that sent the money' },
+  ],
+}
+
+const SMS_PLACEHOLDERS = {
+  telebirr: `Dear customer
+You have transferred ETB 60.00 to Receiver Name (2519****4025)...
+https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
+  cbe: `Dear Mr Petros your Account 1****7112 has been credited with ETB 100...
+for Reciept https://apps.cbe.com.et:100/BranchReceipt/FT2616987RR0&33687112`,
+}
+
+const EMPTY_REFERENCE = {
+  transactionCode: '',
+  accountSuffix: '',
+}
+
+export default function TopUpModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  onReferenceSubmit,
+  onSmsSubmit,
+  loading,
+  error,
+}) {
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState('telebirr')
+  const [verifyMode, setVerifyMode] = useState('')
   const [screenshot, setScreenshot] = useState(null)
   const [preview, setPreview] = useState(null)
   const [rejected, setRejected] = useState(false)
   const [failureIssues, setFailureIssues] = useState([])
   const [successDetails, setSuccessDetails] = useState(null)
   const [receiverAccounts, setReceiverAccounts] = useState([])
+  const [referenceForm, setReferenceForm] = useState(EMPTY_REFERENCE)
+  const [smsText, setSmsText] = useState('')
 
   useEffect(() => {
     if (!isOpen) return
@@ -36,6 +75,9 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
   }, [isOpen])
 
   const selectedAccount = receiverAccounts.find((a) => a.method === method)
+  const referenceFields = REFERENCE_FIELDS[method] || []
+  const referenceReady = referenceFields.every((f) => String(referenceForm[f.key] || '').trim())
+  const successStep = 4
 
   const handleFile = (e) => {
     const file = e.target.files?.[0]
@@ -47,11 +89,14 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
   const reset = () => {
     setStep(1)
     setMethod('telebirr')
+    setVerifyMode('')
     setScreenshot(null)
     setPreview(null)
     setRejected(false)
     setFailureIssues([])
     setSuccessDetails(null)
+    setReferenceForm(EMPTY_REFERENCE)
+    setSmsText('')
   }
 
   const handleClose = () => {
@@ -59,29 +104,60 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
     onClose()
   }
 
-  const runTopUp = async () => {
+  const handleFailure = (result) => {
+    setFailureIssues(result.issues || [])
+    setRejected(true)
+  }
+
+  const runTopUpScreenshot = async () => {
     if (!screenshot) {
       setFailureIssues([{ code: 'SCREENSHOT_REQUIRED', field: 'screenshot', message: 'Please upload your payment screenshot.' }])
       setRejected(true)
       return
     }
-
     setRejected(false)
     setFailureIssues([])
-
     const result = await onSubmit({ screenshot, method })
-
-    if (result?.failed) {
-      setFailureIssues(result.issues || [])
-      setRejected(true)
-      return
-    }
-
+    if (result?.failed) return handleFailure(result)
     if (result?.success) {
       setSuccessDetails(result.resolvedDetails)
-      setStep(3)
+      setStep(successStep)
     }
   }
+
+  const runTopUpReference = async (e) => {
+    e.preventDefault()
+    setRejected(false)
+    setFailureIssues([])
+    const result = await onReferenceSubmit({
+      method,
+      transactionCode: referenceForm.transactionCode,
+      accountSuffix: referenceForm.accountSuffix,
+    })
+    if (result?.failed) return handleFailure(result)
+    if (result?.success) {
+      setSuccessDetails(result.resolvedDetails)
+      setStep(successStep)
+    }
+  }
+
+  const runTopUpSms = async (e) => {
+    e.preventDefault()
+    setRejected(false)
+    setFailureIssues([])
+    const result = await onSmsSubmit({ method, smsText })
+    if (result?.failed) return handleFailure(result)
+    if (result?.success) {
+      setSuccessDetails(result.resolvedDetails)
+      setStep(successStep)
+    }
+  }
+
+  const successSubtext = verifyMode === 'sms'
+    ? 'SMS matched official receipt and was sent to your account'
+    : verifyMode === 'reference'
+      ? 'Payment ID matched official record and was sent to your account'
+      : 'Payment confirmed from screenshot & QR code'
 
   if (!isOpen) return null
 
@@ -99,20 +175,24 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
           <div className="modal-body space-y-5">
             <VerificationFailureList issues={failureIssues} />
             <div className="modal-footer gap-3">
-              <button type="button" onClick={() => { setRejected(false); setStep(2) }} className="btn-secondary flex-1 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setRejected(false); setStep(3) }}
+                className="btn-secondary flex-1 flex items-center justify-center gap-2"
+              >
                 <RotateCcw size={16} />
                 Try Again
               </button>
               <button type="button" onClick={handleClose} className="btn-primary flex-1">Close</button>
             </div>
           </div>
-        ) : step === 3 ? (
+        ) : step === successStep ? (
           <div className="modal-body space-y-5">
             <div className="card p-4 flex items-center gap-3" style={{ background: 'var(--color-success-muted)', borderColor: 'var(--color-success)', borderWidth: '2px' }}>
               <CheckCircle2 size={28} style={{ color: 'var(--color-success)' }} />
               <div>
                 <p className="font-bold" style={{ color: 'var(--color-success)' }}>Top-up verified</p>
-                <p className="text-xs text-[var(--color-text-secondary)]">Payment confirmed from screenshot & QR code</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">{successSubtext}</p>
               </div>
             </div>
             {successDetails && <ReceiptSummaryCard details={successDetails} title="Payment Summary" />}
@@ -144,6 +224,7 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
                           <p className="font-semibold text-sm">{m.label}</p>
                           <p className="text-xs text-[var(--color-text-secondary)]">{m.desc}</p>
                         </div>
+                        <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-primary)' }} />
                       </div>
                     </button>
                   ))}
@@ -152,11 +233,11 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
             )}
 
             {step === 2 && (
-              <form onSubmit={(e) => { e.preventDefault(); runTopUp() }} className="space-y-5">
+              <div className="space-y-4">
                 <button type="button" onClick={() => setStep(1)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
-                <p className="text-sm font-semibold">Step 2: Upload Payment Screenshot</p>
+                <p className="text-sm font-semibold">Step 2: Choose Verification Type</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
-                  Send payment via {METHOD_LABELS[method]}, then upload the receipt. We verify the official QR code and that payment was sent to your account below. Balance credits from the QR amount when available.
+                  Payment must be sent to your registered account below. We verify amount, payment ID, and receiver details.
                 </p>
 
                 {selectedAccount && (
@@ -166,6 +247,64 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
                     <p className="text-sm font-mono">{selectedAccount.receiverAccount}</p>
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => { setVerifyMode('screenshot'); setStep(3) }}
+                  className="w-full card p-4 text-left border-2"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <Camera size={20} style={{ color: 'var(--color-primary)' }} />
+                    <div>
+                      <p className="font-semibold text-sm">Screenshot + QR</p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">Upload receipt image</p>
+                    </div>
+                    <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-primary)' }} />
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setVerifyMode('reference'); setStep(3) }}
+                  className="w-full card p-4 text-left border-2"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <Hash size={20} style={{ color: 'var(--color-accent)' }} />
+                    <div>
+                      <p className="font-semibold text-sm">Payment ID only</p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">Invoice / FT reference lookup</p>
+                    </div>
+                    <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-accent)' }} />
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setVerifyMode('sms'); setStep(3) }}
+                  className="w-full card p-4 text-left border-2"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <MessageSquare size={20} style={{ color: 'var(--color-info)' }} />
+                    <div>
+                      <p className="font-semibold text-sm">Bank SMS</p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">Paste transaction SMS with receipt link</p>
+                    </div>
+                    <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-info)' }} />
+                  </div>
+                </button>
+              </div>
+            )}
+
+            {step === 3 && verifyMode === 'screenshot' && (
+              <form onSubmit={(e) => { e.preventDefault(); runTopUpScreenshot() }} className="space-y-5">
+                <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
+                <p className="text-sm font-semibold">Step 3: Upload Payment Screenshot</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  Send payment via {METHOD_LABELS[method]} to the account above, then upload the receipt. Receiver name and account must match.
+                </p>
 
                 <div className="relative border-2 border-dashed rounded-lg p-8 text-center" style={{ borderColor: 'var(--color-primary-border)', background: 'var(--color-primary-muted)' }}>
                   <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -179,6 +318,57 @@ export default function TopUpModal({ isOpen, onClose, onSubmit, loading, error }
                 {preview && <img src={preview} alt="Preview" className="rounded-lg max-h-40 mx-auto border" />}
 
                 <button type="submit" disabled={loading || !screenshot} className="btn-primary w-full">
+                  {loading ? 'Processing...' : 'Verify & Top Up'}
+                </button>
+              </form>
+            )}
+
+            {step === 3 && verifyMode === 'reference' && (
+              <form onSubmit={runTopUpReference} className="space-y-5">
+                <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
+                <p className="text-sm font-semibold">Step 3: Enter Payment ID</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  {REFERENCE_DETAIL_BY_METHOD[method]} — official record receiver must be your account above.
+                </p>
+
+                {referenceFields.map((field) => (
+                  <div key={field.key}>
+                    <label className="label">{field.label}</label>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder={field.placeholder}
+                      value={referenceForm[field.key]}
+                      onChange={(e) => setReferenceForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      required
+                    />
+                    {field.hint && <p className="text-xs text-[var(--color-text-secondary)] mt-1">{field.hint}</p>}
+                  </div>
+                ))}
+
+                <button type="submit" disabled={loading || !referenceReady} className="btn-primary w-full">
+                  {loading ? 'Processing...' : 'Verify & Top Up'}
+                </button>
+              </form>
+            )}
+
+            {step === 3 && verifyMode === 'sms' && (
+              <form onSubmit={runTopUpSms} className="space-y-5">
+                <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
+                <p className="text-sm font-semibold">Step 3: Paste Transaction SMS</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  Paste the full SMS. We fetch the official receipt and confirm payment was sent to your account above.
+                </p>
+
+                <textarea
+                  className="input w-full min-h-[180px] font-mono text-xs"
+                  placeholder={SMS_PLACEHOLDERS[method]}
+                  value={smsText}
+                  onChange={(e) => setSmsText(e.target.value)}
+                  required
+                />
+
+                <button type="submit" disabled={loading || smsText.trim().length < 40} className="btn-primary w-full">
                   {loading ? 'Processing...' : 'Verify & Top Up'}
                 </button>
               </form>

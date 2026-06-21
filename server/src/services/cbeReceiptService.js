@@ -73,6 +73,9 @@ function mapCbePdfFields({ transactionCode, amount, senderName, senderAccount, r
 }
 
 function parseCbePdfText(text) {
+  const branch = parseCbeBranchPdfText(text);
+  if (branch) return branch;
+
   const blob = String(text || '');
   const inline = blob.replace(/\s+/g, ' ');
 
@@ -93,6 +96,50 @@ function parseCbePdfText(text) {
     senderAccount,
     receiverName,
     receiverAccount,
+  });
+}
+
+/** Branch receipt PDF layout: Payer / Account lines then Receiver / Account. */
+function parseCbeBranchPdfText(text) {
+  const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const fields = {};
+  let pendingAccountFor = null;
+
+  for (const line of lines) {
+    const payerInline = line.match(/^Payer\s+(.+)$/i);
+    if (payerInline) {
+      fields.senderName = payerInline[1].trim();
+      pendingAccountFor = 'sender';
+      continue;
+    }
+    const receiverInline = line.match(/^Receiver\s+(.+)$/i);
+    if (receiverInline) {
+      fields.receiverName = receiverInline[1].trim();
+      pendingAccountFor = 'receiver';
+      continue;
+    }
+    const accountLine = line.match(/^Account\s+([\d*\s]+)$/i);
+    if (accountLine) {
+      if (pendingAccountFor === 'receiver') fields.receiverAccount = accountLine[1].replace(/\s+/g, '');
+      else fields.senderAccount = accountLine[1].replace(/\s+/g, '');
+      pendingAccountFor = null;
+      continue;
+    }
+    const ref = line.match(/Reference\s+No\.?\s*(?:\([^)]*\))?\s*(FT[A-Z0-9]+)/i);
+    if (ref) fields.transaction_reference = ref[1];
+    const amount = line.match(/Transferred\s+Amount\s+([\d,.]+)\s*ETB/i);
+    if (amount) fields.amount = amount[1];
+  }
+
+  if (!fields.transaction_reference && !fields.amount) return null;
+
+  return mapCbePdfFields({
+    transactionCode: fields.transaction_reference,
+    amount: fields.amount,
+    senderName: fields.senderName,
+    senderAccount: fields.senderAccount,
+    receiverName: fields.receiverName,
+    receiverAccount: fields.receiverAccount,
   });
 }
 
@@ -141,6 +188,57 @@ export async function fetchCbeTransactionByReference(ftNumber, accountSuffix) {
     return parseCbePdfBuffer(buffer);
   } catch (err) {
     console.warn('[CBE PDF] fetch failed:', err.message);
+    return null;
+  }
+}
+
+export function parseCbeBranchReceiptUrl(receiptUrl) {
+  const url = String(receiptUrl || '').trim();
+  const match = url.match(/BranchReceipt\/(FT[A-Z0-9]+)&(\d{8,})/i);
+  if (!match) return null;
+  return {
+    transactionCode: normalizeTxCode(match[1]),
+    accountSuffix: match[2],
+    receiptUrl: url,
+  };
+}
+
+/** Fetch official CBE branch receipt PDF from SMS link. */
+export async function fetchCbeBranchReceipt(receiptUrl) {
+  const parsed = parseCbeBranchReceiptUrl(receiptUrl);
+  if (!parsed?.receiptUrl) return null;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    const response = await fetch(parsed.receiptUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        Accept: 'application/pdf,*/*',
+      },
+    });
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      console.warn('[CBE BranchReceipt] HTTP', response.status);
+      return null;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.slice(0, 4).toString() !== '%PDF') {
+      console.warn('[CBE BranchReceipt] Non-PDF response');
+      return null;
+    }
+
+    const official = await parseCbePdfBuffer(buffer);
+    if (official) {
+      official.source = 'cbe_branch_receipt_pdf';
+      official.receiptUrl = parsed.receiptUrl;
+    }
+    return official;
+  } catch (err) {
+    console.warn('[CBE BranchReceipt] fetch failed:', err.message);
     return null;
   }
 }

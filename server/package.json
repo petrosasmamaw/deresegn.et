@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "start": "node src/index.js",
+    "build": "node scripts/verifyBuild.mjs",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:reset": "node src/init/resetAuthTables.js",

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { CheckCircle2, Zap, TrendingUp, ChevronLeft } from 'lucide-react'
-import { fetchBalance, submitTopUp } from '../features/balance/balanceSlice'
-import { fetchCheckHistory, performCheck, performReferenceCheck } from '../features/checks/checksSlice'
+import { fetchBalance, submitTopUp, submitTopUpReference, submitTopUpSms } from '../features/balance/balanceSlice'
+import { fetchCheckHistory, performCheck, performReferenceCheck, performSmsCheck } from '../features/checks/checksSlice'
 import BalanceCard from '../components/BalanceCard'
 import BottomNav from '../components/BottomNav'
 import TopUpModal from '../components/TopUpModal'
@@ -25,6 +25,40 @@ export default function DashboardPage() {
   const handleTopUpSubmit = async ({ screenshot, method }) => {
     const result = await dispatch(submitTopUp({ screenshot, method }))
     if (submitTopUp.fulfilled.match(result)) {
+      dispatch(fetchBalance())
+      return {
+        success: true,
+        resolvedDetails: result.payload.resolvedDetails,
+      }
+    }
+    const payload = result.payload || {}
+    const issues = payload.data?.issues || payload.issues || []
+    return {
+      failed: true,
+      issues: issues.length ? issues : [{ message: payload.message || 'Top-up could not be verified' }],
+    }
+  }
+
+  const handleTopUpReferenceSubmit = async ({ method, transactionCode, accountSuffix }) => {
+    const result = await dispatch(submitTopUpReference({ method, transactionCode, accountSuffix }))
+    if (submitTopUpReference.fulfilled.match(result)) {
+      dispatch(fetchBalance())
+      return {
+        success: true,
+        resolvedDetails: result.payload.resolvedDetails,
+      }
+    }
+    const payload = result.payload || {}
+    const issues = payload.data?.issues || payload.issues || []
+    return {
+      failed: true,
+      issues: issues.length ? issues : [{ message: payload.message || 'Top-up could not be verified' }],
+    }
+  }
+
+  const handleTopUpSmsSubmit = async ({ method, smsText }) => {
+    const result = await dispatch(submitTopUpSms({ method, smsText }))
+    if (submitTopUpSms.fulfilled.match(result)) {
       dispatch(fetchBalance())
       return {
         success: true,
@@ -76,6 +110,26 @@ export default function DashboardPage() {
       issues: issues.length
         ? issues
         : [{ message: payload.message || 'Payment ID could not be verified' }],
+    }
+  }
+
+  const handleSmsCheckSubmit = async ({ method, smsText }) => {
+    const result = await dispatch(performSmsCheck({ method, smsText }))
+    if (performSmsCheck.fulfilled.match(result)) {
+      dispatch(fetchBalance())
+      dispatch(fetchCheckHistory())
+      return {
+        success: true,
+        resolvedDetails: result.payload.resolvedDetails,
+      }
+    }
+    const payload = result.payload || {}
+    const issues = payload.data?.issues || payload.issues || []
+    return {
+      failed: true,
+      issues: issues.length
+        ? issues
+        : [{ message: payload.message || 'SMS could not be verified' }],
     }
   }
 
@@ -204,6 +258,8 @@ export default function DashboardPage() {
         isOpen={topupOpen}
         onClose={() => setTopupOpen(false)}
         onSubmit={handleTopUpSubmit}
+        onReferenceSubmit={handleTopUpReferenceSubmit}
+        onSmsSubmit={handleTopUpSmsSubmit}
         loading={topupLoading}
         error={balanceError}
       />
@@ -213,6 +269,7 @@ export default function DashboardPage() {
         onClose={() => setCheckerOpen(false)}
         onSubmit={handleCheckSubmit}
         onReferenceSubmit={handleReferenceCheckSubmit}
+        onSmsSubmit={handleSmsCheckSubmit}
         loading={checkLoading}
         error={checkError}
         lastResult={lastCheck}

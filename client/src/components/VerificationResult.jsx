@@ -8,6 +8,7 @@ const FIELD_LABELS = {
   amount: 'Amount',
   transactionCode: 'Payment ID',
   screenshot: 'Screenshot',
+  smsText: 'SMS message',
 }
 
 const CODE_LABELS = {
@@ -25,6 +26,14 @@ const CODE_LABELS = {
   RECEIVER_ACCOUNT_MISMATCH: 'Receiver account error',
   AMOUNT_FORM_SCREENSHOT_MISMATCH: 'Amount error',
   SCREENSHOT_REQUIRED: 'Screenshot required',
+  SMS_PARSE_FAILED: 'SMS parse error',
+  SMS_TX_MISMATCH: 'Payment ID error',
+  SMS_AMOUNT_MISMATCH: 'Amount error',
+  SMS_RECEIVER_MISMATCH: 'Receiver name error',
+  SMS_RECEIVER_ACCOUNT_MISMATCH: 'Receiver account error',
+  SMS_ACCOUNT_MISMATCH: 'Account error',
+  INVALID_SMS: 'Invalid SMS',
+  SMS_REQUIRED: 'SMS required',
 }
 
 export function VerificationFailureList({ issues = [], title = 'Receipt could not be verified' }) {
