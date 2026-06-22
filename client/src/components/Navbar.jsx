@@ -1,13 +1,15 @@
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../features/auth/authSlice'
-import { LogOut, Shield } from 'lucide-react'
+import { LogOut, Shield, Plus } from 'lucide-react'
+import { useDashboardUi } from '../context/DashboardUiContext'
 
 export default function Navbar() {
   const user = useSelector(s => s.auth.user)
   const balance = useSelector(s => s.balance.current)
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const { openTopUp } = useDashboardUi()
 
   const handleLogout = async () => {
     await dispatch(logout())
@@ -31,14 +33,21 @@ export default function Navbar() {
         <div className="flex items-center gap-2 md:gap-4 ml-auto flex-shrink-0">
           {user ? (
             <>
-              <div className="credit-pill credit-pill-mobile">
+              <button
+                type="button"
+                onClick={openTopUp}
+                className="credit-pill credit-pill-mobile credit-pill-btn"
+                title="Top up balance"
+                aria-label={`Balance ${balance} Birr. Click to top up`}
+              >
                 <span
                   className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
                   style={{ background: 'var(--color-verified)' }}
                 />
                 <span>{balance}</span>
                 <span className="text-[10px] opacity-75 uppercase tracking-wide">Birr</span>
-              </div>
+                <Plus size={12} className="credit-pill-plus" strokeWidth={2.5} />
+              </button>
 
               <span className="hidden md:inline navbar-user font-medium max-w-xs truncate">
                 {user.email || user.name}

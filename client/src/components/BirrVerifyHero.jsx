@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Landmark } from 'lucide-react'
+import { Landmark, CheckCircle2, ShieldCheck } from 'lucide-react'
 import './BirrVerifyHero.css'
 
 const NOTE_WIDTH = 96
@@ -33,7 +33,7 @@ function createParticles(originX, originY) {
   })
 }
 
-export default function BirrVerifyHero() {
+export default function BirrVerifyHero({ onVerifyClick }) {
   const sceneRef = useRef(null)
   const machineRef = useRef(null)
   const bankRef = useRef(null)
@@ -223,9 +223,21 @@ export default function BirrVerifyHero() {
     <section className="birr-verify-hero">
       <div className="birr-verify-hero-inner">
         <div className="birr-verify-hero-copy">
-          <p className="eyebrow">Dashboard</p>
-          <h1 className="page-title">Receipt Verification</h1>
-          <p className="page-subtitle">Manage your balance and verify transaction receipts</p>
+          <div className="birr-verify-hero-copy-text">
+            <p className="eyebrow">Dashboard</p>
+            <h1 className="page-title">Receipt Verification</h1>
+            <p className="page-subtitle">Manage your balance and verify transaction receipts</p>
+          </div>
+          {onVerifyClick && (
+            <button
+              type="button"
+              onClick={onVerifyClick}
+              className="hero-verify-btn"
+            >
+              <CheckCircle2 size={16} strokeWidth={2} />
+              <span>Verify Receipt</span>
+            </button>
+          )}
         </div>
 
         <div className="birr-verify-scene" ref={sceneRef} aria-hidden="true">

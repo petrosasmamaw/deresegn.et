@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { fetchSession } from './features/auth/authSlice'
 import Navbar from './components/Navbar'
+import { DashboardUiProvider } from './context/DashboardUiContext'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
@@ -12,7 +13,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 function DashboardSkeleton() {
   return (
     <div className="min-h-screen page-parchment">
-      {/* Navbar Skeleton */}
       <nav className="navbar">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-6">
           <div className="flex items-center gap-3">
@@ -23,22 +23,18 @@ function DashboardSkeleton() {
         </div>
       </nav>
 
-      {/* Page Skeleton */}
       <main className="flex-1 p-4">
         <div className="container mx-auto">
-          {/* Header Skeleton */}
           <div className="mb-8">
             <div className="skeleton h-4 w-24 rounded mb-2"></div>
             <div className="skeleton h-8 w-48 rounded"></div>
           </div>
 
-          {/* Balance Card Skeleton */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div className="md:col-span-2 skeleton-card"></div>
             <div className="skeleton-card"></div>
           </div>
 
-          {/* Table Skeleton */}
           <div className="card">
             <div className="skeleton h-6 w-40 rounded mb-4"></div>
             <div className="space-y-3">
@@ -67,7 +63,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <DashboardUiProvider>
       {user && user.role !== 'admin' && <Navbar />}
       <main className="flex-1">
         <Routes>
@@ -79,6 +75,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-    </>
+    </DashboardUiProvider>
   )
 }

@@ -9,13 +9,13 @@ import TopUpModal from '../components/TopUpModal'
 import CheckerModal from '../components/CheckerModal'
 import CheckHistory from '../components/CheckHistory'
 import BirrVerifyHero from '../components/BirrVerifyHero'
+import { useDashboardUi } from '../context/DashboardUiContext'
 
 export default function DashboardPage() {
   const dispatch = useDispatch()
   const { current: balance, submitting: topupLoading, error: balanceError } = useSelector(s => s.balance)
   const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, lastCheck, lastResolvedDetails } = useSelector(s => s.checks)
-  const [topupOpen, setTopupOpen] = useState(false)
-  const [checkerOpen, setCheckerOpen] = useState(false)
+  const { topupOpen, setTopupOpen, checkerOpen, setCheckerOpen, openVerify } = useDashboardUi()
   const [mobileTab, setMobileTab] = useState('home')
 
   useEffect(() => {
@@ -138,7 +138,7 @@ export default function DashboardPage() {
     <main className="flex-1 page-parchment">
       {/* Unified dashboard hero — desktop */}
       <div className="hidden md:block">
-        <BirrVerifyHero />
+        <BirrVerifyHero onVerifyClick={openVerify} />
       </div>
 
       {/* Desktop Layout */}
@@ -195,7 +195,7 @@ export default function DashboardPage() {
 
       {/* Mobile Layout */}
       <div className="md:hidden">
-        {mobileTab === 'home' && <BirrVerifyHero />}
+        {mobileTab === 'home' && <BirrVerifyHero onVerifyClick={openVerify} />}
 
         <div className="mobile-shell">
         {mobileTab === 'history' && (
