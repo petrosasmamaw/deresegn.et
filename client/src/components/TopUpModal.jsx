@@ -306,7 +306,7 @@ export default function TopUpModal({
                   Send payment via {METHOD_LABELS[method]} to the account above, then upload the receipt. Receiver name and account must match.
                 </p>
 
-                <div className="relative border-2 border-dashed rounded-lg p-8 text-center" style={{ borderColor: 'var(--color-primary-border)', background: 'var(--color-primary-muted)' }}>
+                <div className="drop-zone p-8 text-center">
                   <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} className="absolute inset-0 opacity-0 cursor-pointer" />
                   {preview ? <p className="text-sm font-semibold">✓ Screenshot ready</p> : (
                     <div className="space-y-2">

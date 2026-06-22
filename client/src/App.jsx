@@ -11,7 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[var(--color-bg-base)] to-[var(--color-bg-subtle)]">
+    <div className="min-h-screen page-parchment">
       {/* Navbar Skeleton */}
       <nav className="navbar">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-6">

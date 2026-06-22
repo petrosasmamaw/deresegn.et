@@ -7,19 +7,19 @@ export default function ReceiptSummaryCard({ details = {}, title = 'Transaction 
   ]
 
   return (
-    <div className="card p-4 space-y-3" style={{ background: 'var(--color-bg-subtle)' }}>
-      <p className="font-semibold text-sm text-[var(--color-text-primary)]">{title}</p>
-      <dl className="space-y-3">
+    <div className="receipt-card">
+      <div className="receipt-card-header">{title}</div>
+      <div className="receipt-card-body">
         {rows.map(([label, primary, secondary]) => (
-          <div key={label}>
-            <dt className="text-[var(--text-xs)] font-medium text-[var(--color-text-secondary)] uppercase tracking-wide">{label}</dt>
-            <dd className="text-[var(--text-sm)] font-medium text-[var(--color-text-primary)] mt-0.5">{primary || '—'}</dd>
+          <div key={label} className="receipt-card-row">
+            <span className="receipt-label">{label}</span>
+            <span className="receipt-value">{primary || '—'}</span>
             {secondary && (
-              <dd className="text-[var(--text-xs)] font-mono text-[var(--color-text-secondary)]">{secondary}</dd>
+              <span className="receipt-value-secondary">{secondary}</span>
             )}
           </div>
         ))}
-      </dl>
+      </div>
     </div>
   )
 }

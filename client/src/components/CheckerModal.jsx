@@ -287,15 +287,15 @@ export default function CheckerModal({
         ) : step === successStep ? (
           <div className="modal-body space-y-5">
             <VerificationSuccessNote message={successMessage} />
-            <div className="card p-4" style={{ background: 'var(--color-success-muted)', borderColor: 'var(--color-success)', borderWidth: '2px' }}>
-              <div className="flex items-center gap-4">
-                <CheckCircle2 size={32} style={{ color: 'var(--color-success)' }} strokeWidth={2} />
-                <div>
-                  <p className="font-bold text-base" style={{ color: 'var(--color-success)' }}>Valid Payment Confirmed</p>
-                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    {successSubtext}
-                  </p>
-                </div>
+            <div className="card p-4 flex items-center gap-4" style={{ background: 'var(--color-success-muted)', borderColor: 'rgba(62, 143, 98, 0.25)', borderWidth: '1px' }}>
+              <div className="verified-stamp flex-shrink-0" style={{ width: '56px', height: '56px', fontSize: '9px' }}>
+                Valid
+              </div>
+              <div>
+                <p className="font-display font-bold text-base" style={{ color: 'var(--color-verified)' }}>Valid Payment Confirmed</p>
+                <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
+                  {successSubtext}
+                </p>
               </div>
             </div>
             {summaryDetails && <ReceiptSummaryCard details={summaryDetails} />}
@@ -434,7 +434,7 @@ export default function CheckerModal({
 
                 <div>
                   <label className="label mb-3">Receipt Screenshot</label>
-                  <div className="relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer" style={{ borderColor: 'var(--color-primary-border)', background: 'var(--color-primary-muted)' }}>
+                  <div className="drop-zone p-8 text-center cursor-pointer">
                     <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} className="absolute inset-0 opacity-0 cursor-pointer" required />
                     {preview ? (
                       <p className="text-sm font-semibold">✓ Screenshot uploaded</p>

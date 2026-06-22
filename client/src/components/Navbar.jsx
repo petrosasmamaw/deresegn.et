@@ -19,10 +19,10 @@ export default function Navbar() {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-6">
         {/* Logo */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="p-2 rounded-lg" style={{ background: 'var(--color-primary-muted)' }}>
-            <Shield size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
+          <div className="p-2 rounded-lg" style={{ background: 'rgba(198, 162, 78, 0.12)' }}>
+            <Shield size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
           </div>
-          <a href="/" className="font-display font-bold text-lg" style={{ color: 'var(--color-text-primary)' }}>
+          <a href="/" className="navbar-brand">
             Deresegn
           </a>
         </div>
@@ -32,24 +32,17 @@ export default function Navbar() {
           {user ? (
             <>
               {/* Balance Chip */}
-              <div 
-                className="badge badge-accent px-4 py-2"
-                style={{
-                  background: 'var(--color-primary-muted)',
-                  color: 'var(--color-primary)',
-                  borderColor: 'var(--color-primary-border)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <Shield size={16} strokeWidth={2} />
-                <span className="font-mono font-bold">{balance}</span>
-                <span className="text-xs font-semibold uppercase">Birr</span>
+              <div className="credit-pill">
+                <span
+                  className="inline-block w-2 h-2 rounded-full"
+                  style={{ background: 'var(--color-verified)' }}
+                />
+                <span>{balance}</span>
+                <span className="text-xs opacity-80">Birr</span>
               </div>
 
               {/* User Email (desktop) */}
-              <span className="hidden md:inline text-[var(--text-sm)] text-[var(--color-text-secondary)] font-medium max-w-xs truncate">
+              <span className="hidden md:inline navbar-user font-medium max-w-xs truncate">
                 {user.email || user.name}
               </span>
 

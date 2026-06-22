@@ -55,7 +55,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[var(--color-bg-base)] to-[var(--color-bg-subtle)]">
+      <div className="min-h-screen page-parchment">
         <AdminNavbar user={user} />
         <main className="flex-1 p-4 md:p-6">
           <div className="container mx-auto">
@@ -76,14 +76,14 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[var(--color-bg-base)] to-[var(--color-bg-subtle)]">
+    <div className="min-h-screen page-parchment">
       <AdminNavbar user={user} />
 
       <main className="flex-1 p-4 md:p-6">
         <div className="container mx-auto space-y-8">
           {/* Header */}
           <div>
-            <h1 className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">Admin Dashboard</h1>
+            <h1 className="page-title mb-2">Admin Dashboard</h1>
             <p className="text-[var(--color-text-secondary)]">Manage and monitor user activities</p>
           </div>
 
@@ -116,27 +116,27 @@ export default function AdminDashboard() {
           {/* Stats Cards */}
           {activeTab === 'users' && dashboardData?.stats && (
             <div className="grid md:grid-cols-4 gap-4">
-              <div className="card p-6" style={{ borderLeft: '4px solid var(--color-primary)' }}>
+              <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] font-semibold uppercase">
+                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
                     Total Users
                   </p>
-                  <Users size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
+                  <Users size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
                 </div>
-                <p className="text-4xl font-bold" style={{ color: 'var(--color-primary)' }}>
+                <p className="amount-mono-lg">
                   {dashboardData.stats.totalUsers}
                 </p>
                 <p className="text-xs text-[var(--color-text-secondary)] mt-2">Active users</p>
               </div>
 
-              <div className="card p-6" style={{ borderLeft: '4px solid var(--color-accent)' }}>
+              <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] font-semibold uppercase">
+                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
                     Total Balance
                   </p>
-                  <Zap size={20} style={{ color: 'var(--color-accent)' }} strokeWidth={2} />
+                  <Zap size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
                 </div>
-                <p className="text-4xl font-bold" style={{ color: 'var(--color-accent)' }}>
+                <p className="amount-mono-lg">
                   {typeof dashboardData.stats.totalBalance === 'number'
                     ? dashboardData.stats.totalBalance.toFixed(2)
                     : 0}
@@ -144,27 +144,27 @@ export default function AdminDashboard() {
                 <p className="text-xs text-[var(--color-text-secondary)] mt-2">Birr in system</p>
               </div>
 
-              <div className="card p-6" style={{ borderLeft: '4px solid var(--color-success)' }}>
+              <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] font-semibold uppercase">
+                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
                     Verifications
                   </p>
-                  <Activity size={20} style={{ color: 'var(--color-success)' }} strokeWidth={2} />
+                  <Activity size={20} style={{ color: 'var(--color-verified)' }} strokeWidth={2} />
                 </div>
-                <p className="text-4xl font-bold" style={{ color: 'var(--color-success)' }}>
+                <p className="amount-mono-lg">
                   {dashboardData.stats.totalChecks}
                 </p>
                 <p className="text-xs text-[var(--color-text-secondary)] mt-2">Total checks</p>
               </div>
 
-              <div className="card p-6" style={{ borderLeft: '4px solid var(--color-info)' }}>
+              <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] font-semibold uppercase">
+                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
                     Top-Ups
                   </p>
-                  <TrendingUp size={20} style={{ color: 'var(--color-info)' }} strokeWidth={2} />
+                  <TrendingUp size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
                 </div>
-                <p className="text-4xl font-bold" style={{ color: 'var(--color-info)' }}>
+                <p className="amount-mono-lg">
                   {dashboardData.stats.totalTopups}
                 </p>
                 <p className="text-xs text-[var(--color-text-secondary)] mt-2">Completed</p>

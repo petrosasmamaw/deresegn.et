@@ -6,7 +6,7 @@ import { Shield, ArrowRight } from 'lucide-react'
 
 function LoginSkeleton() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[var(--color-bg-base)] to-[var(--color-bg-subtle)] flex items-center justify-center p-4">
+    <div className="min-h-screen page-parchment flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <div className="skeleton w-14 h-14 rounded-xl mx-auto mb-4"></div>
@@ -46,19 +46,19 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center min-h-screen px-4 py-12" style={{ background: `linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)` }}>
-      <div className="w-full max-w-sm">
-        {/* Logo Section */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-4" style={{ background: 'var(--color-primary-muted)' }}>
-            <Shield size={28} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
-          </div>
-          <h1 className="page-title mb-2">Welcome Back</h1>
-          <p className="page-subtitle">Secure receipt verification for your business</p>
+    <main className="auth-hero">
+      <div className="hero-section auth-hero-top">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-4" style={{ background: 'rgba(198, 162, 78, 0.12)' }}>
+          <Shield size={28} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
         </div>
+        <h1 className="page-title mb-2">Welcome Back</h1>
+        <p className="page-subtitle">Secure receipt verification for your business</p>
+      </div>
 
-        {/* Form Card */}
-        <div className="card space-y-5">
+      <div className="auth-hero-body">
+        <div className="w-full max-w-sm mx-auto">
+          {/* Form Card */}
+          <div className="card space-y-5" style={{ boxShadow: 'var(--shadow-md)' }}>
           {error && (
             <div className="alert alert-error">
               <div className="flex-1">
@@ -101,7 +101,7 @@ export default function LoginPage() {
             >
               {submitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin" />
                   Logging in...
                 </>
               ) : (
@@ -117,10 +117,11 @@ export default function LoginPage() {
         {/* Sign Up Link */}
         <p className="text-center text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-6">
           Don't have an account?{' '}
-          <a href="/register" className="font-semibold" style={{ color: 'var(--color-primary)' }}>
+          <a href="/register" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>
             Create one
           </a>
         </p>
+        </div>
       </div>
     </main>
   )

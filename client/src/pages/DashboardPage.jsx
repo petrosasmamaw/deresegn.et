@@ -134,11 +134,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="flex-1" style={{ background: 'linear-gradient(180deg, var(--color-bg-base) 0%, var(--color-bg-subtle) 100%)' }}>
+    <main className="flex-1 page-parchment">
       {/* Desktop Layout */}
       <div className="hidden md:block container mx-auto py-8 md:py-12 max-w-6xl">
         {/* Page Header */}
-        <div className="mb-12">
+        <div className="hero-band mb-10">
           <p className="eyebrow mb-3">Dashboard</p>
           <h1 className="page-title mb-2">Receipt Verification</h1>
           <p className="page-subtitle">Manage your balance and verify transaction receipts</p>
@@ -152,11 +152,11 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Actions Card */}
-          <div className="card flex flex-col justify-between" style={{ background: `linear-gradient(135deg, var(--color-accent-muted) 0%, rgba(245, 158, 11, 0.08) 100%)`, borderColor: 'var(--color-accent-border)', borderWidth: '2px' }}>
+          <div className="action-card flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <Zap size={18} style={{ color: 'var(--color-accent)' }} strokeWidth={2} />
-                <p className="font-display font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Action</p>
+                <Zap size={18} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
+                <p className="font-display font-bold text-sm" style={{ color: 'var(--color-foil-gold)' }}>Quick Action</p>
               </div>
               <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mb-4 leading-relaxed">
                 Verify with a receipt screenshot + QR, or enter the payment ID only (Invoice / FT / IPSS).
@@ -198,7 +198,7 @@ export default function DashboardPage() {
       <div className="md:hidden flex flex-col min-h-screen px-4 pt-6">
         {/* Mobile Header */}
         <div className="mb-6">
-          <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
+          <h1 className="font-display text-xl font-bold text-[var(--color-ink)]">
             {mobileTab === 'home' ? 'Balance & Verify' : 'History'}
           </h1>
         </div>
@@ -210,10 +210,10 @@ export default function DashboardPage() {
             <BalanceCard balance={balance} onTopUpClick={() => setTopupOpen(true)} />
 
             {/* Quick Verify Card */}
-            <div className="card flex flex-col gap-4" style={{ background: `linear-gradient(135deg, var(--color-accent-muted) 0%, rgba(245, 158, 11, 0.08) 100%)`, borderColor: 'var(--color-accent-border)', borderWidth: '2px' }}>
+            <div className="action-card flex flex-col gap-4">
               <div className="flex items-center gap-2">
-                <Zap size={16} style={{ color: 'var(--color-accent)' }} strokeWidth={2} />
-                <p className="font-bold text-sm" style={{ color: 'var(--color-accent)' }}>Quick Verify</p>
+                <Zap size={16} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
+                <p className="font-display font-bold text-sm" style={{ color: 'var(--color-foil-gold)' }}>Quick Verify</p>
               </div>
               <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
                 Tap the + button below to verify. Use screenshot + QR or payment ID only (no image).
@@ -222,23 +222,23 @@ export default function DashboardPage() {
 
             {/* Last Check Summary */}
             {lastCheck && (
-              <div className="card border-l-4" style={{ borderLeftColor: 'var(--color-primary)' }}>
-                <p className="text-xs text-[var(--color-text-secondary)] uppercase font-semibold mb-2">Last Verification</p>
+              <div className="stat-card">
+                <p className="text-xs text-[var(--color-text-secondary)] uppercase font-semibold mb-2 tracking-wide">Last Verification</p>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-[var(--color-text-secondary)]">Amount:</span>
-                    <span className="font-mono font-bold">{lastCheck.amount} ETB</span>
+                    <span className="amount-mono">{lastCheck.amount} ETB</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-[var(--color-text-secondary)]">Status:</span>
-                    <span className="badge badge-success inline-flex items-center gap-1 text-xs">
+                    <span className="badge badge-success inline-flex items-center gap-1">
                       <CheckCircle2 size={12} />
                       Verified
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-[var(--color-text-secondary)]">Cost:</span>
-                    <span className="font-mono font-bold text-[var(--color-error)]">−{lastCheck.balanceDeducted}</span>
+                    <span className="font-mono font-bold" style={{ color: 'var(--color-maroon)' }}>−{lastCheck.balanceDeducted}</span>
                   </div>
                 </div>
               </div>

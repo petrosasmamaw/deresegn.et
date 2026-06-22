@@ -7,7 +7,7 @@ export default function AdminUsersList({ users, onSelectUser }) {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="section-title flex items-center gap-2">
-            <Users size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
+            <Users size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
             All Users
           </h2>
           <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-2">
@@ -16,43 +16,39 @@ export default function AdminUsersList({ users, onSelectUser }) {
         </div>
       </div>
 
-      {/* Desktop Table */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full">
-          <thead style={{ background: 'var(--color-bg-subtle)' }}>
+      <div className="hidden md:block overflow-x-auto rounded-lg border" style={{ borderColor: 'rgba(14, 36, 32, 0.12)' }}>
+        <table className="data-table">
+          <thead>
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold">Name</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold">Balance</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold">Checks</th>
-              <th className="px-6 py-3 text-right text-sm font-semibold">Top-Ups</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold">Joined</th>
-              <th className="px-6 py-3 text-center text-sm font-semibold">Action</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th style={{ textAlign: 'right' }}>Balance</th>
+              <th style={{ textAlign: 'right' }}>Checks</th>
+              <th style={{ textAlign: 'right' }}>Top-Ups</th>
+              <th>Joined</th>
+              <th style={{ textAlign: 'center' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr
-                key={u.id}
-                className="border-t border-[var(--color-border)] hover:bg-[var(--color-bg-elevated)] transition-colors"
-              >
-                <td className="px-6 py-4 font-semibold text-[var(--color-text-primary)]">{u.name}</td>
-                <td className="px-6 py-4 text-[var(--color-text-secondary)] font-mono text-sm">{u.email}</td>
-                <td className="px-6 py-4 text-right">
-                  <span className="font-mono font-bold" style={{ color: 'var(--color-primary)' }}>
+              <tr key={u.id}>
+                <td className="font-semibold">{u.name}</td>
+                <td className="tx-mono">{u.email}</td>
+                <td className="text-right">
+                  <span className="amount-mono">
                     {typeof u.balance === 'string' ? parseFloat(u.balance).toFixed(2) : u.balance.toFixed(2)}
                   </span>
                   <span className="text-xs text-[var(--color-text-secondary)] ml-1">Birr</span>
                 </td>
-                <td className="px-6 py-4 text-right font-semibold">{u.checksCount}</td>
-                <td className="px-6 py-4 text-right font-semibold">{u.topupsCount}</td>
-                <td className="px-6 py-4 text-sm text-[var(--color-text-secondary)]">
+                <td className="text-right font-mono">{u.checksCount}</td>
+                <td className="text-right font-mono">{u.topupsCount}</td>
+                <td className="text-sm text-[var(--color-text-secondary)]">
                   {format(new Date(u.createdAt), 'MMM dd, yyyy')}
                 </td>
-                <td className="px-6 py-4 text-center">
+                <td className="text-center">
                   <button
                     onClick={() => onSelectUser(u.id)}
-                    className="btn-ghost px-3 py-2 flex items-center gap-2 justify-center"
+                    className="btn-ghost px-3 py-2 flex items-center gap-2 justify-center mx-auto"
                     title="View details"
                   >
                     <Eye size={16} />
@@ -87,7 +83,7 @@ export default function AdminUsersList({ users, onSelectUser }) {
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div>
                 <p className="text-xs text-[var(--color-text-secondary)]">Balance</p>
-                <p className="font-bold" style={{ color: 'var(--color-primary)' }}>
+                <p className="amount-mono text-sm">
                   {typeof u.balance === 'string' ? parseFloat(u.balance).toFixed(2) : u.balance.toFixed(2)} Birr
                 </p>
               </div>

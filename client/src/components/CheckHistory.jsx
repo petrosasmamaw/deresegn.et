@@ -8,6 +8,19 @@ const METHOD_LABELS = {
   dashen: 'Dashen Bank',
 }
 
+const BANK_BADGE_CLASS = {
+  telebirr: 'bank-badge-telebirr',
+  cbe: 'bank-badge-cbe',
+  boa: 'bank-badge-boa',
+  dashen: 'bank-badge-dashen',
+}
+
+function BankBadge({ method }) {
+  const label = METHOD_LABELS[method] || method
+  const badgeClass = BANK_BADGE_CLASS[method] || 'bank-badge-cbe'
+  return <span className={`bank-badge ${badgeClass}`}>{label}</span>
+}
+
 export default function CheckHistory({ checks = [], loading = false }) {
   if (loading) {
     return (
@@ -30,10 +43,10 @@ export default function CheckHistory({ checks = [], loading = false }) {
   return (
     <>
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto rounded-lg border" style={{ borderColor: 'rgba(14, 36, 32, 0.12)' }}>
         <table className="data-table">
           <thead>
-            <tr style={{ background: 'var(--color-bg-subtle)' }}>
+            <tr>
               <th>Date</th>
               <th>Method</th>
               <th>Payment ID</th>
@@ -44,24 +57,26 @@ export default function CheckHistory({ checks = [], loading = false }) {
           </thead>
           <tbody>
             {checks.map((check) => (
-              <tr key={check.id} style={{ borderBottomColor: 'var(--color-border)' }}>
-                <td className="font-mono text-[var(--text-sm)] font-medium">
+              <tr key={check.id}>
+                <td className="font-mono text-[var(--text-sm)]">
                   {new Date(check.createdAt).toLocaleDateString(undefined, {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
                   })}
                 </td>
-                <td className="font-medium text-[var(--text-sm)]">{METHOD_LABELS[check.paymentMethod] || check.paymentMethod}</td>
-                <td className="font-mono text-[var(--text-sm)] text-[var(--color-text-secondary)]">{check.transactionCode}</td>
-                <td className="font-mono font-semibold">{check.amount} ETB</td>
                 <td>
-                  <div className="badge badge-success inline-flex items-center gap-2">
-                    <CheckCircle2 size={14} strokeWidth={2.5} />
-                    Verified
-                  </div>
+                  <BankBadge method={check.paymentMethod} />
                 </td>
-                <td className="font-mono font-bold text-[var(--color-text-secondary)]">−{check.balanceDeducted}</td>
+                <td className="tx-mono">{check.transactionCode}</td>
+                <td className="amount-mono">{check.amount} ETB</td>
+                <td>
+                  <span className="badge badge-success inline-flex items-center gap-1">
+                    <CheckCircle2 size={12} strokeWidth={2.5} />
+                    Verified
+                  </span>
+                </td>
+                <td className="font-mono font-medium text-[var(--color-text-secondary)]">−{check.balanceDeducted}</td>
               </tr>
             ))}
           </tbody>
@@ -74,8 +89,8 @@ export default function CheckHistory({ checks = [], loading = false }) {
           <div key={check.id} className="card space-y-3">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-[var(--color-text-secondary)] uppercase font-semibold mb-1">Receipt Verification</p>
-                <p className="font-mono text-sm font-medium">
+                <p className="receipt-label mb-1">Receipt Verification</p>
+                <p className="font-mono text-sm">
                   {new Date(check.createdAt).toLocaleDateString(undefined, {
                     month: 'short',
                     day: 'numeric',
@@ -83,30 +98,26 @@ export default function CheckHistory({ checks = [], loading = false }) {
                   })}
                 </p>
               </div>
-              <div className="badge badge-success inline-flex items-center gap-1 text-xs">
+              <span className="badge badge-success inline-flex items-center gap-1">
                 <CheckCircle2 size={12} strokeWidth={2.5} />
                 Verified
-              </div>
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 py-2 border-t border-b border-[var(--color-border)]">
+            <div className="grid grid-cols-2 gap-3 py-2 border-t border-b" style={{ borderColor: 'rgba(14, 36, 32, 0.08)' }}>
               <div>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-1">Method</p>
-                <p className="text-sm font-medium">{METHOD_LABELS[check.paymentMethod] || check.paymentMethod}</p>
+                <p className="receipt-label">Method</p>
+                <BankBadge method={check.paymentMethod} />
               </div>
               <div>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-1">Amount</p>
-                <p className="font-mono font-semibold text-sm">{check.amount} ETB</p>
+                <p className="receipt-label">Amount</p>
+                <p className="amount-mono text-sm">{check.amount} ETB</p>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[var(--color-text-secondary)]">{check.transactionCode}</p>
-              </div>
-              <div>
-                <p className="font-mono font-bold text-sm text-[var(--color-error)]">−{check.balanceDeducted}</p>
-              </div>
+              <p className="tx-mono">{check.transactionCode}</p>
+              <p className="font-mono font-medium text-sm text-[var(--color-text-secondary)]">−{check.balanceDeducted}</p>
             </div>
           </div>
         ))}

@@ -13,27 +13,27 @@ export default function AdminNavbar({ user }) {
   }
 
   return (
-    <nav className="navbar border-b border-[var(--color-border)]">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <nav className="navbar">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-3">
           <div
             className="p-2 rounded-lg"
-            style={{ background: 'var(--color-primary-muted)' }}
+            style={{ background: 'rgba(198, 162, 78, 0.12)' }}
           >
-            <Shield size={24} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
+            <Shield size={24} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
           </div>
           <div>
-            <h1 className="font-display font-bold text-[var(--color-text-primary)]">Deresegn</h1>
-            <p className="text-xs text-[var(--color-text-secondary)]">Admin Console</p>
+            <h1 className="navbar-brand leading-tight">Deresegn</h1>
+            <p className="text-xs" style={{ color: 'rgba(244, 238, 220, 0.5)' }}>Admin Console</p>
           </div>
         </div>
 
         {/* User Info & Logout */}
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]">{user?.name}</p>
-            <p className="text-xs text-[var(--color-text-secondary)]">{user?.email}</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-parchment)' }}>{user?.name}</p>
+            <p className="text-xs navbar-user">{user?.email}</p>
           </div>
           <button
             onClick={handleLogout}

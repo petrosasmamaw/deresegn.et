@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom'
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[var(--color-bg-base)] to-[var(--color-bg-subtle)] p-4">
+    <div className="min-h-screen page-parchment p-4">
       <div className="container mx-auto">
         {/* Header Skeleton */}
         <div className="mb-8">
