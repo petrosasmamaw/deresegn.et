@@ -8,6 +8,7 @@ import BottomNav from '../components/BottomNav'
 import TopUpModal from '../components/TopUpModal'
 import CheckerModal from '../components/CheckerModal'
 import CheckHistory from '../components/CheckHistory'
+import BirrVerifyHero from '../components/BirrVerifyHero'
 
 export default function DashboardPage() {
   const dispatch = useDispatch()
@@ -135,15 +136,13 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1 page-parchment">
-      {/* Desktop Layout */}
-      <div className="hidden md:block container mx-auto py-8 md:py-12 max-w-6xl">
-        {/* Page Header */}
-        <div className="hero-band mb-10">
-          <p className="eyebrow mb-3">Dashboard</p>
-          <h1 className="page-title mb-2">Receipt Verification</h1>
-          <p className="page-subtitle">Manage your balance and verify transaction receipts</p>
-        </div>
+      {/* Unified dashboard hero — desktop */}
+      <div className="hidden md:block">
+        <BirrVerifyHero />
+      </div>
 
+      {/* Desktop Layout */}
+      <div className="hidden md:block container mx-auto py-8 max-w-6xl">
         {/* Primary Grid: Balance + Verification */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
           {/* Balance Card (Hero - Spans 2 cols) */}
@@ -195,18 +194,16 @@ export default function DashboardPage() {
       </div>
 
       {/* Mobile Layout */}
-      <div className="md:hidden mobile-shell">
+      <div className="md:hidden">
+        {mobileTab === 'home' && <BirrVerifyHero />}
+
+        <div className="mobile-shell">
+        {mobileTab === 'history' && (
         <header className="mobile-page-header">
-          <h1 className="mobile-page-title">
-            {mobileTab === 'home' ? 'Balance & Verify' : 'History'}
-          </h1>
-          {mobileTab === 'home' && (
-            <p className="mobile-page-subtitle">Manage balance and verify receipts</p>
-          )}
-          {mobileTab === 'history' && (
-            <p className="mobile-page-subtitle">Your recent verifications</p>
-          )}
+          <h1 className="mobile-page-title">History</h1>
+          <p className="mobile-page-subtitle">Your recent verifications</p>
         </header>
+        )}
 
         {mobileTab === 'home' ? (
           <div className="flex-1 mobile-stack pb-2">
@@ -250,6 +247,7 @@ export default function DashboardPage() {
             <CheckHistory checks={checks} loading={checksLoading} />
           </div>
         )}
+        </div>
       </div>
 
       {/* Modals */}
