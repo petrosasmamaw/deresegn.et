@@ -771,6 +771,124 @@ body {
   animation: slide-up 250ms ease forwards;
 }
 
+.modal-content-wide {
+  max-width: 860px;
+  overflow: hidden;
+}
+
+.modal-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+@media (min-width: 768px) {
+  .modal-split {
+    grid-template-columns: 1fr 300px;
+  }
+}
+
+.modal-split-main {
+  min-width: 0;
+}
+
+.receipt-example-panel {
+  position: relative;
+  background: var(--color-ink);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+.receipt-example-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--guilloche-pattern);
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.receipt-example-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.receipt-example-label {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-parchment);
+  text-align: center;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.receipt-example-hint {
+  font-size: 11px;
+  color: rgba(244, 238, 220, 0.65);
+  text-align: center;
+  margin-bottom: 16px;
+  line-height: 1.5;
+  max-width: 240px;
+}
+
+.receipt-example-frame {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  padding: 10px;
+  background: linear-gradient(145deg, rgba(198, 162, 78, 0.18) 0%, rgba(198, 162, 78, 0.06) 100%);
+  border: 1px solid rgba(198, 162, 78, 0.35);
+  border-radius: 16px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(198, 162, 78, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.receipt-example-frame::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: rgba(198, 162, 78, 0.4);
+  border-radius: 2px;
+}
+
+.receipt-example-image {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  border: 2px solid rgba(14, 36, 32, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  object-fit: cover;
+  object-position: top;
+  max-height: 380px;
+}
+
+.receipt-example-badge {
+  margin-top: 14px;
+}
+
+@media (max-width: 767px) {
+  .receipt-example-panel {
+    border-top: 1px solid rgba(198, 162, 78, 0.25);
+    padding: 20px 16px;
+  }
+
+  .modal-content-wide {
+    max-width: 100%;
+  }
+}
+
 @keyframes slide-up {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
