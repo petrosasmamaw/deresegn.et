@@ -878,6 +878,67 @@ body {
   margin-top: 14px;
 }
 
+.format-template-block {
+  width: 100%;
+  max-width: 260px;
+  padding: 14px 16px;
+  background: linear-gradient(145deg, rgba(198, 162, 78, 0.14) 0%, rgba(14, 36, 32, 0.6) 100%);
+  border: 1px solid rgba(198, 162, 78, 0.35);
+  border-radius: 10px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.format-template-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(198, 162, 78, 0.2);
+}
+
+.format-template-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.format-template-row:first-child {
+  padding-top: 0;
+}
+
+.format-template-key {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(198, 162, 78, 0.85);
+}
+
+.format-template-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-parchment);
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.format-template-sms {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.format-template-pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  color: rgba(244, 238, 220, 0.9);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 @media (max-width: 767px) {
   .receipt-example-panel {
     border-top: 1px solid rgba(198, 162, 78, 0.25);

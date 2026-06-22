@@ -3,7 +3,7 @@ import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload, 
 import { VerificationFailureList, VerificationSuccessNote, VerificationWarningList } from './VerificationResult'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 import ReceiptDetailFields from './ReceiptDetailFields'
-import ReceiptFormatExample from './ReceiptFormatExample'
+import VerificationFormatGuide, { MODAL_SPLIT_STYLE } from './VerificationFormatGuide'
 
 const METHODS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt with Invoice No. & QR' },
@@ -254,11 +254,11 @@ export default function CheckerModal({
         ? 'Verified with your entered details'
         : 'Verified from screenshot & QR code'
 
-  const showReceiptGuide = step === 3 && verifyMode === 'screenshot' && method
+  const showFormatGuide = step === 3 && method && ['screenshot', 'reference', 'sms'].includes(verifyMode)
 
   return (
     <div className="modal-overlay">
-      <div className={`modal-content${showReceiptGuide ? ' modal-content-wide' : ''}`}>
+      <div className={`modal-content${showFormatGuide ? ' modal-content-wide' : ''}`}>
         <div className="modal-header">
           <h2 className="section-title">Verify Receipt</h2>
           <button onClick={handleClose} className="btn-icon">
@@ -424,7 +424,7 @@ export default function CheckerModal({
             )}
 
             {step === 3 && verifyMode === 'screenshot' && (
-              <div className="modal-split" style={{ margin: '-24px -24px -24px', width: 'calc(100% + 48px)' }}>
+              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
                 <form onSubmit={handleQuickVerify} className="modal-split-main p-6 space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
@@ -470,12 +470,13 @@ export default function CheckerModal({
                   </button>
                 </div>
               </form>
-              <ReceiptFormatExample method={method} />
+              <VerificationFormatGuide method={method} mode="screenshot" />
               </div>
             )}
 
             {step === 3 && verifyMode === 'reference' && (
-              <form onSubmit={runReferenceVerify} className="space-y-5">
+              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
+              <form onSubmit={runReferenceVerify} className="modal-split-main p-6 space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
                     ← Back to Type
@@ -516,10 +517,13 @@ export default function CheckerModal({
                   {loading ? 'Verifying...' : 'Verify Payment ID'}
                 </button>
               </form>
+              <VerificationFormatGuide method={method} mode="reference" />
+              </div>
             )}
 
             {step === 3 && verifyMode === 'sms' && (
-              <form onSubmit={runSmsVerify} className="space-y-5">
+              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
+              <form onSubmit={runSmsVerify} className="modal-split-main p-6 space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
                     ← Back to Type
@@ -550,6 +554,8 @@ export default function CheckerModal({
                   {loading ? 'Verifying...' : 'Verify SMS'}
                 </button>
               </form>
+              <VerificationFormatGuide method={method} mode="sms" />
+              </div>
             )}
 
             {step === 4 && verifyMode === 'screenshot' && (
