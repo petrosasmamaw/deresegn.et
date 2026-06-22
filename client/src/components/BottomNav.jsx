@@ -3,46 +3,47 @@ import { Home, History, Plus } from 'lucide-react'
 export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick }) {
   return (
     <>
-      {/* Mobile Bottom Navigation - Hidden on Desktop */}
-      <nav className="bottom-nav fixed bottom-0 left-0 right-0 z-30 md:hidden pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center justify-between px-4 h-16">
-          {/* Home Tab */}
-          <button
-            onClick={() => onTabChange('home')}
-            className={`bottom-nav-tab flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-lg ${
-              activeTab === 'home' ? 'bottom-nav-tab-active' : ''
-            }`}
-            title="Home"
-          >
-            <Home size={24} strokeWidth={2} />
-            <span className="text-xs font-semibold">Home</span>
-          </button>
+      <nav
+        className="bottom-nav fixed bottom-0 left-0 right-0 z-30 md:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div className="relative">
+          <div className="bottom-nav-inner">
+            <button
+              type="button"
+              onClick={() => onTabChange('home')}
+              className={`bottom-nav-tab${activeTab === 'home' ? ' bottom-nav-tab-active' : ''}`}
+              aria-current={activeTab === 'home' ? 'page' : undefined}
+            >
+              <Home size={22} strokeWidth={2} />
+              <span>Home</span>
+            </button>
 
-          {/* History Tab */}
-          <button
-            onClick={() => onTabChange('history')}
-            className={`bottom-nav-tab flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-lg ${
-              activeTab === 'history' ? 'bottom-nav-tab-active' : ''
-            }`}
-            title="History"
-          >
-            <History size={24} strokeWidth={2} />
-            <span className="text-xs font-semibold">History</span>
-          </button>
+            <div className="bottom-nav-fab-slot" aria-hidden="true" />
 
-          {/* FAB (Center - Verify Receipt) */}
+            <button
+              type="button"
+              onClick={() => onTabChange('history')}
+              className={`bottom-nav-tab${activeTab === 'history' ? ' bottom-nav-tab-active' : ''}`}
+              aria-current={activeTab === 'history' ? 'page' : undefined}
+            >
+              <History size={22} strokeWidth={2} />
+              <span>History</span>
+            </button>
+          </div>
+
           <button
+            type="button"
             onClick={onFabClick}
-            className="bottom-nav-fab absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95"
-            title="Verify Receipt"
+            className="bottom-nav-fab"
+            aria-label="Verify Receipt"
           >
-            <Plus size={28} strokeWidth={2.5} />
+            <Plus size={26} strokeWidth={2.5} />
           </button>
         </div>
       </nav>
 
-      {/* Safe Area Spacer */}
-      <div className="md:hidden h-20"></div>
+      <div className="bottom-nav-spacer md:hidden" aria-hidden="true" />
     </>
   )
 }

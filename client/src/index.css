@@ -715,11 +715,40 @@ body {
 .bottom-nav {
   background: var(--color-bg-navbar);
   border-top: 1px solid rgba(198, 162, 78, 0.25);
+  box-shadow: 0 -4px 24px rgba(14, 36, 32, 0.12);
+}
+
+.bottom-nav-inner {
+  display: grid;
+  grid-template-columns: 1fr 72px 1fr;
+  align-items: end;
+  height: 56px;
+  padding: 0 8px 6px;
 }
 
 .bottom-nav-tab {
-  color: rgba(244, 238, 220, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 6px 4px 4px;
+  min-height: 48px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: rgba(244, 238, 220, 0.55);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   transition: color var(--transition-fast);
+}
+
+.bottom-nav-tab svg {
+  width: 22px;
+  height: 22px;
 }
 
 .bottom-nav-tab:hover {
@@ -730,14 +759,124 @@ body {
   color: var(--color-foil-gold);
 }
 
+.bottom-nav-fab-slot {
+  pointer-events: none;
+}
+
 .bottom-nav-fab {
+  position: absolute;
+  left: 50%;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   background: var(--color-foil-gold);
   color: var(--color-ink);
-  box-shadow: 0 4px 12px rgba(198, 162, 78, 0.35);
+  box-shadow:
+    0 4px 16px rgba(198, 162, 78, 0.4),
+    0 0 0 4px var(--color-bg-navbar);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.bottom-nav-fab:active {
+  transform: translateX(-50%) scale(0.94);
 }
 
 .bottom-nav-fab:hover {
   background: var(--color-light-gold);
+}
+
+.bottom-nav-spacer {
+  height: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── MOBILE SHELL ── */
+.mobile-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 56px);
+  padding: 20px 16px 0;
+}
+
+.mobile-page-header {
+  margin-bottom: 20px;
+}
+
+.mobile-page-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
+.mobile-page-subtitle {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+.mobile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-card-compact {
+  padding: 16px;
+}
+
+.balance-card .balance-amount {
+  font-family: var(--font-mono);
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 1.05;
+  color: var(--color-ink);
+  letter-spacing: -0.03em;
+}
+
+.balance-card .balance-icon-wrap {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: rgba(198, 162, 78, 0.1);
+}
+
+.balance-card .balance-actions {
+  padding-top: 14px;
+  gap: 10px;
+}
+
+.btn-compact-icon {
+  min-width: 44px;
+  width: 44px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.history-mobile-card {
+  padding: 14px 16px;
+  gap: 12px;
+}
+
+.navbar-mobile-compact .navbar-inner {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  gap: 12px;
+}
+
+.credit-pill-mobile {
+  padding: 5px 10px;
+  font-size: 12px;
+  gap: 6px;
 }
 
 /* ── MODALS ── */
@@ -1203,16 +1342,49 @@ body {
     padding-inline: 16px;
   }
 
-  .card {
+  .card,
+  .stat-card,
+  .action-card {
     padding: 16px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
+  }
+
+  .stat-card .eyebrow {
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+
+  .balance-card .balance-amount {
+    font-size: 36px;
+  }
+
+  .balance-card .balance-icon-wrap {
+    padding: 10px;
+  }
+
+  .balance-card .balance-icon-wrap svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .balance-card .balance-header {
+    margin-bottom: 20px;
+  }
+
+  .navbar-brand {
+    font-size: 16px;
+  }
+
+  .credit-pill {
+    padding: 5px 11px;
+    font-size: 12px;
   }
 
   .btn-primary,
   .btn-secondary,
   .btn-ghost {
-    padding: 10px 16px;
-    font-size: var(--text-sm);
+    padding: 11px 16px;
+    font-size: 14px;
   }
 
   .modal-content {
@@ -1244,8 +1416,8 @@ body {
   }
 
   .badge {
-    padding: 4px 8px;
-    font-size: var(--text-xs);
+    padding: 3px 8px;
+    font-size: 10px;
   }
 }
 
@@ -1255,20 +1427,39 @@ body {
   }
 
   .section-title {
-    font-size: var(--text-lg);
+    font-size: 17px;
+  }
+
+  .mobile-page-title {
+    font-size: 20px;
+  }
+
+  .mobile-shell {
+    padding: 16px 14px 0;
+  }
+
+  .mobile-stack {
+    gap: 10px;
   }
 
   .container {
     padding-inline: 12px;
   }
 
-  .card {
-    padding: 16px;
+  .card,
+  .stat-card,
+  .action-card {
+    padding: 14px;
+  }
+
+  .balance-card .balance-amount {
+    font-size: 32px;
   }
 
   .input,
   .select {
     font-size: 16px;
+    padding: 12px 14px;
   }
 
   .grid {
@@ -1313,14 +1504,13 @@ body {
     display: none !important;
   }
 
-  /* Ensure minimum tap target size (44px) */
-  button,
-  a,
+  /* Tap targets — exclude compact nav / icon controls */
+  button:not(.bottom-nav-tab):not(.bottom-nav-fab):not(.btn-compact-icon):not(.btn-icon),
+  a.btn-primary,
+  a.btn-secondary,
   input[type="button"],
   input[type="submit"],
-  input[type="reset"],
-  input[type="checkbox"],
-  input[type="radio"] {
+  input[type="reset"] {
     min-height: 44px;
   }
 
@@ -1328,11 +1518,19 @@ body {
   .btn-secondary,
   .btn-ghost {
     min-height: 44px;
-    min-width: 44px;
   }
 
   .btn-icon {
     min-width: 44px;
     min-height: 44px;
+  }
+
+  .bottom-nav-tab {
+    min-height: 48px;
+  }
+
+  .bottom-nav-fab {
+    min-height: 56px;
+    min-width: 56px;
   }
 }

@@ -15,49 +15,47 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="navbar">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-6">
+    <nav className="navbar navbar-mobile-compact">
+      <div className="container mx-auto px-4 navbar-inner flex items-center justify-between gap-4">
         {/* Logo */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="p-2 rounded-lg" style={{ background: 'rgba(198, 162, 78, 0.12)' }}>
-            <Shield size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
+        <div className="flex items-center gap-2.5 flex-shrink-0 min-w-0">
+          <div className="p-1.5 md:p-2 rounded-lg flex-shrink-0" style={{ background: 'rgba(198, 162, 78, 0.12)' }}>
+            <Shield size={18} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
           </div>
-          <a href="/" className="navbar-brand">
+          <a href="/" className="navbar-brand truncate">
             Deresegn
           </a>
         </div>
 
         {/* Right Section */}
-        <div className="flex items-center gap-4 ml-auto">
+        <div className="flex items-center gap-2 md:gap-4 ml-auto flex-shrink-0">
           {user ? (
             <>
-              {/* Balance Chip */}
-              <div className="credit-pill">
+              <div className="credit-pill credit-pill-mobile">
                 <span
-                  className="inline-block w-2 h-2 rounded-full"
+                  className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
                   style={{ background: 'var(--color-verified)' }}
                 />
                 <span>{balance}</span>
-                <span className="text-xs opacity-80">Birr</span>
+                <span className="text-[10px] opacity-75 uppercase tracking-wide">Birr</span>
               </div>
 
-              {/* User Email (desktop) */}
               <span className="hidden md:inline navbar-user font-medium max-w-xs truncate">
                 {user.email || user.name}
               </span>
 
-              {/* Logout Button */}
               <button
                 onClick={handleLogout}
-                className="btn-ghost px-3 flex items-center gap-2"
+                className="btn-ghost px-2 md:px-3 flex items-center gap-2"
                 title="Logout"
+                aria-label="Logout"
               >
                 <LogOut size={18} strokeWidth={2} />
                 <span className="hidden sm:inline text-sm">Logout</span>
               </button>
             </>
           ) : (
-            <a href="/login" className="btn-primary">
+            <a href="/login" className="btn-primary text-sm">
               Sign In
             </a>
           )}

@@ -195,60 +195,59 @@ export default function DashboardPage() {
       </div>
 
       {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col min-h-screen px-4 pt-6">
-        {/* Mobile Header */}
-        <div className="mb-6">
-          <h1 className="font-display text-xl font-bold text-[var(--color-ink)]">
+      <div className="md:hidden mobile-shell">
+        <header className="mobile-page-header">
+          <h1 className="mobile-page-title">
             {mobileTab === 'home' ? 'Balance & Verify' : 'History'}
           </h1>
-        </div>
+          {mobileTab === 'home' && (
+            <p className="mobile-page-subtitle">Manage balance and verify receipts</p>
+          )}
+          {mobileTab === 'history' && (
+            <p className="mobile-page-subtitle">Your recent verifications</p>
+          )}
+        </header>
 
-        {/* Mobile Content Tabs */}
         {mobileTab === 'home' ? (
-          <div className="flex-1 space-y-4">
-            {/* Balance Card */}
+          <div className="flex-1 mobile-stack pb-2">
             <BalanceCard balance={balance} onTopUpClick={() => setTopupOpen(true)} />
 
-            {/* Quick Verify Card */}
-            <div className="action-card flex flex-col gap-4">
+            <div className="action-card flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <Zap size={16} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-                <p className="font-display font-bold text-sm" style={{ color: 'var(--color-foil-gold)' }}>Quick Verify</p>
+                <Zap size={15} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
+                <p className="font-display font-semibold text-[13px]" style={{ color: 'var(--color-foil-gold)' }}>Quick Verify</p>
               </div>
-              <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+              <p className="text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
                 Tap the + button below to verify. Use screenshot + QR or payment ID only (no image).
               </p>
             </div>
 
-            {/* Last Check Summary */}
             {lastCheck && (
               <div className="stat-card">
-                <p className="text-xs text-[var(--color-text-secondary)] uppercase font-semibold mb-2 tracking-wide">Last Verification</p>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[var(--color-text-secondary)]">Amount:</span>
-                    <span className="amount-mono">{lastCheck.amount} ETB</span>
+                <p className="receipt-label mb-3">Last Verification</p>
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center gap-3">
+                    <span className="text-[13px] text-[var(--color-text-secondary)]">Amount</span>
+                    <span className="amount-mono text-[15px]">{lastCheck.amount} ETB</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[var(--color-text-secondary)]">Status:</span>
+                  <div className="flex justify-between items-center gap-3">
+                    <span className="text-[13px] text-[var(--color-text-secondary)]">Status</span>
                     <span className="badge badge-success inline-flex items-center gap-1">
-                      <CheckCircle2 size={12} />
+                      <CheckCircle2 size={11} />
                       Verified
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[var(--color-text-secondary)]">Cost:</span>
-                    <span className="font-mono font-bold" style={{ color: 'var(--color-maroon)' }}>−{lastCheck.balanceDeducted}</span>
+                  <div className="flex justify-between items-center gap-3">
+                    <span className="text-[13px] text-[var(--color-text-secondary)]">Cost</span>
+                    <span className="font-mono text-[14px] font-medium" style={{ color: 'var(--color-maroon)' }}>−{lastCheck.balanceDeducted}</span>
                   </div>
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="flex-1">
-            <div className="space-y-3">
-              <CheckHistory checks={checks} loading={checksLoading} />
-            </div>
+          <div className="flex-1 mobile-stack pb-2">
+            <CheckHistory checks={checks} loading={checksLoading} />
           </div>
         )}
       </div>

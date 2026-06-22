@@ -84,13 +84,13 @@ export default function CheckHistory({ checks = [], loading = false }) {
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden mobile-stack">
         {checks.map((check) => (
-          <div key={check.id} className="card space-y-3">
-            <div className="flex items-start justify-between">
-              <div>
+          <div key={check.id} className="card history-mobile-card flex flex-col">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
                 <p className="receipt-label mb-1">Receipt Verification</p>
-                <p className="font-mono text-sm">
+                <p className="font-mono text-[13px] text-[var(--color-ink)]">
                   {new Date(check.createdAt).toLocaleDateString(undefined, {
                     month: 'short',
                     day: 'numeric',
@@ -98,26 +98,31 @@ export default function CheckHistory({ checks = [], loading = false }) {
                   })}
                 </p>
               </div>
-              <span className="badge badge-success inline-flex items-center gap-1">
-                <CheckCircle2 size={12} strokeWidth={2.5} />
+              <span className="badge badge-success inline-flex items-center gap-1 flex-shrink-0">
+                <CheckCircle2 size={11} strokeWidth={2.5} />
                 Verified
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 py-2 border-t border-b" style={{ borderColor: 'rgba(14, 36, 32, 0.08)' }}>
+            <div
+              className="grid grid-cols-2 gap-3 py-2.5 border-t border-b"
+              style={{ borderColor: 'rgba(14, 36, 32, 0.08)' }}
+            >
               <div>
-                <p className="receipt-label">Method</p>
+                <p className="receipt-label mb-1.5">Method</p>
                 <BankBadge method={check.paymentMethod} />
               </div>
               <div>
-                <p className="receipt-label">Amount</p>
-                <p className="amount-mono text-sm">{check.amount} ETB</p>
+                <p className="receipt-label mb-1.5">Amount</p>
+                <p className="amount-mono text-[14px]">{check.amount} ETB</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <p className="tx-mono">{check.transactionCode}</p>
-              <p className="font-mono font-medium text-sm text-[var(--color-text-secondary)]">−{check.balanceDeducted}</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="tx-mono truncate">{check.transactionCode}</p>
+              <p className="font-mono text-[13px] font-medium text-[var(--color-text-secondary)] flex-shrink-0">
+                −{check.balanceDeducted}
+              </p>
             </div>
           </div>
         ))}
