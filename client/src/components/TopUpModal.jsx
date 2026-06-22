@@ -4,6 +4,7 @@ import axios from '../api/axiosInstance'
 import { unwrap } from '../api/unwrap'
 import { VerificationFailureList } from './VerificationResult'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
+import VerificationFormatGuide, { MODAL_SPLIT_STYLE } from './VerificationFormatGuide'
 
 const METHODS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet payment' },
@@ -161,9 +162,11 @@ export default function TopUpModal({
 
   if (!isOpen) return null
 
+  const showFormatGuide = step === 3 && method && ['screenshot', 'reference', 'sms'].includes(verifyMode)
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content max-w-lg">
+      <div className={`modal-content${showFormatGuide ? ' modal-content-wide' : ''}`}>
         <div className="modal-header">
           <h2 className="section-title">Top Up Balance</h2>
           <button onClick={handleClose} className="btn-icon">
@@ -299,14 +302,15 @@ export default function TopUpModal({
             )}
 
             {step === 3 && verifyMode === 'screenshot' && (
-              <form onSubmit={(e) => { e.preventDefault(); runTopUpScreenshot() }} className="space-y-5">
+              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
+              <form onSubmit={(e) => { e.preventDefault(); runTopUpScreenshot() }} className="modal-split-main p-6 space-y-5">
                 <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
                 <p className="text-sm font-semibold">Step 3: Upload Payment Screenshot</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
                   Send payment via {METHOD_LABELS[method]} to the account above, then upload the receipt. Receiver name and account must match.
                 </p>
 
-                <div className="drop-zone p-8 text-center">
+                <div className="drop-zone p-8 text-center cursor-pointer">
                   <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} className="absolute inset-0 opacity-0 cursor-pointer" />
                   {preview ? <p className="text-sm font-semibold">✓ Screenshot ready</p> : (
                     <div className="space-y-2">
@@ -321,10 +325,13 @@ export default function TopUpModal({
                   {loading ? 'Processing...' : 'Verify & Top Up'}
                 </button>
               </form>
+              <VerificationFormatGuide method={method} mode="screenshot" />
+              </div>
             )}
 
             {step === 3 && verifyMode === 'reference' && (
-              <form onSubmit={runTopUpReference} className="space-y-5">
+              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
+              <form onSubmit={runTopUpReference} className="modal-split-main p-6 space-y-5">
                 <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
                 <p className="text-sm font-semibold">Step 3: Enter Payment ID</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
@@ -350,10 +357,13 @@ export default function TopUpModal({
                   {loading ? 'Processing...' : 'Verify & Top Up'}
                 </button>
               </form>
+              <VerificationFormatGuide method={method} mode="reference" />
+              </div>
             )}
 
             {step === 3 && verifyMode === 'sms' && (
-              <form onSubmit={runTopUpSms} className="space-y-5">
+              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
+              <form onSubmit={runTopUpSms} className="modal-split-main p-6 space-y-5">
                 <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
                 <p className="text-sm font-semibold">Step 3: Paste Transaction SMS</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
@@ -372,6 +382,8 @@ export default function TopUpModal({
                   {loading ? 'Processing...' : 'Verify & Top Up'}
                 </button>
               </form>
+              <VerificationFormatGuide method={method} mode="sms" />
+              </div>
             )}
           </div>
         )}
