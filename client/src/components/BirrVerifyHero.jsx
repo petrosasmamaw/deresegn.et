@@ -229,14 +229,23 @@ export default function BirrVerifyHero({ onVerifyClick }) {
             <p className="page-subtitle">Manage your balance and verify transaction receipts</p>
           </div>
           {onVerifyClick && (
-            <button
-              type="button"
-              onClick={onVerifyClick}
-              className="hero-verify-btn"
-            >
-              <CheckCircle2 size={16} strokeWidth={2} />
-              <span>Verify Receipt</span>
-            </button>
+            <div className="hero-verify-cta">
+              <div className="hero-verify-cta-icon" aria-hidden="true">
+                <ShieldCheck size={18} strokeWidth={2} />
+              </div>
+              <div className="hero-verify-cta-copy">
+                <p className="hero-verify-cta-title">Verify Receipt</p>
+                <p className="hero-verify-cta-desc">Confirm Telebirr, CBE &amp; bank payments in seconds</p>
+              </div>
+              <button
+                type="button"
+                onClick={onVerifyClick}
+                className="hero-verify-btn"
+              >
+                <CheckCircle2 size={14} strokeWidth={2.25} />
+                <span>Verify now</span>
+              </button>
+            </div>
           )}
         </div>
 

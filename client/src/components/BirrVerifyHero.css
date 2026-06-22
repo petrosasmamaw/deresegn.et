@@ -14,8 +14,8 @@
   padding: 12px 16px 10px;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
+  gap: 20px;
 }
 
 .birr-verify-hero-copy-text {
@@ -39,33 +39,86 @@
   max-width: 520px;
 }
 
+.hero-verify-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: clamp(32px, 6vw, 96px);
+  max-width: min(100%, 380px);
+  padding: 10px 12px 10px 10px;
+  background: rgba(27, 70, 58, 0.55);
+  border: 1px solid rgba(198, 162, 78, 0.28);
+  border-radius: 8px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(244, 238, 220, 0.06);
+}
+
+.hero-verify-cta-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: rgba(198, 162, 78, 0.14);
+  border: 1px solid rgba(198, 162, 78, 0.25);
+  color: #E4C977;
+}
+
+.hero-verify-cta-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-verify-cta-title {
+  margin: 0 0 2px;
+  font-family: "Fraunces", ui-serif, Georgia, serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #F4EEDC;
+  line-height: 1.25;
+}
+
+.hero-verify-cta-desc {
+  margin: 0;
+  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(244, 238, 220, 0.62);
+}
+
 .hero-verify-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   flex-shrink: 0;
-  margin-top: 4px;
-  padding: 10px 18px;
+  padding: 7px 12px;
   background: #C6A24E;
   color: #0E2420;
   border: 1px solid rgba(228, 201, 119, 0.5);
-  border-radius: 6px;
+  border-radius: 5px;
   font-family: "Inter", ui-sans-serif, sans-serif;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
   cursor: pointer;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.2),
+    0 2px 6px rgba(0, 0, 0, 0.18),
     0 0 0 1px rgba(198, 162, 78, 0.2);
   transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-  min-height: 44px;
+  min-height: 32px;
 }
 
 .hero-verify-btn:hover {
   background: #E4C977;
   transform: translateY(-1px);
   box-shadow:
-    0 4px 14px rgba(198, 162, 78, 0.35),
+    0 4px 12px rgba(198, 162, 78, 0.32),
     0 0 0 1px rgba(228, 201, 119, 0.4);
 }
 
@@ -430,13 +483,25 @@
 
   .birr-verify-hero-copy {
     padding: 10px 14px 8px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hero-verify-cta {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: none;
+    width: 100%;
     flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+
+  .hero-verify-cta-copy {
+    flex: 1 1 140px;
   }
 
   .hero-verify-btn {
-    width: 100%;
-    justify-content: center;
-    margin-top: 0;
+    margin-left: auto;
   }
 
   .birr-verify-hero-copy .page-title {
