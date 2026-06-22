@@ -1,7 +1,15 @@
-/* Deresegn — Design tokens (single source of truth) */
-/* Redesigned for trust, warmth, and sophistication */
+/* Deresegn — Official Verification design tokens */
 
 :root {
+  /* ── BRAND PALETTE ── */
+  --color-ink: #0E2420;
+  --color-birr-green: #1B463A;
+  --color-foil-gold: #C6A24E;
+  --color-light-gold: #E4C977;
+  --color-parchment: #F4EEDC;
+  --color-maroon: #7C2A33;
+  --color-verified: #3E8F62;
+
   /* ── TYPOGRAPHY SCALE ── */
   --text-xs: 11px;
   --text-xs-lh: 1.5;
@@ -27,15 +35,12 @@
   --text-4xl: 48px;
   --text-4xl-lh: 1.1;
   --text-4xl-tracking: -0.04em;
-  --text-5xl: 60px;
-  --text-5xl-lh: 1;
-  --text-5xl-tracking: -0.05em;
 
   /* ── SPACING & RADIUS ── */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-full: 9999px;
 
   --width-content: 680px;
@@ -45,116 +50,56 @@
   /* ── MOTION ── */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-lift: 250ms cubic-bezier(0.3, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.2, 0, 0.2, 1);
 
-  /* ── SHADOWS (Depth levels) ── */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  /* ── SHADOWS ── */
+  --shadow-sm: 0 1px 2px 0 rgb(14 36 32 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(14 36 32 / 0.08);
+  --shadow-lg: 0 12px 24px -4px rgb(14 36 32 / 0.1);
 
-  /* ── COLOR PALETTE (Light Mode) ── */
-  /* Primary: Emerald (Trust, Growth, Stability) */
-  --color-primary: #10b981;
-  --color-primary-hover: #059669;
-  --color-primary-light: #d1fae5;
-  --color-primary-muted: rgba(16, 185, 129, 0.12);
-  --color-primary-border: rgba(16, 185, 129, 0.25);
+  /* ── SEMANTIC (mapped to design system) ── */
+  --color-primary: #C6A24E;
+  --color-primary-hover: #E4C977;
+  --color-primary-light: rgba(198, 162, 78, 0.12);
+  --color-primary-muted: rgba(198, 162, 78, 0.12);
+  --color-primary-border: rgba(198, 162, 78, 0.3);
 
-  /* Accent: Warm Gold (Prosperity, Warmth, Energy) */
-  --color-accent: #f59e0b;
-  --color-accent-hover: #d97706;
-  --color-accent-muted: rgba(245, 158, 11, 0.12);
-  --color-accent-border: rgba(245, 158, 11, 0.25);
+  --color-accent: #C6A24E;
+  --color-accent-hover: #E4C977;
+  --color-accent-muted: rgba(198, 162, 78, 0.08);
+  --color-accent-border: rgba(198, 162, 78, 0.25);
 
-  /* Semantic Colors */
-  --color-success: #10b981;
-  --color-success-muted: rgba(16, 185, 129, 0.12);
-  --color-warning: #f59e0b;
-  --color-warning-muted: rgba(245, 158, 11, 0.12);
-  --color-error: #f43f5e;
-  --color-error-muted: rgba(244, 63, 94, 0.12);
-  --color-info: #3b82f6;
-  --color-info-muted: rgba(59, 130, 246, 0.12);
+  --color-success: #3E8F62;
+  --color-success-muted: #e6f4ed;
+  --color-warning: #8a6c10;
+  --color-warning-muted: #fdf5e0;
+  --color-error: #7C2A33;
+  --color-error-muted: #f5e8ea;
+  --color-info: #1a3a8f;
+  --color-info-muted: #e8eef8;
 
-  /* Neutral Scale (Slate) */
-  --color-slate-50: #f8fafc;
-  --color-slate-100: #f1f5f9;
-  --color-slate-200: #e2e8f0;
-  --color-slate-300: #cbd5e1;
-  --color-slate-400: #94a3b8;
-  --color-slate-500: #64748b;
-  --color-slate-600: #475569;
-  --color-slate-700: #334155;
-  --color-slate-900: #0f172a;
-
-  /* Backgrounds & Surfaces */
-  --color-bg-base: #f8fafc;
+  /* ── SURFACES ── */
+  --color-bg-base: #F4EEDC;
   --color-bg-elevated: #ffffff;
-  --color-bg-subtle: #f1f5f9;
-  --color-bg-overlay: #e2e8f0;
-  --color-bg-dark: #f0f4f8;
+  --color-bg-subtle: #efe6d4;
+  --color-bg-overlay: #e8dcc8;
+  --color-bg-dark: #1B463A;
+  --color-bg-navbar: #0E2420;
 
-  /* Borders */
-  --color-border: rgba(15, 23, 42, 0.06);
-  --color-border-strong: rgba(15, 23, 42, 0.12);
-  --color-border-accent: rgba(16, 185, 129, 0.3);
+  /* ── BORDERS ── */
+  --color-border: rgba(14, 36, 32, 0.12);
+  --color-border-strong: rgba(14, 36, 32, 0.2);
+  --color-border-accent: rgba(198, 162, 78, 0.4);
 
-  /* Text */
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-text-tertiary: #94a3b8;
-  --color-text-inverted: #ffffff;
-}
+  /* ── TEXT ── */
+  --color-text-primary: #0E2420;
+  --color-text-secondary: rgba(14, 36, 32, 0.65);
+  --color-text-tertiary: #888888;
+  --color-text-inverted: #0E2420;
+  --color-text-on-dark: #F4EEDC;
+  --color-text-on-dark-muted: rgba(244, 238, 220, 0.7);
 
-/* ── DARK MODE ── */
-html.dark {
-  /* Color Palette (Dark Mode) */
-  --color-primary: #34d399;
-  --color-primary-hover: #10b981;
-  --color-primary-light: #064e3b;
-  --color-primary-muted: rgba(52, 211, 153, 0.15);
-  --color-primary-border: rgba(52, 211, 153, 0.3);
-
-  --color-accent: #fbbf24;
-  --color-accent-hover: #f59e0b;
-  --color-accent-muted: rgba(251, 191, 36, 0.15);
-  --color-accent-border: rgba(251, 191, 36, 0.3);
-
-  --color-success: #34d399;
-  --color-success-muted: rgba(52, 211, 153, 0.15);
-  --color-warning: #fbbf24;
-  --color-warning-muted: rgba(251, 191, 36, 0.15);
-  --color-error: #fb7185;
-  --color-error-muted: rgba(251, 113, 133, 0.15);
-  --color-info: #60a5fa;
-  --color-info-muted: rgba(96, 165, 250, 0.15);
-
-  /* Neutral Scale (Dark Slate) */
-  --color-slate-50: #1e293b;
-  --color-slate-100: #0f172a;
-  --color-slate-200: #1a2332;
-  --color-slate-300: #334155;
-  --color-slate-400: #475569;
-  --color-slate-500: #64748b;
-  --color-slate-600: #94a3b8;
-  --color-slate-700: #cbd5e1;
-  --color-slate-900: #f8fafc;
-
-  --color-bg-base: #0f172a;
-  --color-bg-elevated: #1e293b;
-  --color-bg-subtle: #1a2332;
-  --color-bg-overlay: #334155;
-  --color-bg-dark: #0a0f1a;
-
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-strong: rgba(255, 255, 255, 0.12);
-  --color-border-accent: rgba(52, 211, 153, 0.3);
-
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #cbd5e1;
-  --color-text-tertiary: #94a3b8;
-  --color-text-inverted: #0f172a;
+  /* ── GUILLOCHÉ ── */
+  --guilloche-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Ccircle cx='100' cy='100' r='90' fill='none' stroke='%23C6A24E' stroke-opacity='0.07' stroke-width='0.8'/%3E%3Ccircle cx='100' cy='100' r='70' fill='none' stroke='%23C6A24E' stroke-opacity='0.07' stroke-width='0.8'/%3E%3Ccircle cx='100' cy='100' r='50' fill='none' stroke='%23C6A24E' stroke-opacity='0.07' stroke-width='0.8'/%3E%3Ccircle cx='100' cy='100' r='30' fill='none' stroke='%23C6A24E' stroke-opacity='0.06' stroke-width='0.8'/%3E%3Cellipse cx='100' cy='100' rx='90' ry='40' fill='none' stroke='%23C6A24E' stroke-opacity='0.04' stroke-width='0.6'/%3E%3Cellipse cx='100' cy='100' rx='60' ry='25' fill='none' stroke='%23C6A24E' stroke-opacity='0.04' stroke-width='0.6'/%3E%3C/svg%3E");
 }
 
 @media (prefers-reduced-motion: reduce) {
