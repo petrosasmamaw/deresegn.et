@@ -3,6 +3,7 @@ import { extractTelebirrInvoiceFromPayload } from './qrService.js';
 
 const TELEBIRR_RECEIPT_BASE = 'https://transactioninfo.ethiotelecom.et/receipt/';
 const API_TIMEOUT_MS = 8000;
+const inflightReceiptFetches = new Map();
 
 function parseAmount(value) {
   if (value == null) return null;
@@ -105,34 +106,45 @@ export async function fetchTelebirrReceipt(invoiceId) {
   const id = normalizeTelebirrInvoiceId(invoiceId) || normalizeTxCode(invoiceId);
   if (!id) return null;
 
-  const url = `${TELEBIRR_RECEIPT_BASE}${encodeURIComponent(id)}`;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        Accept: 'text/html,application/xhtml+xml,*/*',
-      },
-    });
-    clearTimeout(timer);
-
-    if (!response.ok) {
-      console.warn('[Telebirr] HTTP', response.status, id);
-      return null;
-    }
-
-    const html = await response.text();
-    const mapped = mapTelebirrHtml(html, id);
-    if (mapped) {
-      console.log('[Telebirr] Official receipt loaded:', id, 'amount', mapped.amount);
-    }
-    return mapped;
-  } catch (err) {
-    console.warn('[Telebirr]', err.message);
-    return null;
+  if (inflightReceiptFetches.has(id)) {
+    return inflightReceiptFetches.get(id);
   }
+
+  const fetchPromise = (async () => {
+    const url = `${TELEBIRR_RECEIPT_BASE}${encodeURIComponent(id)}`;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Accept: 'text/html,application/xhtml+xml,*/*',
+        },
+      });
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        console.warn('[Telebirr] HTTP', response.status, id);
+        return null;
+      }
+
+      const html = await response.text();
+      const mapped = mapTelebirrHtml(html, id);
+      if (mapped) {
+        console.log('[Telebirr] Official receipt loaded:', id, 'amount', mapped.amount);
+      }
+      return mapped;
+    } catch (err) {
+      console.warn('[Telebirr]', err.message);
+      return null;
+    } finally {
+      inflightReceiptFetches.delete(id);
+    }
+  })();
+
+  inflightReceiptFetches.set(id, fetchPromise);
+  return fetchPromise;
 }
 
 export async function fetchTelebirrTransactionFromQr(qrData, extracted = null) {
@@ -144,7 +156,43 @@ export async function fetchTelebirrTransactionFromQr(qrData, extracted = null) {
  * Load official Telebirr record — tries screenshot invoice, QR invoice, then nearby corrections.
  * Fixes QR scan typos like DF52MV8ILWC → DF52MV8ILW via official web lookup.
  */
-export async function resolveTelebirrOfficialReceipt({ qrData, extracted = null } = {}) {
+function buildTelebirrResolveHit({
+  official,
+  matchedId,
+  qrInvoice,
+  screenshotInvoice,
+}) {
+  const qrMisread = Boolean(qrInvoice && qrInvoice !== official.transactionCode);
+  const screenshotEdited = Boolean(
+    screenshotInvoice
+    && screenshotInvoice !== official.transactionCode,
+  );
+  return {
+    official,
+    matchedInvoice: official.transactionCode,
+    qrInvoice,
+    screenshotInvoice,
+    qrMisread,
+    screenshotEdited,
+    verifiedVia: matchedId === screenshotInvoice
+      ? 'screenshot_invoice'
+      : matchedId === qrInvoice
+        ? 'qr_invoice'
+        : 'nearby_invoice',
+  };
+}
+
+async function fetchTelebirrReceiptCached(id, prefetchById = null) {
+  if (prefetchById?.[id]) return prefetchById[id];
+  return fetchTelebirrReceipt(id);
+}
+
+export async function resolveTelebirrOfficialReceipt({
+  qrData,
+  extracted = null,
+  screenshotPrefetch = null,
+  qrPrefetch = null,
+} = {}) {
   const { candidates, qrInvoice, screenshotInvoice } = collectTelebirrInvoiceCandidates(qrData, extracted);
 
   const empty = {
@@ -164,27 +212,26 @@ export async function resolveTelebirrOfficialReceipt({ qrData, extracted = null 
     ? [screenshotInvoice, ...candidates.filter((c) => c !== screenshotInvoice)]
     : candidates;
 
-  for (const id of ordered) {
-    const official = await fetchTelebirrReceipt(id);
+  const prefetchById = {};
+  for (const prefetch of [screenshotPrefetch, qrPrefetch]) {
+    if (prefetch?.invoiceId && prefetch?.official) {
+      prefetchById[prefetch.invoiceId] = prefetch.official;
+    }
+  }
+
+  const results = await Promise.all(
+    ordered.map((id) => fetchTelebirrReceiptCached(id, prefetchById)),
+  );
+
+  for (let i = 0; i < ordered.length; i += 1) {
+    const official = results[i];
     if (official) {
-      const qrMisread = Boolean(qrInvoice && qrInvoice !== official.transactionCode);
-      const screenshotEdited = Boolean(
-        screenshotInvoice
-        && screenshotInvoice !== official.transactionCode,
-      );
-      return {
+      return buildTelebirrResolveHit({
         official,
-        matchedInvoice: official.transactionCode,
+        matchedId: ordered[i],
         qrInvoice,
         screenshotInvoice,
-        qrMisread,
-        screenshotEdited,
-        verifiedVia: id === screenshotInvoice
-          ? 'screenshot_invoice'
-          : id === qrInvoice
-            ? 'qr_invoice'
-            : 'nearby_invoice',
-      };
+      });
     }
   }
 
@@ -198,18 +245,12 @@ export async function resolveTelebirrOfficialReceipt({ qrData, extracted = null 
       if (idx >= 0) {
         const official = results[idx];
         console.warn('[Telebirr] QR invoice corrected:', qrInvoice, '→', official.transactionCode);
-        return {
+        return buildTelebirrResolveHit({
           official,
-          matchedInvoice: official.transactionCode,
+          matchedId: batch[idx],
           qrInvoice,
           screenshotInvoice,
-          qrMisread: true,
-          screenshotEdited: Boolean(
-            screenshotInvoice
-            && screenshotInvoice !== official.transactionCode,
-          ),
-          verifiedVia: 'nearby_invoice',
-        };
+        });
       }
     }
   }

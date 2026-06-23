@@ -4,7 +4,7 @@ import { db } from '../db/index.js';
 import { balances, receiptChecks, topUpTransactions } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { extractPaymentFromScreenshot, extractPaymentFromBuffer } from './geminiService.js';
-import { decodeQrFromImage, decodeQrFromBuffer } from './qrService.js';
+import { decodeQrFromImage, decodeQrFromBuffer, prepareQrScanImage } from './qrService.js';
 import { validateReceiptSubmission, buildDuplicateTxIssue, validateOfficialTopUpReceiver } from './receiptValidationService.js';
 import { getTopUpReceiverAccount } from './topUpAccountService.js';
 import { normalizeTxCode } from '../utils/txCode.js';
@@ -363,11 +363,23 @@ async function extractScreenshotData({ screenshotBuffer, screenshotMime, screens
     .then((data) => ({ data }))
     .catch((err) => ({ error: err }));
 
-  const qrPromise = buffer
-    ? decodeQrFromBuffer(buffer, { maxMs: 14000 })
-    : decodeQrFromImage(screenshotPath);
+  const preparedPromise = buffer ? prepareQrScanImage(buffer) : Promise.resolve(null);
 
-  const [geminiOutcome, initialQr] = await Promise.all([geminiPromise, qrPromise]);
+  const qrPromise = preparedPromise.then((prepared) => (
+    buffer
+      ? decodeQrFromBuffer(buffer, { maxMs: 9000, image: prepared })
+      : decodeQrFromImage(screenshotPath)
+  ));
+
+  const cbeApiPrefetch = method === 'cbe'
+    ? qrPromise.then((qr) => (qr?.verificationToken ? fetchCbeTransactionFromQr(qr) : null))
+    : Promise.resolve(null);
+
+  const [geminiOutcome, initialQr, cbeApiFields] = await Promise.all([
+    geminiPromise,
+    qrPromise,
+    cbeApiPrefetch,
+  ]);
 
   let extracted;
   if (geminiOutcome.error) {
@@ -387,7 +399,7 @@ async function extractScreenshotData({ screenshotBuffer, screenshotMime, screens
     extracted = geminiOutcome.data;
   }
 
-  return { extracted, geminiUsed, geminiError, initialQr, buffer };
+  return { extracted, geminiUsed, geminiError, initialQr, buffer, cbeApiFields };
 }
 
 async function runReceiptVerification({
@@ -402,7 +414,7 @@ async function runReceiptVerification({
 }) {
   const {
     extracted, geminiUsed, geminiError, initialQr, buffer, dashenQrFields, boaQrFields, boaResolve,
-    telebirrQrFields, telebirrResolve,
+    telebirrQrFields, telebirrResolve, cbeApiFields,
   } = await extractScreenshotData(
     { screenshotBuffer, screenshotMime, screenshotPath },
     method,
@@ -422,10 +434,10 @@ async function runReceiptVerification({
         ? telebirrQrFields
         : extractQrReceiptFields(method, qrData);
   if (method === 'cbe' && qrData?.verificationToken) {
-    const cbeApiFields = await fetchCbeTransactionFromQr(qrData);
-    qrFields = mergeCbeApiIntoQrFields(qrFields, cbeApiFields);
-    if (cbeApiFields?.transactionCode) {
-      console.log('[CBE API] Loaded transaction:', cbeApiFields.transactionCode);
+    const cbeApiFieldsResolved = cbeApiFields || await fetchCbeTransactionFromQr(qrData);
+    qrFields = mergeCbeApiIntoQrFields(qrFields, cbeApiFieldsResolved);
+    if (cbeApiFieldsResolved?.transactionCode) {
+      console.log('[CBE API] Loaded transaction:', cbeApiFieldsResolved.transactionCode);
     }
   }
 

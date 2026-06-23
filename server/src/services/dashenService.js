@@ -4,18 +4,14 @@
  * Fast path: parallel QR scan + Gemini OCR; VAT falls back to official PDF by IPSS reference.
  */
 import fs from 'fs/promises';
-import { Jimp } from 'jimp';
-import jsQR from 'jsqr';
 import { PDFParse } from 'pdf-parse';
 import {
-  MultiFormatReader,
-  BarcodeFormat,
-  DecodeHintType,
-  RGBLuminanceSource,
-  BinaryBitmap,
-  HybridBinarizer,
-} from '@zxing/library';
-import { parseQrPayload, decodeQrFromBuffer, buildQrDataFromRaw } from './qrService.js';
+  parseQrPayload,
+  decodeQrFromBuffer,
+  buildQrDataFromRaw,
+  prepareQrScanImage,
+  scanBitmapForData,
+} from './qrService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { analyzeQrAuthenticity } from './qrAuthenticityService.js';
 import { extractPaymentFromBuffer } from './geminiService.js';
@@ -230,29 +226,9 @@ function buildOfficialFallbackQr(reference, officialFields) {
   };
 }
 
-function scanJsQr(bitmap) {
-  const { data, width, height } = bitmap;
-  const hit = jsQR(new Uint8ClampedArray(data), width, height, { inversionAttempts: 'attemptBoth' });
-  return hit?.data || null;
-}
-
-function scanZxing(bitmap) {
-  const { data, width, height } = bitmap;
-  const luminance = new Uint8ClampedArray(width * height);
-  for (let i = 0, j = 0; i < data.length; i += 4, j += 1) {
-    luminance[j] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) | 0;
-  }
-  const source = new RGBLuminanceSource(luminance, width, height);
-  const hints = new Map();
-  hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
-  hints.set(DecodeHintType.TRY_HARDER, true);
-  const reader = new MultiFormatReader();
-  reader.setHints(hints);
-  try {
-    return reader.decode(new BinaryBitmap(new HybridBinarizer(source))).getText();
-  } catch {
-    return null;
-  }
+function tryVariant(image, mode) {
+  const raw = scanBitmapForData(image.bitmap);
+  return acceptRaw(raw, mode);
 }
 
 function acceptRaw(raw, mode) {
@@ -276,11 +252,6 @@ function acceptRaw(raw, mode) {
   return null;
 }
 
-function tryVariant(image, mode, useZxing) {
-  const raw = scanJsQr(image.bitmap) || (useZxing ? scanZxing(image.bitmap) : null);
-  return acceptRaw(raw, mode);
-}
-
 function prepareImage(image) {
   const { width, height } = image.bitmap;
   const minDim = Math.min(width, height);
@@ -293,23 +264,24 @@ function prepareImage(image) {
 /**
  * QR scan — generic decoder first (~7s on most uploads), then crop variants for hard cases.
  */
-async function scanDashenQr(buffer, maxMs = QR_BUDGET_MS, { aggressive = false } = {}) {
+async function scanDashenQr(buffer, maxMs = QR_BUDGET_MS, { aggressive = false, preparedImage = null } = {}) {
   const started = Date.now();
   const deadline = started + maxMs;
   const expired = () => Date.now() >= deadline;
   const remaining = () => Math.max(0, deadline - Date.now());
 
   try {
+    const prepared = preparedImage || await prepareQrScanImage(buffer);
     const genericBudget = Math.min(aggressive ? 12000 : 10000, maxMs - 2000);
     if (genericBudget >= 3000) {
-      const generic = await decodeQrFromBuffer(buffer, { maxMs: genericBudget });
+      const generic = await decodeQrFromBuffer(buffer, { maxMs: genericBudget, image: prepared });
       if (generic?.raw && isAcceptedDashenQrPayload(generic.raw)) {
         console.log('[Dashen] QR decoded (generic)');
         return buildQrResult(generic.raw, { successScreen: isDashenSuperAppReceiptToken(generic.raw) });
       }
     }
 
-    const base = prepareImage(await Jimp.read(buffer));
+    const base = prepareImage(prepared);
     const { width, height } = base.bitmap;
 
     const fullScales = aggressive ? [2, 3] : [2];
@@ -321,7 +293,7 @@ async function scanDashenQr(buffer, maxMs = QR_BUDGET_MS, { aggressive = false }
         base.clone().scale(scale),
       ]) {
         if (expired()) break;
-        const hit = tryVariant(variant, 'any', true);
+        const hit = tryVariant(variant, 'any');
         if (hit) {
           console.log('[Dashen] QR decoded (full image crop)');
           return hit;
@@ -347,7 +319,7 @@ async function scanDashenQr(buffer, maxMs = QR_BUDGET_MS, { aggressive = false }
           crop.clone().scale(scale),
         ]) {
           if (expired()) break;
-          const hit = tryVariant(variant, 'any', true);
+          const hit = tryVariant(variant, 'any');
           if (hit) {
             console.log('[Dashen] QR decoded (region)');
             return hit;
@@ -358,7 +330,7 @@ async function scanDashenQr(buffer, maxMs = QR_BUDGET_MS, { aggressive = false }
 
     const left = remaining();
     if (left >= 3000) {
-      const retry = await decodeQrFromBuffer(buffer, { maxMs: left });
+      const retry = await decodeQrFromBuffer(buffer, { maxMs: left, image: prepared });
       if (retry?.raw && isAcceptedDashenQrPayload(retry.raw)) {
         console.log('[Dashen] QR decoded (generic retry)');
         return buildQrResult(retry.raw, { successScreen: isDashenSuperAppReceiptToken(retry.raw) });
@@ -369,6 +341,20 @@ async function scanDashenQr(buffer, maxMs = QR_BUDGET_MS, { aggressive = false }
   }
 
   return buildQrDataFromRaw(null);
+}
+
+/** Normal scan + delayed aggressive scan in parallel — same coverage, faster on hard images. */
+async function scanDashenQrRace(buffer, prepared) {
+  const normalPromise = scanDashenQr(buffer, QR_BUDGET_MS, { preparedImage: prepared });
+  const aggressivePromise = (async () => {
+    await new Promise((resolve) => { setTimeout(resolve, 3000); });
+    return scanDashenQr(buffer, QR_RETRY_MS, { aggressive: true, preparedImage: prepared });
+  })();
+
+  const [normal, aggressive] = await Promise.all([normalPromise, aggressivePromise]);
+  if (normal?.raw) return normal;
+  if (aggressive?.raw) return aggressive;
+  return normal;
 }
 
 export function detectDashenReceiptType(extracted, qrData) {
@@ -417,13 +403,36 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
 
   console.log('[Dashen] verify', buffer.length, 'bytes', mime);
 
+  const preparedPromise = prepareQrScanImage(buffer);
+
   const geminiPromise = extractPaymentFromBuffer(buffer, 'dashen', mime)
     .then((data) => ({ data, used: true }))
     .catch((err) => ({ data: { ...EMPTY_EXTRACTED }, used: false, error: err.message }));
 
-  const qrPromise = scanDashenQr(buffer, QR_BUDGET_MS);
+  const qrPromise = preparedPromise.then((prepared) => scanDashenQrRace(buffer, prepared));
 
-  let [qrData, geminiOutcome] = await Promise.all([qrPromise, geminiPromise]);
+  let officialPrefetch = null;
+  const startOfficialPrefetch = (ref) => {
+    if (!ref || officialPrefetch) return;
+    officialPrefetch = fetchDashenTransactionByReference(ref);
+  };
+
+  qrPromise.then((qrData) => {
+    if (isDashenSuperAppReceiptToken(qrData?.raw)) return;
+    startOfficialPrefetch(extractDashenReferenceFromQr(qrData));
+  });
+  geminiPromise.then((outcome) => {
+    startOfficialPrefetch(extractDashenReferenceFromText(outcome.data?.transactionCode));
+  });
+
+  const [qrData, geminiOutcome, officialFieldsPrefetched] = await Promise.all([
+    qrPromise,
+    geminiPromise,
+    Promise.all([qrPromise, geminiPromise]).then(async () => {
+      if (!officialPrefetch) return null;
+      return officialPrefetch;
+    }),
+  ]);
   const extracted = geminiOutcome.data;
   const geminiUsed = geminiOutcome.used;
   const geminiError = geminiOutcome.error || null;
@@ -431,7 +440,7 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
   if (geminiError) console.warn('[Gemini]', geminiError);
 
   const receiptType = detectDashenReceiptType(extracted, qrData);
-  let officialFields = qrData?.officialFields || null;
+  let officialFields = qrData?.officialFields || officialFieldsPrefetched || null;
 
   const ipssRef = extractDashenReferenceFromQr(qrData)
     || extractDashenReferenceFromText(extracted?.transactionCode);
@@ -449,9 +458,7 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
   }
 
   if (!qrData?.raw) {
-    const retry = await scanDashenQr(buffer, QR_RETRY_MS, { aggressive: true });
-    if (retry?.raw) qrData = retry;
-    else console.warn('[Dashen] QR not found', receiptType === 'vat_receipt' ? '(VAT)' : '(success screen)');
+    console.warn('[Dashen] QR not found', receiptType === 'vat_receipt' ? '(VAT)' : '(success screen)');
   }
 
   let qrFields = extractQrReceiptFields('dashen', qrData);

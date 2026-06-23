@@ -1,5 +1,5 @@
 import { extractPaymentFromBuffer } from './geminiService.js';
-import { decodeQrFromBuffer } from './qrService.js';
+import { decodeQrFromBuffer, prepareQrScanImage } from './qrService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { extractBoaFieldsFromQrPayload } from './boaQrCrypto.js';
 import { normalizeTxCode, txCodesMatch } from '../utils/txCode.js';
@@ -207,6 +207,8 @@ export async function resolveBoaOfficialTransaction({
   qrData,
   senderAccount = null,
   receiverAccount = null,
+  qrPrefetch = null,
+  screenshotPrefetch = null,
 } = {}) {
   const accounts = [senderAccount, receiverAccount];
   const screenshotRef = normalizeTxCode(screenshotReference);
@@ -223,15 +225,17 @@ export async function resolveBoaOfficialTransaction({
   const tasks = [];
 
   if (screenshotRef) {
-    tasks.push(
-      fetchBoaByReference(screenshotRef, accounts).then((official) => ({ official, reference: screenshotRef, via: 'screenshot_reference' })),
-    );
+    const shotTask = screenshotPrefetch?.official && txCodesMatch(screenshotPrefetch.reference, screenshotRef)
+      ? Promise.resolve({ official: screenshotPrefetch.official, reference: screenshotRef, via: 'screenshot_reference' })
+      : fetchBoaByReference(screenshotRef, accounts).then((official) => ({ official, reference: screenshotRef, via: 'screenshot_reference' }));
+    tasks.push(shotTask);
   }
 
   if (qrRef && qrRef !== screenshotRef) {
-    tasks.push(
-      fetchBoaByReference(qrRef, accounts).then((official) => ({ official, reference: qrRef, via: 'qr_reference' })),
-    );
+    const qrTask = qrPrefetch?.official && txCodesMatch(qrPrefetch.reference, qrRef)
+      ? Promise.resolve({ official: qrPrefetch.official, reference: qrRef, via: 'qr_reference' })
+      : fetchBoaByReference(qrRef, accounts).then((official) => ({ official, reference: qrRef, via: 'qr_reference' }));
+    tasks.push(qrTask);
   }
 
   if (qrRaw && qrRaw.length >= 80 && !qrRef) {
@@ -307,6 +311,8 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
   let geminiUsed = true;
   let geminiError = null;
 
+  const preparedPromise = prepareQrScanImage(buffer);
+
   const geminiPromise = extractPaymentFromBuffer(buffer, 'boa', mime)
     .then((data) => ({ data }))
     .catch((err) => {
@@ -325,9 +331,33 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
       };
     });
 
-  const qrPromise = decodeQrFromBuffer(buffer, { maxMs: 10000 });
+  const qrPromise = preparedPromise.then((prepared) =>
+    decodeQrFromBuffer(buffer, { maxMs: 10000, image: prepared }),
+  );
 
-  const [geminiOutcome, qrData] = await Promise.all([geminiPromise, qrPromise]);
+  const qrPrefetchPromise = qrPromise.then(async (qrData) => {
+    const ref = extractBoaReferenceFromQr(qrData);
+    if (!ref) return null;
+    const official = await fetchBoaByReference(ref, []);
+    return official ? { reference: ref, official, via: 'qr_reference' } : null;
+  });
+
+  const screenshotPrefetchPromise = geminiPromise.then(async (outcome) => {
+    const ref = normalizeTxCode(outcome.data?.transactionCode);
+    if (!ref) return null;
+    const official = await fetchBoaByReference(ref, [
+      outcome.data?.senderAccount,
+      outcome.data?.receiverAccount,
+    ]);
+    return official ? { reference: ref, official, via: 'screenshot_reference' } : null;
+  });
+
+  const [geminiOutcome, qrData, qrPrefetch, screenshotPrefetch] = await Promise.all([
+    geminiPromise,
+    qrPromise,
+    qrPrefetchPromise,
+    screenshotPrefetchPromise,
+  ]);
   const extracted = geminiOutcome.data;
   if (geminiError) console.warn('[Gemini]', geminiError);
 
@@ -343,6 +373,8 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
     qrData,
     senderAccount: extracted?.senderAccount || decryptedQr?.senderAccount,
     receiverAccount: extracted?.receiverAccount || decryptedQr?.receiverAccountFull || decryptedQr?.receiverAccount,
+    qrPrefetch,
+    screenshotPrefetch,
   });
 
   if (boaResolve?.official) {

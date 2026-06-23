@@ -1,15 +1,19 @@
 import fs from 'fs/promises';
-import { Jimp } from 'jimp';
 import { extractPaymentFromBuffer } from './geminiService.js';
-import { decodeQrFromBuffer, buildQrDataFromRaw } from './qrService.js';
-import { scanImageForQrValidated } from './qrService.js';
+import {
+  decodeQrFromBuffer,
+  buildQrDataFromRaw,
+  prepareQrScanImage,
+  scanImageForQrValidated,
+} from './qrService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { analyzeQrAuthenticity } from './qrAuthenticityService.js';
 import { extractTelebirrInvoiceFromPayload } from './qrService.js';
-import { normalizeTxCode } from '../utils/txCode.js';
 import {
   resolveTelebirrOfficialReceipt,
   mergeTelebirrApiIntoQrFields,
+  fetchTelebirrReceipt,
+  normalizeTelebirrInvoiceId,
 } from './telebirrReceiptService.js';
 
 const QR_BUDGET_MS = 18000;
@@ -21,12 +25,13 @@ function isTelebirrQrPayload(raw) {
 }
 
 /** Aggressive QR scan — full image for QR-only crops, bottom-focused for full receipts. */
-async function decodeTelebirrQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS } = {}) {
-  const quick = await decodeQrFromBuffer(buffer, { maxMs: Math.min(maxMs, 10000) });
+async function decodeTelebirrQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, preparedImage = null } = {}) {
+  const prepared = preparedImage || await prepareQrScanImage(buffer);
+  const quick = await decodeQrFromBuffer(buffer, { maxMs: Math.min(maxMs, 10000), image: prepared });
   if (quick?.raw && isTelebirrQrPayload(quick.raw)) return quick;
 
   try {
-    let image = await Jimp.read(buffer);
+    let image = prepared;
     const { width, height } = image.bitmap;
     if (width < 500 || height < 500) {
       const factor = Math.max(500 / width, 500 / height, 1);
@@ -100,6 +105,8 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
   let geminiUsed = true;
   let geminiError = null;
 
+  const preparedPromise = prepareQrScanImage(buffer);
+
   const geminiPromise = extractPaymentFromBuffer(buffer, 'telebirr', mime)
     .then((data) => ({ data }))
     .catch((err) => {
@@ -118,14 +125,42 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
       };
     });
 
-  const qrPromise = decodeTelebirrQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS });
+  const qrPromise = preparedPromise.then((prepared) =>
+    decodeTelebirrQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, preparedImage: prepared }),
+  );
 
-  const [geminiOutcome, qrData] = await Promise.all([geminiPromise, qrPromise]);
+  const screenshotPrefetchPromise = geminiPromise.then(async (outcome) => {
+    const id = normalizeTelebirrInvoiceId(outcome.data?.transactionCode);
+    if (!id) return null;
+    const official = await fetchTelebirrReceipt(id);
+    return official ? { invoiceId: id, official } : null;
+  });
+
+  const qrPrefetchPromise = qrPromise.then(async (qrData) => {
+    const id = normalizeTelebirrInvoiceId(
+      extractTelebirrInvoiceFromPayload(qrData?.raw) || qrData?.transactionCode,
+    );
+    if (!id) return null;
+    const official = await fetchTelebirrReceipt(id);
+    return official ? { invoiceId: id, official } : null;
+  });
+
+  const [geminiOutcome, qrData, screenshotPrefetch, qrPrefetch] = await Promise.all([
+    geminiPromise,
+    qrPromise,
+    screenshotPrefetchPromise,
+    qrPrefetchPromise,
+  ]);
   const extracted = geminiOutcome.data;
   if (geminiError) console.warn('[Gemini]', geminiError);
 
   let qrFields = extractQrReceiptFields('telebirr', qrData);
-  const telebirrResolve = await resolveTelebirrOfficialReceipt({ qrData, extracted });
+  const telebirrResolve = await resolveTelebirrOfficialReceipt({
+    qrData,
+    extracted,
+    screenshotPrefetch,
+    qrPrefetch,
+  });
 
   if (telebirrResolve?.official) {
     qrFields = mergeTelebirrApiIntoQrFields(qrFields, telebirrResolve.official);

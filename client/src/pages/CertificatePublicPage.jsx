@@ -56,6 +56,8 @@ export default function CertificatePublicPage() {
               id: certificate.id,
               transactionCode: certificate.transactionCode,
               amount: certificate.amount,
+              senderName: certificate.senderName,
+              receiverName: certificate.receiverName,
               paymentMethod: certificate.paymentMethod,
               confidenceTier: certificate.confidenceTier,
               createdAt: certificate.verifiedAt,

@@ -8,15 +8,30 @@ const MODELS = [
   'gemini-2.0-flash',
 ];
 
+let cachedGenAI = null;
+let cachedApiKey = null;
+const cachedModels = new Map();
+
 function assertValidApiKey(apiKey) {
   if (!apiKey?.trim()) {
     throw new Error('GEMINI_API_KEY is not configured in server .env');
   }
 }
 
+function getGenerativeModel(apiKey, modelName) {
+  if (!cachedGenAI || cachedApiKey !== apiKey) {
+    cachedGenAI = new GoogleGenerativeAI(apiKey);
+    cachedApiKey = apiKey;
+    cachedModels.clear();
+  }
+  if (!cachedModels.has(modelName)) {
+    cachedModels.set(modelName, cachedGenAI.getGenerativeModel({ model: modelName }));
+  }
+  return cachedModels.get(modelName);
+}
+
 async function callModel(apiKey, modelName, base64, mimeType, prompt) {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelName });
+  const model = getGenerativeModel(apiKey, modelName);
   const result = await model.generateContent([
     { text: prompt },
     { inlineData: { mimeType, data: base64 } },

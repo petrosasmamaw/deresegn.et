@@ -26,9 +26,14 @@ function formatDate(value) {
   })
 }
 
+function displayValue(value) {
+  if (value == null || value === '') return '—'
+  return String(value).trim() || '—'
+}
+
 function drawCertificateToCanvas(cert) {
   const width = 720
-  const height = 420
+  const height = 500
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -57,13 +62,15 @@ function drawCertificateToCanvas(cert) {
   ctx.font = '14px sans-serif'
   const lines = [
     `Check ID: #${cert.id}`,
-    `Payment ID: ${cert.transactionCode}`,
-    `Amount: ${cert.amount} ETB`,
+    `Payment ID: ${displayValue(cert.transactionCode)}`,
+    `Amount: ${displayValue(cert.amount)} ETB`,
+    `Sender: ${displayValue(cert.senderName)}`,
+    `Receiver: ${displayValue(cert.receiverName)}`,
     `Bank: ${METHOD_LABELS[cert.paymentMethod] || cert.paymentMethod}`,
     `Confidence: ${TIER_LABELS[cert.confidenceTier] || cert.confidenceTier}`,
     `Verified: ${formatDate(cert.createdAt || cert.verifiedAt)}`,
   ]
-  lines.forEach((line, i) => ctx.fillText(line, 48, 140 + i * 28))
+  lines.forEach((line, i) => ctx.fillText(line, 48, 132 + i * 26))
 
   ctx.beginPath()
   ctx.arc(width - 110, height - 110, 52, 0, Math.PI * 2)
@@ -120,11 +127,19 @@ export default function VerificationCertificate({ check, compact = false }) {
         <dl className="verify-certificate-grid">
           <div>
             <dt>Payment ID</dt>
-            <dd className="font-mono">{check.transactionCode}</dd>
+            <dd className="font-mono">{displayValue(check.transactionCode)}</dd>
           </div>
           <div>
             <dt>Amount</dt>
-            <dd className="amount-mono">{check.amount} ETB</dd>
+            <dd className="amount-mono">{displayValue(check.amount)} ETB</dd>
+          </div>
+          <div>
+            <dt>Sender</dt>
+            <dd>{displayValue(check.senderName)}</dd>
+          </div>
+          <div>
+            <dt>Receiver</dt>
+            <dd>{displayValue(check.receiverName)}</dd>
           </div>
           <div>
             <dt>Bank / Method</dt>

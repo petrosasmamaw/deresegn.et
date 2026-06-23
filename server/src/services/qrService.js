@@ -206,48 +206,96 @@ export function parseQrPayload(raw) {
   };
 }
 
+const QR_SCAN_MAX_DIM = 2200;
+const QR_SCAN_MIN_DIM = 400;
+
+let cachedZxingReader = null;
+let cachedZxingHints = null;
+
+function getZxingReader() {
+  if (!cachedZxingReader) {
+    cachedZxingHints = new Map();
+    cachedZxingHints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
+    cachedZxingHints.set(DecodeHintType.TRY_HARDER, true);
+    cachedZxingReader = new MultiFormatReader();
+    cachedZxingReader.setHints(cachedZxingHints);
+  }
+  return cachedZxingReader;
+}
+
 function luminanceFromBitmap(bitmap) {
   const { data, width, height } = bitmap;
-  const rgba = new Uint8ClampedArray(data);
   const luminance = new Uint8ClampedArray(width * height);
-  for (let i = 0, j = 0; i < rgba.length; i += 4, j += 1) {
-    luminance[j] = (rgba[i] * 0.299 + rgba[i + 1] * 0.587 + rgba[i + 2] * 0.114) | 0;
+  for (let i = 0, j = 0; i < data.length; i += 4, j += 1) {
+    luminance[j] = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) | 0;
   }
   return { luminance, width, height };
 }
 
-function scanJsQR(bitmap) {
+function scanJsQR(bitmap, inversionAttempts = 'dontInvert') {
   const { data, width, height } = bitmap;
-  return jsQR(new Uint8ClampedArray(data), width, height, { inversionAttempts: 'attemptBoth' });
+  return jsQR(new Uint8ClampedArray(data), width, height, { inversionAttempts });
 }
 
-function scanZXing(bitmap, Binarizer = HybridBinarizer) {
-  const { luminance, width, height } = luminanceFromBitmap(bitmap);
+function scanZXingFromLuminance(luminance, width, height, Binarizer = HybridBinarizer) {
   const source = new RGBLuminanceSource(luminance, width, height);
   const binaryBitmap = new BinaryBitmap(new Binarizer(source));
-  const hints = new Map();
-  hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
-  hints.set(DecodeHintType.TRY_HARDER, true);
-  const reader = new MultiFormatReader();
-  reader.setHints(hints);
   try {
-    return reader.decode(binaryBitmap).getText();
+    return getZxingReader().decode(binaryBitmap).getText();
   } catch {
     return null;
   }
 }
 
 function scanBitmap(bitmap) {
-  const jsResult = scanJsQR(bitmap);
+  const jsResult = scanJsQR(bitmap, 'dontInvert') || scanJsQR(bitmap, 'attemptBoth');
   if (jsResult?.data) return jsResult.data;
 
-  const zxingHybrid = scanZXing(bitmap, HybridBinarizer);
+  const { luminance, width, height } = luminanceFromBitmap(bitmap);
+  const zxingHybrid = scanZXingFromLuminance(luminance, width, height, HybridBinarizer);
   if (zxingHybrid) return zxingHybrid;
 
-  const zxingGlobal = scanZXing(bitmap, GlobalHistogramBinarizer);
-  if (zxingGlobal) return zxingGlobal;
+  return scanZXingFromLuminance(luminance, width, height, GlobalHistogramBinarizer);
+}
 
-  return null;
+/** Normalize image size for faster QR passes without changing decode logic. */
+export async function prepareQrScanImage(buffer) {
+  let image = await Jimp.read(buffer);
+  const { width, height } = image.bitmap;
+  const maxDim = Math.max(width, height);
+  const minDim = Math.min(width, height);
+
+  if (maxDim > QR_SCAN_MAX_DIM) {
+    image = image.clone().scale(QR_SCAN_MAX_DIM / maxDim);
+  } else if (minDim < QR_SCAN_MIN_DIM) {
+    const factor = Math.min(Math.max(QR_SCAN_MIN_DIM / minDim, 400 / width, 400 / height, 1), 3);
+    image = image.clone().scale(factor);
+  }
+
+  return image;
+}
+
+/** Cheapest variants first — same coverage, faster average exit. */
+function* iterScanVariants(image) {
+  const { width, height } = image.bitmap;
+  const bottomY = Math.floor(height * 0.42);
+  const bottomH = height - bottomY;
+  const bottom55 = Math.floor(height * 0.55);
+  const midY = Math.floor(height * 0.35);
+
+  yield image;
+  yield image.clone().scale(2);
+  yield image.clone().scale(3);
+  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(2);
+  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(2);
+  yield image.clone().greyscale().scale(2);
+  yield image.clone().crop({ x: 0, y: midY, w: width, h: height - midY }).scale(3);
+  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(3);
+  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(3);
+  yield image.clone().greyscale().scale(3);
+  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).greyscale().invert().scale(4);
+  yield image.clone().crop({ x: Math.floor(width * 0.05), y: bottom55, w: Math.floor(width * 0.9), h: height - bottom55 }).greyscale().invert().scale(4);
+  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).greyscale().scale(4);
 }
 
 function buildQrDataFromRaw(data) {
@@ -277,28 +325,11 @@ function buildQrDataFromRaw(data) {
   };
 }
 
-async function quickScan(image, shouldStop = () => false) {
-  const { width, height } = image.bitmap;
-  const bottomY = Math.floor(height * 0.42);
-  const bottomH = height - bottomY;
-  const bottom55 = Math.floor(height * 0.55);
-  const midY = Math.floor(height * 0.35);
-  const targets = [
-    image.clone().scale(2),
-    image.clone().scale(3),
-    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).greyscale().invert().scale(4),
-    image.clone().crop({ x: Math.floor(width * 0.05), y: bottom55, w: Math.floor(width * 0.9), h: height - bottom55 }).greyscale().invert().scale(4),
-    image.clone().crop({ x: 0, y: midY, w: width, h: height - midY }).scale(3),
-    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(3),
-    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(3),
-    image.clone().greyscale().scale(3),
-    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).greyscale().scale(4),
-  ];
-
-  for (const variant of targets) {
+function quickScan(image, shouldStop = () => false, validate = () => true) {
+  for (const variant of iterScanVariants(image)) {
     if (shouldStop()) break;
     const data = scanBitmap(variant.bitmap);
-    if (data) return data;
+    if (data && validate(data)) return data;
   }
   return null;
 }
@@ -308,43 +339,21 @@ export function scanImageForQr(image, shouldStop = () => false) {
 }
 
 export function scanImageForQrValidated(image, shouldStop = () => false, validate = () => true) {
-  const { width, height } = image.bitmap;
-  const bottomY = Math.floor(height * 0.42);
-  const bottomH = height - bottomY;
-  const bottom55 = Math.floor(height * 0.55);
-  const midY = Math.floor(height * 0.35);
-  const targets = [
-    image.clone().scale(2),
-    image.clone().scale(3),
-    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).greyscale().invert().scale(4),
-    image.clone().crop({ x: Math.floor(width * 0.05), y: bottom55, w: Math.floor(width * 0.9), h: height - bottom55 }).greyscale().invert().scale(4),
-    image.clone().crop({ x: 0, y: midY, w: width, h: height - midY }).scale(3),
-    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(3),
-    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(3),
-    image.clone().greyscale().scale(3),
-    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).greyscale().scale(4),
-  ];
+  return quickScan(image, shouldStop, validate);
+}
 
-  for (const variant of targets) {
-    if (shouldStop()) break;
-    const data = scanBitmap(variant.bitmap);
-    if (data && validate(data)) return data;
-  }
-  return null;
+/** Shared bitmap decoder for bank-specific QR scanners (jsQR + ZXing). */
+export function scanBitmapForData(bitmap) {
+  return scanBitmap(bitmap);
 }
 
 export { buildQrDataFromRaw };
 
-export async function decodeQrFromBuffer(buffer, { maxMs = 14000 } = {}) {
+export async function decodeQrFromBuffer(buffer, { maxMs = 9000, image: preparedImage = null } = {}) {
   try {
-    let image = await Jimp.read(buffer);
-    const { width, height } = image.bitmap;
-    if (width < 400 || height < 400) {
-      const factor = Math.max(400 / width, 400 / height, 1);
-      image = image.clone().scale(Math.min(factor, 3));
-    }
+    const image = preparedImage || await prepareQrScanImage(buffer);
     const deadline = Date.now() + maxMs;
-    const data = await quickScan(image, () => Date.now() >= deadline);
+    const data = quickScan(image, () => Date.now() >= deadline);
     return buildQrDataFromRaw(data);
   } catch (err) {
     console.warn('[QR decode]', err.message);
