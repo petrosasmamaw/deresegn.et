@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload, ListChecks, Hash, Camera, MessageSquare } from 'lucide-react'
+import Modal from './Modal'
 import { VerificationFailureList, VerificationSuccessNote, VerificationWarningList } from './VerificationResult'
+import VerificationCertificate from './VerificationCertificate'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 import ReceiptDetailFields from './ReceiptDetailFields'
 import VerificationFormatGuide, { MODAL_SPLIT_STYLE } from './VerificationFormatGuide'
@@ -102,6 +104,7 @@ export default function CheckerModal({
   const [failureIssues, setFailureIssues] = useState([])
   const [withDetails, setWithDetails] = useState(false)
   const [successDetails, setSuccessDetails] = useState(null)
+  const [successCheck, setSuccessCheck] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [referenceForm, setReferenceForm] = useState(EMPTY_REFERENCE)
   const [smsText, setSmsText] = useState('')
@@ -131,6 +134,7 @@ export default function CheckerModal({
     setFailureIssues([])
     setWithDetails(false)
     setSuccessDetails(null)
+    setSuccessCheck(null)
     setForm(EMPTY_FORM)
     setReferenceForm(EMPTY_REFERENCE)
     setSmsText('')
@@ -170,6 +174,7 @@ export default function CheckerModal({
 
     if (result?.success) {
       setSuccessDetails(result.resolvedDetails || lastResolvedDetails || null)
+      setSuccessCheck(result.check || lastResult || null)
       setStep(successStep)
     }
   }
@@ -193,6 +198,7 @@ export default function CheckerModal({
 
     if (result?.success) {
       setSuccessDetails(result.resolvedDetails || lastResolvedDetails || null)
+      setSuccessCheck(result.check || lastResult || null)
       setStep(4)
     }
   }
@@ -212,6 +218,7 @@ export default function CheckerModal({
 
     if (result?.success) {
       setSuccessDetails(result.resolvedDetails || lastResolvedDetails || null)
+      setSuccessCheck(result.check || lastResult || null)
       setStep(4)
     }
   }
@@ -257,15 +264,12 @@ export default function CheckerModal({
   const showFormatGuide = step === 3 && method && ['screenshot', 'reference', 'sms'].includes(verifyMode)
 
   return (
-    <div className="modal-overlay">
-      <div className={`modal-content${showFormatGuide ? ' modal-content-wide' : ''}`}>
-        <div className="modal-header">
-          <h2 className="section-title">Verify Receipt</h2>
-          <button onClick={handleClose} className="btn-icon">
-            <X size={20} strokeWidth={2.5} />
-          </button>
-        </div>
-
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Verify Receipt"
+      wide={showFormatGuide}
+    >
         {rejected ? (
           <div className="modal-body space-y-5">
             <VerificationFailureList issues={failureIssues} />
@@ -290,23 +294,17 @@ export default function CheckerModal({
         ) : step === successStep ? (
           <div className="modal-body space-y-5">
             <VerificationSuccessNote message={successMessage} />
-            <div className="card p-4 flex items-center gap-4" style={{ background: 'var(--color-success-muted)', borderColor: 'rgba(62, 143, 98, 0.25)', borderWidth: '1px' }}>
-              <div className="verified-stamp flex-shrink-0" style={{ width: '56px', height: '56px', fontSize: '9px' }}>
-                Valid
-              </div>
-              <div>
-                <p className="font-display font-bold text-base" style={{ color: 'var(--color-verified)' }}>Valid Payment Confirmed</p>
-                <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                  {successSubtext}
-                </p>
-              </div>
-            </div>
+            {(successCheck || lastResult) && (
+              <VerificationCertificate check={successCheck || lastResult} />
+            )}
             {summaryDetails && <ReceiptSummaryCard details={summaryDetails} />}
-            <VerificationWarningList issues={lastResult?.validationResult?.issues || []} />
+            <VerificationWarningList issues={lastResult?.validationResult?.issues || successCheck?.validationResult?.issues || []} />
             <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
               <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Balance Update</p>
               <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">
-                {lastResult?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount)} Birr deducted from your account
+                {(successCheck || lastResult)?.isRecheck
+                  ? 'No charge — free re-verification within 24 hours'
+                  : `${(successCheck || lastResult)?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount)} Birr deducted from your account`}
               </p>
             </div>
             <button onClick={handleClose} className="btn-primary w-full">Complete</button>
@@ -516,6 +514,9 @@ export default function CheckerModal({
                 <button type="submit" disabled={loading || !referenceReady} className="btn-primary w-full">
                   {loading ? 'Verifying...' : 'Verify Payment ID'}
                 </button>
+                <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] text-center">
+                  Cost: 2–20 Birr based on verified amount
+                </p>
               </form>
               <VerificationFormatGuide method={method} mode="reference" />
               </div>
@@ -553,6 +554,9 @@ export default function CheckerModal({
                 <button type="submit" disabled={loading || smsText.trim().length < 40} className="btn-primary w-full">
                   {loading ? 'Verifying...' : 'Verify SMS'}
                 </button>
+                <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] text-center">
+                  Cost: 2–20 Birr based on verified amount
+                </p>
               </form>
               <VerificationFormatGuide method={method} mode="sms" />
               </div>
@@ -586,7 +590,6 @@ export default function CheckerModal({
             )}
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }

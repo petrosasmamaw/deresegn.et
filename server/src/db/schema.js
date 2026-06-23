@@ -117,11 +117,37 @@ export const receiptChecks = pgTable('receipt_checks', {
   validationResult: text('validation_result'),
   isValid: boolean('is_valid').notNull().default(true),
   balanceDeducted: integer('balance_deducted').notNull().default(5),
+  shareToken: varchar('share_token', { length: 64 }),
+  confidenceTier: varchar('confidence_tier', { length: 20 }).default('verified'),
+  verifyMode: varchar('verify_mode', { length: 20 }),
+  isRecheck: boolean('is_recheck').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   userIdIdx: index('receipt_checks_user_id_idx').on(table.userId),
   transactionCodeUnique: uniqueIndex('receipt_checks_tx_code_unique').on(table.transactionCode),
+  shareTokenUnique: uniqueIndex('receipt_checks_share_token_unique').on(table.shareToken),
 }));
+
+export const balanceTransactions = pgTable('balance_transactions', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 30 }).notNull(),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  balanceAfter: decimal('balance_after', { precision: 10, scale: 2 }).notNull(),
+  referenceType: varchar('reference_type', { length: 30 }),
+  referenceId: integer('reference_id'),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('balance_transactions_user_id_idx').on(table.userId),
+  typeIdx: index('balance_transactions_type_idx').on(table.type),
+}));
+
+export const systemSettings = pgTable('system_settings', {
+  key: varchar('key', { length: 50 }).primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 
 export const topUpReceiverAccounts = pgTable('top_up_receiver_accounts', {
   id: serial('id').primaryKey(),

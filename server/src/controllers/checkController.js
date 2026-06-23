@@ -1,4 +1,5 @@
 import { submitReceiptCheck, submitReferenceCheck, submitSmsCheck, getCheckHistory, CheckError } from '../services/checkService.js';
+import { getCertificateByShareToken, getCheckByIdForUser } from '../services/certificateService.js';
 import { success, error } from '../utils/response.js';
 
 export async function performCheck(req, res) {
@@ -42,6 +43,7 @@ export async function performCheck(req, res) {
       validation: result.validation,
       issues: result.issues,
       resolvedDetails: result.resolvedDetails,
+      isRecheck: Boolean(result.isRecheck),
     }, result.message, 200);
   } catch (err) {
     if (err instanceof CheckError) {
@@ -81,6 +83,7 @@ export async function performReferenceCheck(req, res) {
       validation: result.validation,
       issues: result.issues,
       resolvedDetails: result.resolvedDetails,
+      isRecheck: Boolean(result.isRecheck),
     }, result.message, 200);
   } catch (err) {
     if (err instanceof CheckError) {
@@ -115,6 +118,7 @@ export async function performSmsCheck(req, res) {
       validation: result.validation,
       issues: result.issues,
       resolvedDetails: result.resolvedDetails,
+      isRecheck: Boolean(result.isRecheck),
     }, result.message, 200);
   } catch (err) {
     if (err instanceof CheckError) {
@@ -135,5 +139,27 @@ export async function getHistory(req, res) {
     return success(res, { checks }, 'Check history retrieved');
   } catch (err) {
     return error(res, 'Failed to get check history', 500, err.message);
+  }
+}
+
+export async function getCheckDetail(req, res) {
+  try {
+    const checkId = parseInt(req.params.id, 10);
+    if (!checkId) return error(res, 'Invalid check id', 400);
+    const check = await getCheckByIdForUser(req.userId, checkId);
+    if (!check) return error(res, 'Verification not found', 404);
+    return success(res, { check }, 'Check detail retrieved');
+  } catch (err) {
+    return error(res, 'Failed to get check detail', 500, err.message);
+  }
+}
+
+export async function getPublicCertificate(req, res) {
+  try {
+    const certificate = await getCertificateByShareToken(req.params.token);
+    if (!certificate) return error(res, 'Certificate not found', 404);
+    return success(res, { certificate }, 'Certificate retrieved');
+  } catch (err) {
+    return error(res, 'Failed to get certificate', 500, err.message);
   }
 }

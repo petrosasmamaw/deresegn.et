@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { CheckCircle2, Zap, TrendingUp, ChevronLeft } from 'lucide-react'
+import { CheckCircle2, Zap, TrendingUp, ChevronLeft, Gift } from 'lucide-react'
+import axios from '../api/axiosInstance'
+import { unwrap } from '../api/unwrap'
 import { fetchBalance, submitTopUp, submitTopUpReference, submitTopUpSms } from '../features/balance/balanceSlice'
 import { fetchCheckHistory, performCheck, performReferenceCheck, performSmsCheck } from '../features/checks/checksSlice'
 import BalanceCard from '../components/BalanceCard'
@@ -9,6 +11,7 @@ import TopUpModal from '../components/TopUpModal'
 import CheckerModal from '../components/CheckerModal'
 import CheckHistory from '../components/CheckHistory'
 import BirrVerifyHero from '../components/BirrVerifyHero'
+import OnboardingModal from '../components/OnboardingModal'
 import { useDashboardUi } from '../context/DashboardUiContext'
 
 export default function DashboardPage() {
@@ -17,11 +20,36 @@ export default function DashboardPage() {
   const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, lastCheck, lastResolvedDetails } = useSelector(s => s.checks)
   const { topupOpen, setTopupOpen, checkerOpen, setCheckerOpen, openVerify } = useDashboardUi()
   const [mobileTab, setMobileTab] = useState('home')
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [bonusBanner, setBonusBanner] = useState(null)
 
   useEffect(() => {
     dispatch(fetchBalance())
     dispatch(fetchCheckHistory())
+
+    axios.get('/users/me').then((res) => {
+      const data = unwrap(res)
+      if (data.registrationBonus?.granted) {
+        setBonusBanner(`${data.registrationBonus.amount} Birr registration bonus added to your account`)
+        dispatch(fetchBalance())
+      }
+      if (!localStorage.getItem('deresegn_onboarding_seen')) {
+        setOnboardingOpen(true)
+      }
+    }).catch(() => {})
   }, [dispatch])
+
+  const closeOnboarding = () => {
+    localStorage.setItem('deresegn_onboarding_seen', '1')
+    setOnboardingOpen(false)
+  }
+
+  const successPayload = (result) => ({
+    success: true,
+    resolvedDetails: result.payload.resolvedDetails,
+    check: result.payload.check,
+    isRecheck: result.payload.isRecheck,
+  })
 
   const handleTopUpSubmit = async ({ screenshot, method }) => {
     const result = await dispatch(submitTopUp({ screenshot, method }))
@@ -79,10 +107,7 @@ export default function DashboardPage() {
     if (performCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
-      return {
-        success: true,
-        resolvedDetails: result.payload.resolvedDetails,
-      }
+      return successPayload(result)
     }
     const payload = result.payload || {}
     const issues = payload.data?.issues || payload.issues || []
@@ -99,10 +124,7 @@ export default function DashboardPage() {
     if (performReferenceCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
-      return {
-        success: true,
-        resolvedDetails: result.payload.resolvedDetails,
-      }
+      return successPayload(result)
     }
     const payload = result.payload || {}
     const issues = payload.data?.issues || payload.issues || []
@@ -119,10 +141,7 @@ export default function DashboardPage() {
     if (performSmsCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
-      return {
-        success: true,
-        resolvedDetails: result.payload.resolvedDetails,
-      }
+      return successPayload(result)
     }
     const payload = result.payload || {}
     const issues = payload.data?.issues || payload.issues || []
@@ -143,6 +162,12 @@ export default function DashboardPage() {
 
       {/* Desktop Layout */}
       <div className="hidden md:block container mx-auto py-8 max-w-6xl">
+        {bonusBanner && (
+          <div className="bonus-banner mb-6">
+            <Gift size={18} style={{ color: 'var(--color-foil-gold)' }} />
+            <span>{bonusBanner}</span>
+          </div>
+        )}
         {/* Primary Grid: Balance + Verification */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
           {/* Balance Card (Hero - Spans 2 cols) */}
@@ -198,6 +223,12 @@ export default function DashboardPage() {
         {mobileTab === 'home' && <BirrVerifyHero onVerifyClick={openVerify} />}
 
         <div className="mobile-shell">
+        {bonusBanner && mobileTab === 'home' && (
+          <div className="bonus-banner mb-3">
+            <Gift size={16} style={{ color: 'var(--color-foil-gold)' }} />
+            <span className="text-[13px]">{bonusBanner}</span>
+          </div>
+        )}
         {mobileTab === 'history' && (
         <header className="mobile-page-header">
           <h1 className="mobile-page-title">History</h1>
@@ -275,6 +306,13 @@ export default function DashboardPage() {
 
       {/* Mobile Bottom Navigation with FAB */}
       <BottomNav activeTab={mobileTab} onTabChange={setMobileTab} onFabClick={() => setCheckerOpen(true)} />
+
+      <OnboardingModal
+        isOpen={onboardingOpen}
+        onClose={closeOnboarding}
+        onTopUp={() => { closeOnboarding(); setTopupOpen(true) }}
+        onVerify={() => { closeOnboarding(); openVerify() }}
+      />
     </main>
   )
 }

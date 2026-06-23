@@ -1,4 +1,38 @@
-import { AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+
+function VisualDiff({ item }) {
+  const rows = []
+  if (item.formValue != null) {
+    rows.push({ label: 'You entered', value: item.formValue, status: 'entered' })
+  }
+  if (item.screenshotValue != null) {
+    const mismatch = item.formValue != null && item.formValue !== item.screenshotValue
+    rows.push({ label: 'Screenshot shows', value: item.screenshotValue, status: mismatch ? 'mismatch' : 'match' })
+  }
+  if (item.qrValue != null) {
+    const mismatch = (item.formValue != null && item.formValue !== item.qrValue)
+      || (item.screenshotValue != null && item.screenshotValue !== item.qrValue)
+    rows.push({ label: 'Official record', value: item.qrValue, status: mismatch ? 'mismatch' : 'match' })
+  }
+  if (rows.length === 0) return null
+
+  return (
+    <div className="payment-verify-diff" aria-label="Field comparison">
+      {rows.map((row) => (
+        <div
+          key={row.label}
+          className={`payment-verify-diff-row payment-verify-diff-row--${row.status === 'mismatch' ? 'mismatch' : 'match'}`}
+        >
+          <dt>{row.label}</dt>
+          <dd>{row.value}</dd>
+          <span aria-hidden="true">
+            {row.status === 'mismatch' ? <XCircle size={14} color="var(--color-maroon)" /> : <CheckCircle2 size={14} color="var(--color-verified)" />}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 const FIELD_LABELS = {
   senderName: 'Sender name',
@@ -52,28 +86,7 @@ export function VerificationFailureList({ issues = [], title = 'Receipt could no
               {CODE_LABELS[item.code] || FIELD_LABELS[item.field] || item.code?.replace(/_/g, ' ') || 'Error'}
             </span>
             <p className="payment-verify-item-msg">{item.message}</p>
-            {(item.formValue != null || item.screenshotValue != null || item.qrValue != null) && (
-              <dl className="payment-verify-compare">
-                {item.formValue != null && (
-                  <>
-                    <dt>You entered</dt>
-                    <dd className="font-mono">{item.formValue}</dd>
-                  </>
-                )}
-                {item.screenshotValue != null && (
-                  <>
-                    <dt>Screenshot shows</dt>
-                    <dd className="font-mono">{item.screenshotValue}</dd>
-                  </>
-                )}
-                {item.qrValue != null && (
-                  <>
-                    <dt>QR code proves</dt>
-                    <dd className="font-mono">{item.qrValue}</dd>
-                  </>
-                )}
-              </dl>
-            )}
+            <VisualDiff item={item} />
           </li>
         ))}
       </ul>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { signup } from '../features/auth/authSlice'
-import { Shield, ArrowRight } from 'lucide-react'
+import { Shield, ArrowRight, Gift } from 'lucide-react'
 
 function RegisterSkeleton() {
   return (
@@ -54,7 +54,11 @@ export default function RegisterPage() {
           <Shield size={28} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
         </div>
         <h1 className="page-title mb-2">Create Account</h1>
-        <p className="page-subtitle">Join Deresegn for secure receipts</p>
+        <p className="page-subtitle">Join Deresegn — get 20 Birr registration bonus</p>
+        <div className="bonus-banner mt-4 max-w-sm mx-auto text-left">
+          <Gift size={16} style={{ color: 'var(--color-foil-gold)' }} className="inline mr-2" />
+          <span className="text-[13px]">New users receive <strong>20 Birr</strong> to try verification (registration bonus).</span>
+        </div>
       </div>
 
       <div className="auth-hero-body">

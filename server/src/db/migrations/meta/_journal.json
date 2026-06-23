@@ -24,10 +24,10 @@
       "breakpoints": true
     },
     {
-      "idx": 3,
+      "idx": 4,
       "version": "7",
-      "when": 1781608495820,
-      "tag": "0003_top_up_tx_unique",
+      "when": 1781608495821,
+      "tag": "0004_certificate_bonus_ledger",
       "breakpoints": true
     }
   ]

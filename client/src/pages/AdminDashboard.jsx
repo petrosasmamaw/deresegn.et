@@ -6,7 +6,13 @@ import AdminNavbar from '../components/AdminNavbar'
 import AdminUsersList from '../components/AdminUsersList'
 import AdminUserDetail from '../components/AdminUserDetail'
 import AdminAccountsPanel from '../components/AdminAccountsPanel'
-import { Users, TrendingUp, Activity, Zap, Wallet } from 'lucide-react'
+import { Users, TrendingUp, Activity, Zap, Wallet, Gift, FileCheck, Settings } from 'lucide-react'
+import {
+  AdminVerificationsPanel,
+  AdminTopupsPanel,
+  AdminBonusesPanel,
+  AdminBonusSettingsPanel,
+} from '../components/AdminOperationsPanels'
 
 export default function AdminDashboard() {
   const { user } = useSelector((s) => s.auth)
@@ -94,7 +100,7 @@ export default function AdminDashboard() {
           )}
 
           {/* Tab Navigation */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setActiveTab('users')}
@@ -105,17 +111,49 @@ export default function AdminDashboard() {
             </button>
             <button
               type="button"
+              onClick={() => setActiveTab('verifications')}
+              className={`btn-secondary flex items-center gap-2 ${activeTab === 'verifications' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+            >
+              <FileCheck size={16} />
+              Verifications
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('topups')}
+              className={`btn-secondary flex items-center gap-2 ${activeTab === 'topups' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+            >
+              <TrendingUp size={16} />
+              Top-Ups
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('bonuses')}
+              className={`btn-secondary flex items-center gap-2 ${activeTab === 'bonuses' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+            >
+              <Gift size={16} />
+              Bonuses
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab('accounts')}
               className={`btn-secondary flex items-center gap-2 ${activeTab === 'accounts' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Wallet size={16} />
               Accounts
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('settings')}
+              className={`btn-secondary flex items-center gap-2 ${activeTab === 'settings' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+            >
+              <Settings size={16} />
+              Settings
+            </button>
           </div>
 
           {/* Stats Cards */}
           {activeTab === 'users' && dashboardData?.stats && (
-            <div className="grid md:grid-cols-4 gap-4">
+            <div className="grid md:grid-cols-5 gap-4">
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
                   <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
@@ -169,12 +207,46 @@ export default function AdminDashboard() {
                 </p>
                 <p className="text-xs text-[var(--color-text-secondary)] mt-2">Completed</p>
               </div>
+
+              <div className="stat-card">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
+                    Reg. Bonuses
+                  </p>
+                  <Gift size={20} style={{ color: 'var(--color-verified)' }} strokeWidth={2} />
+                </div>
+                <p className="amount-mono-lg">
+                  {Number(dashboardData.stats.bonusTotalGiven || 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-2">
+                  {dashboardData.stats.bonusCount ?? 0} bonuses given
+                </p>
+              </div>
             </div>
           )}
 
           {/* Users Table */}
           {activeTab === 'users' && dashboardData?.users && (
             <AdminUsersList users={dashboardData.users} onSelectUser={handleSelectUser} />
+          )}
+
+          {activeTab === 'verifications' && (
+            <AdminVerificationsPanel checks={dashboardData?.recentChecks || []} />
+          )}
+
+          {activeTab === 'topups' && (
+            <AdminTopupsPanel topups={dashboardData?.recentTopups || []} />
+          )}
+
+          {activeTab === 'bonuses' && (
+            <AdminBonusesPanel bonuses={dashboardData?.recentBonuses || []} />
+          )}
+
+          {activeTab === 'settings' && (
+            <AdminBonusSettingsPanel
+              settings={dashboardData?.registrationBonus}
+              onUpdated={fetchDashboardData}
+            />
           )}
 
           {activeTab === 'accounts' && <AdminAccountsPanel />}

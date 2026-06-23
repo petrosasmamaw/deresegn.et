@@ -7,6 +7,11 @@ import {
   updateTopUpReceiverAccount,
   isTopUpMethod,
 } from '../services/topUpAccountService.js';
+import {
+  getRegistrationBonusSettings,
+  setSetting,
+} from '../services/balanceLedgerService.js';
+import { getAllVerifications, getAllTopups } from '../services/adminService.js';
 
 const router = express.Router();
 
@@ -60,9 +65,60 @@ async function updateTopUpAccount(req, res) {
   }
 }
 
+async function updateRegistrationBonusSettings(req, res) {
+  try {
+    const { amount, enabled } = req.body || {};
+    if (amount != null) {
+      const parsed = parseFloat(amount);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        return error(res, 'Bonus amount must be a non-negative number', 400);
+      }
+      await setSetting('registration_bonus_amount', String(parsed));
+    }
+    if (enabled != null) {
+      await setSetting('registration_bonus_enabled', enabled ? 'true' : 'false');
+    }
+    const settings = await getRegistrationBonusSettings();
+    return success(res, { settings }, 'Registration bonus settings updated');
+  } catch (err) {
+    return error(res, 'Failed to update bonus settings', 500, err.message);
+  }
+}
+
+async function listVerifications(req, res) {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+    const checks = await getAllVerifications(limit);
+    return success(res, { checks }, 'Verifications retrieved');
+  } catch (err) {
+    return error(res, 'Failed to list verifications', 500, err.message);
+  }
+}
+
+async function listTopups(req, res) {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+    const topups = await getAllTopups(limit);
+    return success(res, { topups }, 'Top-ups retrieved');
+  } catch (err) {
+    return error(res, 'Failed to list top-ups', 500, err.message);
+  }
+}
+
 router.get('/dashboard', authenticateUser, checkAdminRole, getDashboardData);
 router.get('/users/:userId', authenticateUser, checkAdminRole, getUserDetails);
 router.get('/topup-accounts', authenticateUser, checkAdminRole, getTopUpAccounts);
 router.put('/topup-accounts/:method', authenticateUser, checkAdminRole, updateTopUpAccount);
+router.get('/settings/registration-bonus', authenticateUser, checkAdminRole, async (req, res) => {
+  try {
+    const settings = await getRegistrationBonusSettings();
+    return success(res, { settings }, 'Registration bonus settings retrieved');
+  } catch (err) {
+    return error(res, 'Failed to get bonus settings', 500, err.message);
+  }
+});
+router.put('/settings/registration-bonus', authenticateUser, checkAdminRole, updateRegistrationBonusSettings);
+router.get('/verifications', authenticateUser, checkAdminRole, listVerifications);
+router.get('/topups', authenticateUser, checkAdminRole, listTopups);
 
 export default router;

@@ -1,29 +1,24 @@
 import { useState } from 'react'
-import { X, CheckCircle2, TrendingUp, Clock } from 'lucide-react'
+import { CheckCircle2, TrendingUp, Clock, Gift } from 'lucide-react'
 import { format } from 'date-fns'
+import Modal from './Modal'
 
 export default function AdminUserDetail({ user, onClose }) {
   const [activeTab, setActiveTab] = useState('overview')
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-content max-w-4xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header sticky top-0 bg-[var(--color-bg-elevated)] z-10">
-          <div>
-            <h2 className="section-title">{user.user.name}</h2>
-            <p className="text-sm text-[var(--color-text-secondary)] mt-1">{user.user.email}</p>
-          </div>
-          <button onClick={onClose} className="btn-icon">
-            <X size={20} strokeWidth={2.5} />
-          </button>
-        </div>
+  if (!user) return null
 
+  return (
+    <Modal
+      isOpen={Boolean(user)}
+      onClose={onClose}
+      title={user.user.name}
+      subtitle={user.user.email}
+      contentClassName="max-w-4xl"
+    >
         <div className="modal-body space-y-6">
           {/* Tabs */}
-          <div className="flex gap-2 border-b border-[var(--color-border)]">
+          <div className="modal-tabs-scroll">
             <button
               onClick={() => setActiveTab('overview')}
               className={`px-4 py-3 font-semibold border-b-2 transition-colors ${
@@ -54,6 +49,16 @@ export default function AdminUserDetail({ user, onClose }) {
             >
               Top-Ups ({user.topups.length})
             </button>
+            <button
+              onClick={() => setActiveTab('ledger')}
+              className={`px-4 py-3 font-semibold border-b-2 transition-colors ${
+                activeTab === 'ledger'
+                  ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
+                  : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+              }`}
+            >
+              Ledger ({user.ledger?.length || 0})
+            </button>
           </div>
 
           {/* Overview Tab */}
@@ -69,13 +74,11 @@ export default function AdminUserDetail({ user, onClose }) {
                 </div>
 
                 <div className="card p-4" style={{ background: 'var(--color-accent-muted)' }}>
-                  <p className="text-sm text-[var(--color-text-secondary)] mb-2">Account Status</p>
-                  <p className="text-lg font-bold capitalize" style={{ color: 'var(--color-accent)' }}>
-                    {user.user.role}
+                  <p className="text-sm text-[var(--color-text-secondary)] mb-2">Registration Bonus</p>
+                  <p className="text-2xl font-bold" style={{ color: 'var(--color-accent)' }}>
+                    {Number(user.stats.registrationBonusTotal || 0).toFixed(2)} Birr
                   </p>
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                    Joined {format(new Date(user.user.createdAt), 'MMM dd, yyyy')}
-                  </p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">Tracked separately from top-ups</p>
                 </div>
               </div>
 
@@ -186,6 +189,30 @@ export default function AdminUserDetail({ user, onClose }) {
               )}
             </div>
           )}
+
+          {activeTab === 'ledger' && (
+            <div className="space-y-2">
+              {!user.ledger?.length ? (
+                <p className="text-center text-[var(--color-text-secondary)] py-8">No ledger entries</p>
+              ) : (
+                user.ledger.map((entry) => (
+                  <div key={entry.id} className="card p-3 flex items-center justify-between gap-3 text-sm">
+                    <div>
+                      <p className="font-semibold capitalize flex items-center gap-1">
+                        {entry.type === 'registration_bonus' && <Gift size={14} />}
+                        {entry.type.replace(/_/g, ' ')}
+                      </p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">{entry.description}</p>
+                      <p className="text-xs text-[var(--color-text-tertiary)]">{format(new Date(entry.createdAt), 'MMM dd, yyyy HH:mm')}</p>
+                    </div>
+                    <p className={`font-mono font-bold ${parseFloat(entry.amount) >= 0 ? 'text-[var(--color-verified)]' : 'text-[var(--color-maroon)]'}`}>
+                      {parseFloat(entry.amount) >= 0 ? '+' : ''}{entry.amount}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         <div className="modal-footer">
@@ -193,7 +220,6 @@ export default function AdminUserDetail({ user, onClose }) {
             Close
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { X, Smartphone, Building2, Upload, CheckCircle2, RotateCcw, ArrowRight, Camera, Hash, MessageSquare } from 'lucide-react'
+import { Smartphone, Building2, Upload, CheckCircle2, RotateCcw, ArrowRight, Camera, Hash, MessageSquare } from 'lucide-react'
+import Modal from './Modal'
 import axios from '../api/axiosInstance'
 import { unwrap } from '../api/unwrap'
 import { VerificationFailureList } from './VerificationResult'
@@ -165,15 +166,12 @@ export default function TopUpModal({
   const showFormatGuide = step === 3 && method && ['screenshot', 'reference', 'sms'].includes(verifyMode)
 
   return (
-    <div className="modal-overlay">
-      <div className={`modal-content${showFormatGuide ? ' modal-content-wide' : ''}`}>
-        <div className="modal-header">
-          <h2 className="section-title">Top Up Balance</h2>
-          <button onClick={handleClose} className="btn-icon">
-            <X size={20} strokeWidth={2.5} />
-          </button>
-        </div>
-
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Top Up Balance"
+      wide={showFormatGuide}
+    >
         {rejected ? (
           <div className="modal-body space-y-5">
             <VerificationFailureList issues={failureIssues} />
@@ -387,7 +385,6 @@ export default function TopUpModal({
             )}
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }

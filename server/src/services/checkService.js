@@ -26,6 +26,12 @@ import {
   verifySmsTransaction,
   SMS_SCREENSHOT_PLACEHOLDER,
 } from './smsVerifyService.js';
+import {
+  generateShareToken,
+  isWithinRecheckWindow,
+  recordBalanceTransaction,
+} from './balanceLedgerService.js';
+import { computeConfidenceTier } from './confidenceService.js';
 
 function toMoney(value) {
   return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
@@ -124,7 +130,7 @@ export async function getUserBalance(userId) {
   return parseFloat(toMoney(row.amount));
 }
 
-async function deductBalance(userId, amount) {
+async function deductBalance(userId, amount, ledgerMeta = null) {
   const row = await ensureUserBalance(userId);
   const current = parseFloat(toMoney(row.amount));
   const debit = parseFloat(amount) || 0;
@@ -136,7 +142,19 @@ async function deductBalance(userId, amount) {
     .set({ amount: toMoney(current - debit), updatedAt: new Date() })
     .where(eq(balances.userId, userId))
     .returning();
-  return parseFloat(toMoney(updated.amount));
+  const newBalance = parseFloat(toMoney(updated.amount));
+  if (ledgerMeta && debit > 0) {
+    await recordBalanceTransaction({
+      userId,
+      type: ledgerMeta.type || 'verification',
+      amount: -debit,
+      balanceAfter: newBalance,
+      referenceType: ledgerMeta.referenceType || null,
+      referenceId: ledgerMeta.referenceId || null,
+      description: ledgerMeta.description || null,
+    });
+  }
+  return newBalance;
 }
 
 async function addBalance(userId, amount) {
@@ -163,6 +181,85 @@ export async function findTopUpByTxCode(txCode) {
   return db.query.topUpTransactions.findFirst({
     where: eq(topUpTransactions.transactionCode, txCode),
   });
+}
+
+function buildResolvedDetailsFromCheck(row) {
+  return {
+    senderName: row.senderName,
+    senderAccount: row.senderAccount,
+    receiverName: row.receiverName,
+    receiverAccount: row.receiverAccount,
+    amount: row.amount,
+    transactionCode: row.transactionCode,
+  };
+}
+
+function buildRecheckResult(existingRow) {
+  const check = parseCheckRow(existingRow);
+  return {
+    check,
+    newBalance: null,
+    message: 'Receipt re-verified (no charge within 24h)',
+    validation: check.validationResult,
+    issues: check.validationResult?.issues || [],
+    resolvedDetails: buildResolvedDetailsFromCheck(check),
+    isRecheck: true,
+  };
+}
+
+async function resolveDuplicateCheck(userId, txCode) {
+  if (!txCode) return { action: 'continue' };
+  const existing = await findCheckByTxCode(txCode);
+  if (!existing) return { action: 'continue' };
+  if (existing.userId === userId && isWithinRecheckWindow(existing.createdAt)) {
+    return { action: 'recheck', existing };
+  }
+  return { action: 'block', issue: buildDuplicateTxIssue(txCode) };
+}
+
+function buildCheckRecordValues({
+  userId,
+  method,
+  details,
+  txCode,
+  screenshotUrl,
+  enteredDetails,
+  extractedDetails,
+  qrData,
+  validation,
+  checkCost,
+  verifyMode,
+  isRecheck = false,
+}) {
+  const confidenceTier = computeConfidenceTier(validation, verifyMode);
+  return {
+    userId,
+    paymentMethod: method,
+    senderName: details.senderName,
+    senderAccount: details.senderAccount,
+    receiverName: details.receiverName,
+    receiverAccount: details.receiverAccount,
+    amount: String(details.amount || 0),
+    transactionCode: txCode,
+    screenshotUrl,
+    enteredDetails: JSON.stringify(enteredDetails),
+    extractedDetails: JSON.stringify(extractedDetails),
+    qrData: JSON.stringify(qrData),
+    validationResult: JSON.stringify(validation),
+    isValid: true,
+    balanceDeducted: checkCost,
+    shareToken: generateShareToken(),
+    confidenceTier,
+    verifyMode,
+    isRecheck,
+  };
+}
+
+async function finalizeRecheck(userId, existing) {
+  const balance = await getUserBalance(userId);
+  const result = buildRecheckResult(existing);
+  result.newBalance = balance;
+  return result;
 }
 
 function parseCheckRow(row) {
@@ -294,6 +391,7 @@ async function extractScreenshotData({ screenshotBuffer, screenshotMime, screens
 }
 
 async function runReceiptVerification({
+  userId,
   method,
   form,
   screenshotBuffer,
@@ -354,16 +452,27 @@ async function runReceiptVerification({
   }
 
   if (validation.txCode) {
-    const duplicateCheck = await findCheckByTxCode(validation.txCode);
-    if (duplicateCheck) {
-      const dupIssue = buildDuplicateTxIssue(validation.txCode);
-      validation.passed = false;
-      validation.issues = [dupIssue, ...validation.issues];
-      validation.errors = [dupIssue.message, ...validation.errors];
+    if (userId) {
+      const dup = await resolveDuplicateCheck(userId, validation.txCode);
+      if (dup.action === 'recheck') {
+        validation.recheckExisting = dup.existing;
+      } else if (dup.action === 'block') {
+        validation.passed = false;
+        validation.issues = [dup.issue, ...validation.issues];
+        validation.errors = [dup.issue.message, ...validation.errors];
+      }
+    } else {
+      const duplicateCheck = await findCheckByTxCode(validation.txCode);
+      if (duplicateCheck) {
+        const dupIssue = buildDuplicateTxIssue(validation.txCode);
+        validation.passed = false;
+        validation.issues = [dupIssue, ...validation.issues];
+        validation.errors = [dupIssue.message, ...validation.errors];
+      }
     }
 
     const duplicateTopUp = await findTopUpByTxCode(validation.txCode);
-    if (duplicateTopUp?.status === 'complete') {
+    if (duplicateTopUp?.status === 'complete' && !validation.recheckExisting) {
       const dupIssue = buildDuplicateTxIssue(validation.txCode);
       validation.passed = false;
       validation.issues = [dupIssue, ...validation.issues];
@@ -393,6 +502,7 @@ export async function submitReceiptCheck({
 
   try {
     const result = await runReceiptVerification({
+      userId,
       method,
       form,
       screenshotBuffer,
@@ -409,6 +519,10 @@ export async function submitReceiptCheck({
       });
     }
 
+    if (result.validation.recheckExisting) {
+      return finalizeRecheck(userId, result.validation.recheckExisting);
+    }
+
     const upload = screenshotBuffer
       ? await uploadScreenshotBuffer(screenshotBuffer, screenshotMime)
       : await uploadScreenshot(screenshotPath);
@@ -420,26 +534,35 @@ export async function submitReceiptCheck({
     const newBalance = await deductBalance(userId, checkCost);
 
     try {
-      const [saved] = await db.insert(receiptChecks).values({
+      const [saved] = await db.insert(receiptChecks).values(
+        buildCheckRecordValues({
+          userId,
+          method,
+          details,
+          txCode: result.validation.txCode,
+          screenshotUrl,
+          enteredDetails: withDetails ? form : { withDetails: false },
+          extractedDetails: result.extracted,
+          qrData: result.qrData,
+          validation: result.validation,
+          checkCost,
+          verifyMode: 'screenshot',
+        }),
+      ).returning();
+
+      const check = parseCheckRow(saved);
+      await recordBalanceTransaction({
         userId,
-        paymentMethod: method,
-        senderName: details.senderName,
-        senderAccount: details.senderAccount,
-        receiverName: details.receiverName,
-        receiverAccount: details.receiverAccount,
-        amount: String(details.amount || 0),
-        transactionCode: result.validation.txCode,
-        screenshotUrl,
-        enteredDetails: JSON.stringify(withDetails ? form : { withDetails: false }),
-        extractedDetails: JSON.stringify(result.extracted),
-        qrData: JSON.stringify(result.qrData),
-        validationResult: JSON.stringify(result.validation),
-        isValid: true,
-        balanceDeducted: checkCost,
-      }).returning();
+        type: 'verification',
+        amount: -checkCost,
+        balanceAfter: newBalance,
+        referenceType: 'check',
+        referenceId: check.id,
+        description: `Receipt verification — ${result.validation.txCode}`,
+      }).catch(() => {});
 
       return {
-        check: parseCheckRow(saved),
+        check,
         newBalance,
         message: result.validation.warnings.length
           ? 'Receipt verified (with warnings)'
@@ -499,10 +622,12 @@ export async function submitReferenceCheck({
     });
   }
 
-  const duplicateCheck = await findCheckByTxCode(result.txCode);
-  if (duplicateCheck) {
-    const dupIssue = buildDuplicateTxIssue(result.txCode);
-    throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+  const dup = await resolveDuplicateCheck(userId, result.txCode);
+  if (dup.action === 'recheck') {
+    return finalizeRecheck(userId, dup.existing);
+  }
+  if (dup.action === 'block') {
+    throw new CheckError(dup.issue.message, 409, { issues: [dup.issue] });
   }
 
   const duplicateTopUp = await findTopUpByTxCode(result.txCode);
@@ -527,30 +652,39 @@ export async function submitReferenceCheck({
   };
 
   try {
-    const [saved] = await db.insert(receiptChecks).values({
-      userId,
-      paymentMethod: method,
-      senderName: details.senderName,
-      senderAccount: details.senderAccount,
-      receiverName: details.receiverName,
-      receiverAccount: details.receiverAccount,
-      amount: String(details.amount || 0),
-      transactionCode: result.txCode,
-      screenshotUrl: REFERENCE_SCREENSHOT_PLACEHOLDER,
-      enteredDetails: JSON.stringify({
+    const [saved] = await db.insert(receiptChecks).values(
+      buildCheckRecordValues({
+        userId,
+        method,
+        details,
+        txCode: result.txCode,
+        screenshotUrl: REFERENCE_SCREENSHOT_PLACEHOLDER,
+        enteredDetails: {
+          verifyMode: 'reference',
+          transactionCode: result.validated.transactionCode,
+          accountSuffix: result.validated.accountSuffix || null,
+        },
+        extractedDetails: { official: result.official },
+        qrData: null,
+        validation,
+        checkCost,
         verifyMode: 'reference',
-        transactionCode: result.validated.transactionCode,
-        accountSuffix: result.validated.accountSuffix || null,
       }),
-      extractedDetails: JSON.stringify({ official: result.official }),
-      qrData: JSON.stringify(null),
-      validationResult: JSON.stringify(validation),
-      isValid: true,
-      balanceDeducted: checkCost,
-    }).returning();
+    ).returning();
+
+    const check = parseCheckRow(saved);
+    await recordBalanceTransaction({
+      userId,
+      type: 'verification',
+      amount: -checkCost,
+      balanceAfter: newBalance,
+      referenceType: 'check',
+      referenceId: check.id,
+      description: `Payment ID verification — ${result.txCode}`,
+    }).catch(() => {});
 
     return {
-      check: parseCheckRow(saved),
+      check,
       newBalance,
       message: 'Payment ID verified successfully',
       validation,
@@ -619,10 +753,12 @@ export async function submitSmsCheck({
     });
   }
 
-  const duplicateCheck = await findCheckByTxCode(result.txCode);
-  if (duplicateCheck) {
-    const dupIssue = buildDuplicateTxIssue(result.txCode);
-    throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+  const dup = await resolveDuplicateCheck(userId, result.txCode);
+  if (dup.action === 'recheck') {
+    return finalizeRecheck(userId, dup.existing);
+  }
+  if (dup.action === 'block') {
+    throw new CheckError(dup.issue.message, 409, { issues: [dup.issue] });
   }
 
   const duplicateTopUp = await findTopUpByTxCode(result.txCode);
@@ -648,26 +784,35 @@ export async function submitSmsCheck({
   };
 
   try {
-    const [saved] = await db.insert(receiptChecks).values({
-      userId,
-      paymentMethod: method,
-      senderName: details.senderName,
-      senderAccount: details.senderAccount,
-      receiverName: details.receiverName,
-      receiverAccount: details.receiverAccount,
-      amount: String(details.amount || 0),
-      transactionCode: result.txCode,
-      screenshotUrl: SMS_SCREENSHOT_PLACEHOLDER,
-      enteredDetails: JSON.stringify({
+    const [saved] = await db.insert(receiptChecks).values(
+      buildCheckRecordValues({
+        userId,
+        method,
+        details,
+        txCode: result.txCode,
+        screenshotUrl: SMS_SCREENSHOT_PLACEHOLDER,
+        enteredDetails: {
+          verifyMode: 'sms',
+          smsTextPreview: trimmed.slice(0, 500),
+        },
+        extractedDetails: { sms: result.parsed, official: result.official },
+        qrData: null,
+        validation,
+        checkCost,
         verifyMode: 'sms',
-        smsTextPreview: trimmed.slice(0, 500),
       }),
-      extractedDetails: JSON.stringify({ sms: result.parsed, official: result.official }),
-      qrData: JSON.stringify(null),
-      validationResult: JSON.stringify(validation),
-      isValid: true,
-      balanceDeducted: checkCost,
-    }).returning();
+    ).returning();
+
+    const check = parseCheckRow(saved);
+    await recordBalanceTransaction({
+      userId,
+      type: 'verification',
+      amount: -checkCost,
+      balanceAfter: newBalance,
+      referenceType: 'check',
+      referenceId: check.id,
+      description: `SMS verification — ${result.txCode}`,
+    }).catch(() => {});
 
     return {
       check: parseCheckRow(saved),

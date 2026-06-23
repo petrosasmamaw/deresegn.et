@@ -25,7 +25,7 @@ export const performCheck = createAsyncThunk(
       })
       const data = unwrap(res)
       return {
-        check: data.check,
+        check: { ...data.check, isRecheck: data.isRecheck },
         newBalance: data.newBalance,
         issues: data.issues || [],
         resolvedDetails: data.resolvedDetails || null,
@@ -47,7 +47,7 @@ export const performReferenceCheck = createAsyncThunk(
       }, { timeout: 60000 })
       const data = unwrap(res)
       return {
-        check: data.check,
+        check: { ...data.check, isRecheck: data.isRecheck },
         newBalance: data.newBalance,
         issues: data.issues || [],
         resolvedDetails: data.resolvedDetails || null,
@@ -65,7 +65,7 @@ export const performSmsCheck = createAsyncThunk(
       const res = await axios.post('/check/sms', { method, smsText }, { timeout: 60000 })
       const data = unwrap(res)
       return {
-        check: data.check,
+        check: { ...data.check, isRecheck: data.isRecheck },
         newBalance: data.newBalance,
         issues: data.issues || [],
         resolvedDetails: data.resolvedDetails || null,
@@ -104,7 +104,9 @@ const slice = createSlice({
         s.submitting = false
         s.lastCheck = a.payload.check
         s.lastResolvedDetails = a.payload.resolvedDetails
-        s.list.unshift(a.payload.check)
+        const idx = s.list.findIndex((c) => c.id === a.payload.check?.id)
+        if (idx >= 0) s.list[idx] = a.payload.check
+        else s.list.unshift(a.payload.check)
       })
       .addCase(performCheck.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
 
@@ -113,7 +115,9 @@ const slice = createSlice({
         s.submitting = false
         s.lastCheck = a.payload.check
         s.lastResolvedDetails = a.payload.resolvedDetails
-        s.list.unshift(a.payload.check)
+        const idx = s.list.findIndex((c) => c.id === a.payload.check?.id)
+        if (idx >= 0) s.list[idx] = a.payload.check
+        else s.list.unshift(a.payload.check)
       })
       .addCase(performReferenceCheck.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
 
@@ -122,7 +126,9 @@ const slice = createSlice({
         s.submitting = false
         s.lastCheck = a.payload.check
         s.lastResolvedDetails = a.payload.resolvedDetails
-        s.list.unshift(a.payload.check)
+        const idx = s.list.findIndex((c) => c.id === a.payload.check?.id)
+        if (idx >= 0) s.list[idx] = a.payload.check
+        else s.list.unshift(a.payload.check)
       })
       .addCase(performSmsCheck.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
 
