@@ -250,7 +250,8 @@ function validateFormAgainstQr({ issues, form, qrFields, method }) {
   const formTx = normalizeTxCode(form.transactionCode);
   const qrTx = normalizeTxCode(qrFields.transactionCode);
 
-  if (qrTx && formTx && !txCodesMatch(qrTx, formTx)) {
+  if (qrTx && formTx && !txCodesMatch(qrTx, formTx)
+    && !(method === 'dashen' && qrFields?.dashenSuperAppSource)) {
     issues.push(issue('error', 'TX_FORM_QR_MISMATCH', 'transactionCode',
       `Payment ID error: you entered "${formTx}" but the QR code shows "${qrTx}".`,
       { formValue: formTx, qrValue: qrTx }));
@@ -428,6 +429,67 @@ function validateScreenshotAgainstQr({ issues, extracted, qrFields }) {
   validateScreenshotAgainstTruth({ issues, extracted, qrFields, truthLabel: 'QR code' });
 }
 
+function validateDashenReceipt({
+  issues,
+  extracted,
+  qrFields,
+  qrFound,
+  qrAuthentic,
+  screenshotCropped,
+  geminiUsed,
+}) {
+  const hasOfficial = Boolean(qrFields?.dashenApiSource);
+  const hasSuperApp = Boolean(qrFields?.dashenSuperAppSource);
+
+  if (!qrFound && !hasOfficial) {
+    issues.push(issue('error', 'QR_MISSING', 'screenshot',
+      'Your Dashen Bank receipt screenshot must include the QR code (success screen or VAT receipt).'));
+    return;
+  }
+
+  if (qrFound && !qrAuthentic) return;
+
+  if (hasSuperApp) return;
+
+  if (!hasOfficial) {
+    if (!screenshotCropped) {
+      issues.push(issue('error', 'DASHEN_VERIFY_FAILED', 'transactionCode',
+        'Could not load the official Dashen Bank record from the QR code. Upload a sharper screenshot with the full QR visible.'));
+    }
+    return;
+  }
+
+  if (screenshotCropped || !geminiUsed) return;
+
+  const shotTx = normalizeTxCode(extracted?.transactionCode);
+  const officialTx = normalizeTxCode(qrFields?.transactionCode);
+  if (shotTx && officialTx && !txCodesMatch(shotTx, officialTx)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'transactionCode',
+      `Payment ID error: screenshot shows "${shotTx}" but the official Dashen Bank record is "${officialTx}". The receipt appears edited.`,
+      { screenshotValue: shotTx, qrValue: officialTx }));
+  }
+
+  if (extracted?.amount != null && qrFields?.amount
+    && !amountsMatch(qrFields.amount, extracted.amount)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'amount',
+      `Amount error: screenshot shows ${extracted.amount} but the official Dashen Bank record shows ${qrFields.amount}. The receipt appears edited.`,
+      { screenshotValue: extracted.amount, qrValue: qrFields.amount }));
+  }
+
+  for (const [field, label] of [
+    ['senderName', 'Sender name'],
+    ['receiverName', 'Receiver name'],
+  ]) {
+    const shotVal = extracted?.[field];
+    const truthVal = qrFields?.[field];
+    if (shotVal && truthVal && !namesMatch(shotVal, truthVal)) {
+      issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', field,
+        `${label} error: screenshot shows "${shotVal}" but the official Dashen Bank record shows "${truthVal}". The receipt appears edited.`,
+        { screenshotValue: shotVal, qrValue: truthVal }));
+    }
+  }
+}
+
 function validateBoaOfficialReceipt({
   issues,
   extracted,
@@ -570,11 +632,12 @@ export function validateReceiptSubmission({
   });
 
   if (requiresQrCode(method)) {
-    if (!qrFound) {
-      if (!(method === 'telebirr' && qrFields?.telebirrApiSource)) {
-        issues.push(issue('error', 'QR_MISSING', 'screenshot', getQrMissingMessage(method), { qrValue: null }));
-      }
-    } else if (qrAuthenticity && !qrAuthenticity.authentic) {
+  if (!qrFound) {
+    if (!(method === 'telebirr' && qrFields?.telebirrApiSource)
+      && !(method === 'dashen' && qrFields?.dashenApiSource)) {
+      issues.push(issue('error', 'QR_MISSING', 'screenshot', getQrMissingMessage(method), { qrValue: null }));
+    }
+  } else if (qrAuthenticity && !qrAuthenticity.authentic) {
       const fakeIssue = buildFakeQrIssue(qrAuthenticity, method);
       issues.push(issue('error', fakeIssue.code, fakeIssue.field, fakeIssue.message, { qrFormat: qrAuthenticity.format }));
     } else if (method === 'telebirr' && !qrTx && !qrFields?.telebirrApiSource) {
@@ -586,7 +649,8 @@ export function validateReceiptSubmission({
 
   if (!screenshotCropped && qrTx && screenshotTx && txCodesConflict(qrTx, screenshotTx)
     && !(method === 'telebirr' && qrFields?.telebirrApiSource)
-    && !(method === 'boa' && qrFields?.boaApiSource)) {
+    && !(method === 'boa' && qrFields?.boaApiSource)
+    && !(method === 'dashen' && (qrFields?.dashenApiSource || qrFields?.dashenSuperAppSource))) {
     issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'transactionCode',
       `Payment ID error: screenshot shows "${screenshotTx}" but the QR code shows "${qrTx}".`,
       { screenshotValue: screenshotTx, qrValue: qrTx }));
@@ -616,6 +680,16 @@ export function validateReceiptSubmission({
     });
   } else if (method === 'cbe') {
     validateCbeOfficialReceipt({
+      issues,
+      extracted,
+      qrFields,
+      qrFound,
+      qrAuthentic,
+      screenshotCropped,
+      geminiUsed,
+    });
+  } else if (method === 'dashen') {
+    validateDashenReceipt({
       issues,
       extracted,
       qrFields,
@@ -684,7 +758,8 @@ export function validateReceiptSubmission({
       validateFormAgainstScreenshot({ issues, form, extracted });
       validateFormAgainstQr({ issues, form, qrFields, method });
 
-      if (qrTx && screenshotTx && formTx && !allTxCodesMatch(formTx, screenshotTx, qrTx)) {
+      if (qrTx && screenshotTx && formTx && !allTxCodesMatch(formTx, screenshotTx, qrTx)
+        && !(method === 'dashen' && qrFields?.dashenSuperAppSource)) {
         issues.push(issue('error', 'TX_CODE_MISMATCH', 'transactionCode',
           `Payment ID error: form "${formTx}", screenshot "${screenshotTx}", and QR "${qrTx}" do not all match.`,
           { formValue: formTx, screenshotValue: screenshotTx, qrValue: qrTx }));
