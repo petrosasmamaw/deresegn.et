@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { fetchSession } from './features/auth/authSlice'
 import Navbar from './components/Navbar'
 import { DashboardUiProvider } from './context/DashboardUiContext'
+import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
@@ -68,7 +69,7 @@ export default function App() {
       {user && user.role !== 'admin' && <Navbar />}
       <main className="flex-1">
         <Routes>
-          <Route path="/" element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace /> : <Navigate to="/login" replace />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify/:token" element={<CertificatePublicPage />} />

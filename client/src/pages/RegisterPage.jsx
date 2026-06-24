@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { signup } from '../features/auth/authSlice'
-import { Shield, ArrowRight, Gift } from 'lucide-react'
+import { ArrowRight, Gift } from 'lucide-react'
+import AuthSeoBlurb from '../components/AuthSeoBlurb'
 
 function RegisterSkeleton() {
   return (
@@ -50,11 +51,15 @@ export default function RegisterPage() {
   return (
     <main className="auth-hero">
       <div className="hero-section auth-hero-top">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-4" style={{ background: 'rgba(198, 162, 78, 0.12)' }}>
-          <Shield size={28} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-        </div>
-        <h1 className="page-title mb-2">Create Account</h1>
-        <p className="page-subtitle">Join Deresegn — get 20 Birr registration bonus</p>
+        <img
+          src="/deresegn-logo.png"
+          alt="Check Deresegn"
+          width={56}
+          height={56}
+          className="mx-auto mb-4 rounded-xl"
+        />
+        <h1 className="page-title mb-2">Deresegn Check — Join Free</h1>
+        <p className="page-subtitle">Ethiopia deresegn &amp; deresegn ethiopia receipt checker — 20 Birr bonus</p>
         <div className="bonus-banner mt-4 max-w-sm mx-auto text-left">
           <Gift size={16} style={{ color: 'var(--color-foil-gold)' }} className="inline mr-2" />
           <span className="text-[13px]">New users receive <strong>20 Birr</strong> to try verification (registration bonus).</span>
@@ -137,11 +142,14 @@ export default function RegisterPage() {
 
         {/* Sign In Link */}
         <p className="text-center text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-6">
+          <a href="/" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>← Home</a>
+          {' · '}
           Already have an account?{' '}
           <a href="/login" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>
             Sign in
           </a>
         </p>
+        <AuthSeoBlurb />
         </div>
       </div>
     </main>

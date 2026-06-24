@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { login } from '../features/auth/authSlice'
-import { Shield, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import AuthSeoBlurb from '../components/AuthSeoBlurb'
 
 function LoginSkeleton() {
   return (
@@ -48,11 +49,15 @@ export default function LoginPage() {
   return (
     <main className="auth-hero">
       <div className="hero-section auth-hero-top">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-4" style={{ background: 'rgba(198, 162, 78, 0.12)' }}>
-          <Shield size={28} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-        </div>
-        <h1 className="page-title mb-2">Welcome Back</h1>
-        <p className="page-subtitle">Secure receipt verification for your business</p>
+        <img
+          src="/deresegn-logo.png"
+          alt="Check Deresegn"
+          width={56}
+          height={56}
+          className="mx-auto mb-4 rounded-xl"
+        />
+        <h1 className="page-title mb-2">Check Deresegn</h1>
+        <p className="page-subtitle">Ethiopia deresegn verification — Telebirr, CBE, Dashen &amp; BOA</p>
       </div>
 
       <div className="auth-hero-body">
@@ -116,11 +121,14 @@ export default function LoginPage() {
 
         {/* Sign Up Link */}
         <p className="text-center text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-6">
+          <a href="/" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>← Home</a>
+          {' · '}
           Don't have an account?{' '}
           <a href="/register" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>
             Create one
           </a>
         </p>
+        <AuthSeoBlurb />
         </div>
       </div>
     </main>
