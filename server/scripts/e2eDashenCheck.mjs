@@ -1,12 +1,24 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
 const API = 'http://localhost:5000/api';
 const AUTH = 'http://localhost:5000/api/auth';
-const EMAIL = process.env.E2E_EMAIL || 'admin@gmail.com';
-const PASSWORD = process.env.E2E_PASSWORD || '12345678';
+
+function requireE2eEnv(name) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing ${name} in server/.env`);
+  }
+  return value;
+}
+
+const EMAIL = requireE2eEnv('E2E_EMAIL');
+const PASSWORD = requireE2eEnv('E2E_PASSWORD');
 const IMAGE = process.argv[2]
   || path.join(__dirname, '../training/receipt-samples/dashen-success-paid.png');
 

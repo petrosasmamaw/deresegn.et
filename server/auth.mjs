@@ -12,6 +12,7 @@ dotenv.config();
 validateAuthEnv();
 
 const authBaseURL = process.env.BETTER_AUTH_URL || "http://localhost:5000/api/auth";
+const isProduction = process.env.NODE_ENV === "production";
 
 if (!process.env.BETTER_AUTH_SECRET) {
   console.warn("BETTER_AUTH_SECRET is not set. Set it in server/.env");
@@ -23,11 +24,18 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: authBaseURL,
   trustedOrigins: getTrustedOrigins(),
-  useSecureCookies: process.env.NODE_ENV === "production",
+  useSecureCookies: isProduction,
+  advanced: {
+    defaultCookieAttributes: {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+    },
+  },
   defaultCookieAttributes: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
   },
   database: drizzleAdapter(db, {
     provider: "pg",

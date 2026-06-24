@@ -1,0 +1,13 @@
+# Environment files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies & build output
+node_modules/
+dist/
+dist-ssr/
+
+# Logs & OS
+*.log
+.DS_Store

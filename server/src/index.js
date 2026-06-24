@@ -12,10 +12,14 @@ import errorHandler from './middleware/errorHandler.js'
 import { testConnection } from './db/index.js'
 import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
 import { isTrustedOrigin } from './config/clientOrigins.js'
+import { assertRequiredEnv } from './config/requiredEnv.js'
 
 dotenv.config()
 
 const app = express()
+
+// Required on Render when behind Vercel proxy (X-Forwarded-* headers)
+app.set('trust proxy', 1)
 
 // CORS configuration for better-auth
 app.use(cors({
@@ -81,6 +85,10 @@ const PORT = process.env.PORT || 5000
 
 // Test DB connection and start server
 async function start() {
+  if (process.env.NODE_ENV === 'production') {
+    assertRequiredEnv()
+  }
+
   const connected = await testConnection()
   if (!connected) {
     console.error('⚠️  Warning: Database connection test failed, but starting server anyway')

@@ -2,14 +2,25 @@ import dotenv from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { auth } from '../auth.mjs';
 import { db } from '../src/db/index.js';
-import { user, balances } from '../src/db/schema.js';
+import { balances } from '../src/db/schema.js';
 import { getUserByEmail, updateUserProfile } from '../src/services/userService.js';
+import { requireEnv } from '../src/config/requiredEnv.js';
 
 dotenv.config();
 
 const USERS = [
-  { email: 'admin@gmail.com', password: '12345678', name: 'Admin User', role: 'admin' },
-  { email: 'mistrasmamaw@gmail.com', password: '12345678', name: 'Petros Client', role: 'client' },
+  {
+    email: requireEnv('SEED_ADMIN_EMAIL'),
+    password: requireEnv('SEED_ADMIN_PASSWORD'),
+    name: process.env.SEED_ADMIN_NAME || 'Admin User',
+    role: 'admin',
+  },
+  {
+    email: requireEnv('SEED_CLIENT_EMAIL'),
+    password: requireEnv('SEED_CLIENT_PASSWORD'),
+    name: process.env.SEED_CLIENT_NAME || 'Client User',
+    role: 'client',
+  },
 ];
 
 async function ensureBalance(userId) {

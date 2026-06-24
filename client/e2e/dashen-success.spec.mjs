@@ -7,8 +7,17 @@ const SCREENSHOT = path.resolve(
   __dirname,
   '../../server/training/receipt-samples/dashen-success-paid.png',
 );
-const EMAIL = process.env.E2E_EMAIL || 'mistrasmamaw@gmail.com';
-const PASSWORD = process.env.E2E_PASSWORD || '12345678';
+
+function requireE2eEnv(name) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing ${name}. Set it in server/.env or your shell before running e2e tests.`);
+  }
+  return value;
+}
+
+const EMAIL = requireE2eEnv('E2E_EMAIL');
+const PASSWORD = requireE2eEnv('E2E_PASSWORD');
 
 test('Dashen success screenshot verifies via Quick Verify', async ({ page }) => {
   test.setTimeout(180000);
