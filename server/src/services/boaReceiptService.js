@@ -1,5 +1,5 @@
 import { extractPaymentFromBuffer } from './geminiService.js';
-import { decodeQrFromBuffer, prepareQrScanImage } from './qrService.js';
+import { decodeQrFromBuffer, prepareQrScanImage, buildQrDataFromRaw } from './qrService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { extractBoaFieldsFromQrPayload } from './boaQrCrypto.js';
 import { normalizeTxCode, txCodesMatch } from '../utils/txCode.js';
@@ -7,6 +7,18 @@ import { normalizeTxCode, txCodesMatch } from '../utils/txCode.js';
 const BOA_API = 'https://cs.bankofabyssinia.com/api/onlineSlip/getDetails/?id=';
 const API_TIMEOUT_MS = 5000;
 const NEARBY_BUDGET_MS = 8000;
+const QR_BUDGET_MS = 9000;
+const OCR_GRACE_MS = 800;
+
+const EMPTY_EXTRACTED = {
+  senderName: null,
+  senderAccount: null,
+  receiverName: null,
+  receiverAccount: null,
+  amount: null,
+  date: null,
+  transactionCode: null,
+};
 
 const BOA_FIELD_MAP = {
   'Transaction Reference': 'transactionCode',
@@ -308,6 +320,9 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
     throw new Error('BOA verification requires a screenshot buffer');
   }
 
+  const started = Date.now();
+  console.log('[BOA] verify', buffer.length, 'bytes', mime);
+
   let geminiUsed = true;
   let geminiError = null;
 
@@ -318,29 +333,8 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
     .catch((err) => {
       geminiError = err.message;
       geminiUsed = false;
-      return {
-        data: {
-          senderName: null,
-          senderAccount: null,
-          receiverName: null,
-          receiverAccount: null,
-          amount: null,
-          date: null,
-          transactionCode: null,
-        },
-      };
+      return { data: { ...EMPTY_EXTRACTED } };
     });
-
-  const qrPromise = preparedPromise.then((prepared) =>
-    decodeQrFromBuffer(buffer, { maxMs: 10000, image: prepared }),
-  );
-
-  const qrPrefetchPromise = qrPromise.then(async (qrData) => {
-    const ref = extractBoaReferenceFromQr(qrData);
-    if (!ref) return null;
-    const official = await fetchBoaByReference(ref, []);
-    return official ? { reference: ref, official, via: 'qr_reference' } : null;
-  });
 
   const screenshotPrefetchPromise = geminiPromise.then(async (outcome) => {
     const ref = normalizeTxCode(outcome.data?.transactionCode);
@@ -352,12 +346,66 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
     return official ? { reference: ref, official, via: 'screenshot_reference' } : null;
   });
 
-  const [geminiOutcome, qrData, qrPrefetch, screenshotPrefetch] = await Promise.all([
+  const qrPromise = preparedPromise.then(async (prepared) => {
+    const prefetch = await screenshotPrefetchPromise;
+    if (prefetch?.official) return buildQrDataFromRaw(null);
+    return decodeQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, image: prepared });
+  });
+
+  const qrPrefetchPromise = qrPromise.then(async (qrData) => {
+    const ref = extractBoaReferenceFromQr(qrData);
+    if (!ref) return null;
+    const official = await fetchBoaByReference(ref, []);
+    return official ? { reference: ref, official, via: 'qr_reference' } : null;
+  });
+
+  const fullPipelinePromise = Promise.all([
     geminiPromise,
     qrPromise,
     qrPrefetchPromise,
     screenshotPrefetchPromise,
-  ]);
+  ]).then(([geminiOutcome, qrData, qrPrefetch, screenshotPrefetch]) => ({
+    geminiOutcome,
+    qrData,
+    qrPrefetch,
+    screenshotPrefetch,
+  }));
+
+  const outcome = await new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    qrPromise.then(async (qrData) => {
+      const decrypted = extractBoaFieldsFromQrPayload(qrData?.raw);
+      if (!decrypted?.transactionCode) return;
+      const geminiOutcome = await Promise.race([
+        geminiPromise,
+        new Promise((r) => setTimeout(() => r({ data: { ...EMPTY_EXTRACTED } }), OCR_GRACE_MS)),
+      ]);
+      finish({ geminiOutcome, qrData, qrPrefetch: null, screenshotPrefetch: null });
+    });
+
+    screenshotPrefetchPromise.then(async (prefetch) => {
+      if (!prefetch?.official) return;
+      const geminiOutcome = await geminiPromise;
+      finish({ geminiOutcome, qrData: buildQrDataFromRaw(null), qrPrefetch: null, screenshotPrefetch: prefetch });
+    });
+
+    qrPrefetchPromise.then(async (prefetch) => {
+      if (!prefetch?.official) return;
+      const geminiOutcome = await geminiPromise;
+      const qrData = await qrPromise;
+      finish({ geminiOutcome, qrData, qrPrefetch: prefetch, screenshotPrefetch: null });
+    });
+
+    fullPipelinePromise.then(finish);
+  });
+
+  const { geminiOutcome, qrData, qrPrefetch, screenshotPrefetch } = outcome;
   const extracted = geminiOutcome.data;
   if (geminiError) console.warn('[Gemini]', geminiError);
 
@@ -385,6 +433,8 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
   } else if (extracted?.transactionCode || qrData?.raw) {
     console.warn('[BOA] No official record for screenshot ID:', extracted?.transactionCode);
   }
+
+  console.log('[BOA] done in', Date.now() - started, 'ms');
 
   return {
     extracted,

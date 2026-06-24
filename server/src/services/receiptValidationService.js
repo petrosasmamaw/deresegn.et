@@ -71,6 +71,14 @@ function amountsMatch(a, b) {
   return Math.abs(p - f) <= 1;
 }
 
+/** Top-up receipts can differ slightly because screenshots may show fee-inclusive totals. */
+function topUpAmountsCompatible(qrAmount, screenshotAmount) {
+  const q = Number(String(qrAmount).replace(/,/g, ''));
+  const s = Number(String(screenshotAmount).replace(/,/g, ''));
+  if (Number.isNaN(q) || Number.isNaN(s)) return false;
+  return Math.abs(q - s) <= 10;
+}
+
 /** Telebirr receipts show Settled Amount and Total Paid Amount (fees differ by a few birr). */
 function telebirrAmountsCompatible(officialAmount, screenshotAmount) {
   if (officialAmount == null || screenshotAmount == null) return true;
@@ -90,6 +98,33 @@ function cbeAmountsCompatible(officialAmount, screenshotAmount) {
   if (amountsMatch(o, s)) return true;
   if (s > o && s - o <= 2) return true;
   return false;
+}
+
+function hasReliableNameForFraudCheck(value) {
+  const text = String(value || '').trim();
+  if (!text) return false;
+  if (/\d/.test(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  const alphaLen = text.replace(/[^A-Za-z]/g, '').length;
+  return words.length >= 2 && alphaLen >= 6;
+}
+
+function hasReliableAccountForFraudCheck(value) {
+  const text = String(value || '').trim();
+  if (!text) return false;
+  const digits = normalizeAccount(text);
+  if (!digits) return false;
+  if (digits.length >= 8) return true;
+  // Handles masked formats like 1********0027.
+  if (/\d\*{2,}\d{2,}/.test(text)) return true;
+  return false;
+}
+
+function hasReliableCbeIdentityText(extracted) {
+  return hasReliableNameForFraudCheck(extracted?.senderName)
+    && hasReliableNameForFraudCheck(extracted?.receiverName)
+    && hasReliableAccountForFraudCheck(extracted?.senderAccount)
+    && hasReliableAccountForFraudCheck(extracted?.receiverAccount);
 }
 
 function txCodesConflict(qr, screenshot) {
@@ -396,6 +431,13 @@ function validateCbeOfficialReceipt({
     issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'amount',
       `Amount error: screenshot shows ${extracted.amount} but the official CBE record shows ${qrFields.amount}. The receipt appears edited.`,
       { screenshotValue: extracted.amount, qrValue: qrFields.amount }));
+  }
+
+  const reliableIdentityText = hasReliableCbeIdentityText(extracted);
+  if (!reliableIdentityText) {
+    issues.push(issue('warning', 'SCREENSHOT_TEXT_PARTIAL', null,
+      'CBE screenshot identity text looks partial or unclear. Name/account checks used the official CBE QR record only.'));
+    return;
   }
 
   for (const [field, label] of [
@@ -742,7 +784,7 @@ export function validateReceiptSubmission({
           ? 'Amount error: could not read amount from QR code. Upload a clearer screenshot with the QR code visible.'
           : 'Amount error: could not read amount from QR code or screenshot.'));
     } else if (!screenshotCropped && qrFields.amount && extracted?.amount != null
-      && !amountsMatch(qrFields.amount, extracted.amount)) {
+      && !topUpAmountsCompatible(qrFields.amount, extracted.amount)) {
       issues.push(issue('error', 'AMOUNT_QR_SCREENSHOT_MISMATCH', 'amount',
         `Amount error: screenshot shows ${extracted.amount} but QR code shows ${qrFields.amount}.`,
         { screenshotValue: extracted.amount, qrValue: qrFields.amount }));

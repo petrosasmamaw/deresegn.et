@@ -1,6 +1,36 @@
 import { PDFParse } from 'pdf-parse';
+import fs from 'fs/promises';
 import { normalizeTxCode } from '../utils/txCode.js';
-import { extractCbeMbReceiptToken } from './qrService.js';
+import { extractCbeMbReceiptToken, decodeQrFromBuffer, prepareQrScanImage, buildQrDataFromRaw } from './qrService.js';
+import { extractPaymentFromBuffer } from './geminiService.js';
+import { extractQrReceiptFields } from './qrFieldExtractor.js';
+
+const QR_BUDGET_MS = 9000;
+const OCR_GRACE_MS = 800;
+
+const EMPTY_EXTRACTED = {
+  senderName: null,
+  senderAccount: null,
+  receiverName: null,
+  receiverAccount: null,
+  amount: null,
+  date: null,
+  transactionCode: null,
+};
+
+function canFetchCbePdfFromExtracted(extracted) {
+  const ft = normalizeTxCode(extracted?.transactionCode);
+  const digits = String(extracted?.senderAccount || '').replace(/\D/g, '');
+  return Boolean(ft && /^FT[A-Z0-9]{8,}$/i.test(ft) && digits.length >= 8);
+}
+
+function hasCbeQrToken(qrData) {
+  return Boolean(
+    qrData?.verificationToken
+    || extractCbeMbReceiptToken(qrData?.raw)
+    || extractCbeMbReceiptToken(qrData?.verificationUrl),
+  );
+}
 
 const CBE_RECEIPT_BASE = 'https://apps.cbe.com.et:100/?id=';
 
@@ -255,5 +285,122 @@ export function mergeCbeApiIntoQrFields(qrFields, cbeApiFields) {
     receiverName: cbeApiFields.receiverName || qrFields.receiverName,
     receiverAccount: cbeApiFields.receiverAccount || qrFields.receiverAccount,
     cbeApiSource: true,
+  };
+}
+
+/**
+ * Fast CBE pipeline — parallel QR + OCR + official API/PDF prefetch with early exit.
+ */
+export async function verifyCbeReceipt({ buffer, mime = 'image/jpeg', screenshotPath }) {
+  if (!buffer && screenshotPath) {
+    buffer = await fs.readFile(screenshotPath);
+  }
+  if (!buffer?.length) {
+    throw new Error('CBE verification requires a screenshot buffer');
+  }
+
+  const started = Date.now();
+  console.log('[CBE] verify', buffer.length, 'bytes', mime);
+
+  let geminiUsed = true;
+  let geminiError = null;
+
+  const preparedPromise = prepareQrScanImage(buffer);
+
+  const geminiPromise = extractPaymentFromBuffer(buffer, 'cbe', mime)
+    .then((data) => ({ data }))
+    .catch((err) => {
+      geminiError = err.message;
+      geminiUsed = false;
+      return { data: { ...EMPTY_EXTRACTED } };
+    });
+
+  const screenshotPdfPrefetchPromise = geminiPromise.then(async (outcome) => {
+    if (!canFetchCbePdfFromExtracted(outcome.data)) return null;
+    const official = await fetchCbeTransactionByReference(
+      outcome.data.transactionCode,
+      outcome.data.senderAccount,
+    );
+    return official ? { official } : null;
+  });
+
+  const qrPromise = preparedPromise.then(async (prepared) => {
+    const pdfPrefetch = await screenshotPdfPrefetchPromise;
+    if (pdfPrefetch?.official) return buildQrDataFromRaw(null);
+    return decodeQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, image: prepared });
+  });
+
+  const qrApiPrefetchPromise = qrPromise.then((qrData) => (
+    hasCbeQrToken(qrData) ? fetchCbeTransactionFromQr(qrData) : null
+  ));
+
+  const fullPipelinePromise = Promise.all([
+    geminiPromise,
+    qrPromise,
+    qrApiPrefetchPromise,
+    screenshotPdfPrefetchPromise,
+  ]).then(([geminiOutcome, qrData, qrApiFields, screenshotPdfPrefetch]) => ({
+    geminiOutcome,
+    qrData,
+    qrApiFields,
+    screenshotPdfPrefetch,
+  }));
+
+  const outcome = await new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    qrApiPrefetchPromise.then(async (qrApiFields) => {
+      if (!qrApiFields) return;
+      const [geminiOutcome, qrData] = await Promise.all([
+        Promise.race([
+          geminiPromise,
+          new Promise((r) => setTimeout(() => r({ data: { ...EMPTY_EXTRACTED } }), OCR_GRACE_MS)),
+        ]),
+        qrPromise,
+      ]);
+      finish({ geminiOutcome, qrData, qrApiFields, screenshotPdfPrefetch: null });
+    });
+
+    screenshotPdfPrefetchPromise.then(async (prefetch) => {
+      if (!prefetch?.official) return;
+      const geminiOutcome = await geminiPromise;
+      finish({
+        geminiOutcome,
+        qrData: buildQrDataFromRaw(null),
+        qrApiFields: prefetch.official,
+        screenshotPdfPrefetch: prefetch,
+      });
+    });
+
+    fullPipelinePromise.then(finish);
+  });
+
+  const { geminiOutcome, qrData, qrApiFields, screenshotPdfPrefetch } = outcome;
+  const extracted = geminiOutcome.data;
+  if (geminiError) console.warn('[Gemini]', geminiError);
+
+  let qrFields = extractQrReceiptFields('cbe', qrData);
+  const cbeOfficial = qrApiFields || screenshotPdfPrefetch?.official || null;
+  if (cbeOfficial) {
+    qrFields = mergeCbeApiIntoQrFields(qrFields, cbeOfficial);
+    console.log('[CBE] Official record:', cbeOfficial.transactionCode, 'amount', cbeOfficial.amount);
+  } else if (qrData?.verificationToken || qrData?.raw) {
+    console.warn('[CBE] No official record from QR or screenshot reference');
+  }
+
+  console.log('[CBE] done in', Date.now() - started, 'ms');
+
+  return {
+    extracted,
+    geminiUsed,
+    geminiError,
+    qrData,
+    qrFields,
+    cbeOfficial,
   };
 }

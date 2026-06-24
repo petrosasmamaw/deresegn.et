@@ -44,6 +44,7 @@ export async function performCheck(req, res) {
       issues: result.issues,
       resolvedDetails: result.resolvedDetails,
       isRecheck: Boolean(result.isRecheck),
+      previousVerification: result.previousVerification || null,
     }, result.message, 200);
   } catch (err) {
     if (err instanceof CheckError) {
@@ -84,6 +85,7 @@ export async function performReferenceCheck(req, res) {
       issues: result.issues,
       resolvedDetails: result.resolvedDetails,
       isRecheck: Boolean(result.isRecheck),
+      previousVerification: result.previousVerification || null,
     }, result.message, 200);
   } catch (err) {
     if (err instanceof CheckError) {
@@ -119,6 +121,7 @@ export async function performSmsCheck(req, res) {
       issues: result.issues,
       resolvedDetails: result.resolvedDetails,
       isRecheck: Boolean(result.isRecheck),
+      previousVerification: result.previousVerification || null,
     }, result.message, 200);
   } catch (err) {
     if (err instanceof CheckError) {

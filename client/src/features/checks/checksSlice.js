@@ -25,7 +25,11 @@ export const performCheck = createAsyncThunk(
       })
       const data = unwrap(res)
       return {
-        check: { ...data.check, isRecheck: data.isRecheck },
+        check: {
+          ...data.check,
+          isRecheck: data.isRecheck,
+          previousVerification: data.check?.previousVerification || data.previousVerification || null,
+        },
         newBalance: data.newBalance,
         issues: data.issues || [],
         resolvedDetails: data.resolvedDetails || null,
@@ -47,7 +51,11 @@ export const performReferenceCheck = createAsyncThunk(
       }, { timeout: 60000 })
       const data = unwrap(res)
       return {
-        check: { ...data.check, isRecheck: data.isRecheck },
+        check: {
+          ...data.check,
+          isRecheck: data.isRecheck,
+          previousVerification: data.check?.previousVerification || data.previousVerification || null,
+        },
         newBalance: data.newBalance,
         issues: data.issues || [],
         resolvedDetails: data.resolvedDetails || null,
@@ -65,7 +73,11 @@ export const performSmsCheck = createAsyncThunk(
       const res = await axios.post('/check/sms', { method, smsText }, { timeout: 60000 })
       const data = unwrap(res)
       return {
-        check: { ...data.check, isRecheck: data.isRecheck },
+        check: {
+          ...data.check,
+          isRecheck: data.isRecheck,
+          previousVerification: data.check?.previousVerification || data.previousVerification || null,
+        },
         newBalance: data.newBalance,
         issues: data.issues || [],
         resolvedDetails: data.resolvedDetails || null,

@@ -261,6 +261,36 @@ export default function CheckerModal({
         ? 'Verified with your entered details'
         : 'Verified from screenshot & QR code'
 
+  const previousVerification = (successCheck || lastResult)?.previousVerification || null
+  const previousVerificationLabel = previousVerification?.verifiedBy === 'self'
+    ? 'Already verified by you'
+    : previousVerification?.verifiedBy === 'other'
+      ? 'Already verified by another user'
+      : null
+
+  const previousVerificationMeta = previousVerification?.checkedAt
+    ? (() => {
+        const when = new Date(previousVerification.checkedAt)
+        return Number.isNaN(when.getTime()) ? null : when.toLocaleString()
+      })()
+    : null
+
+  const previousVerificationColor = previousVerification?.verifiedBy === 'self'
+    ? {
+        bg: 'var(--color-info-muted)',
+        border: 'var(--color-info)',
+        text: 'var(--color-info)',
+      }
+    : {
+        bg: 'rgba(125, 74, 255, 0.10)',
+        border: 'rgba(125, 74, 255, 0.35)',
+        text: 'rgb(125, 74, 255)',
+      }
+
+  const previousVerificationHint = previousVerification?.verifiedBy === 'self'
+    ? 'Free re-verification within 24 hours.'
+    : 'You can view the existing verification result.'
+
   const showFormatGuide = step === 3 && method && ['screenshot', 'reference', 'sms'].includes(verifyMode)
 
   return (
@@ -293,6 +323,23 @@ export default function CheckerModal({
           </div>
         ) : step === successStep ? (
           <div className="modal-body space-y-5">
+            {previousVerificationLabel && (
+              <div
+                className="rounded-lg p-3 border"
+                style={{
+                  background: previousVerificationColor.bg,
+                  borderColor: previousVerificationColor.border,
+                }}
+              >
+                <p className="text-[var(--text-sm)] font-semibold" style={{ color: previousVerificationColor.text }}>
+                  {previousVerificationLabel}
+                </p>
+                <p className="text-[var(--text-xs)] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                  {previousVerificationHint}
+                  {previousVerificationMeta ? ` Verified on ${previousVerificationMeta}.` : ''}
+                </p>
+              </div>
+            )}
             <VerificationSuccessNote message={successMessage} />
             {(successCheck || lastResult) && (
               <VerificationCertificate check={successCheck || lastResult} />

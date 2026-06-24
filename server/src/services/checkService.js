@@ -9,7 +9,7 @@ import { validateReceiptSubmission, buildDuplicateTxIssue, validateOfficialTopUp
 import { getTopUpReceiverAccount } from './topUpAccountService.js';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
-import { fetchCbeTransactionFromQr, mergeCbeApiIntoQrFields } from './cbeReceiptService.js';
+import { fetchCbeTransactionFromQr, mergeCbeApiIntoQrFields, verifyCbeReceipt } from './cbeReceiptService.js';
 import { verifyTelebirrReceipt } from './telebirrVerifyService.js';
 import {
   verifyDashenReceipt,
@@ -204,6 +204,31 @@ function buildRecheckResult(existingRow) {
     issues: check.validationResult?.issues || [],
     resolvedDetails: buildResolvedDetailsFromCheck(check),
     isRecheck: true,
+    previousVerification: buildPreviouslyVerifiedInfo(existingRow, 'self'),
+  };
+}
+
+function buildPreviouslyVerifiedInfo(existingRow, verifiedBy = 'other') {
+  if (!existingRow) return null;
+  return {
+    verifiedBy,
+    checkedAt: existingRow.createdAt,
+    method: existingRow.paymentMethod,
+    verifyMode: existingRow.verifyMode,
+  };
+}
+
+function buildExistingVerifiedResult(existingRow, verifiedBy = 'other') {
+  const check = parseCheckRow(existingRow);
+  return {
+    check,
+    newBalance: null,
+    message: 'Payment ID already verified',
+    validation: check.validationResult,
+    issues: check.validationResult?.issues || [],
+    resolvedDetails: buildResolvedDetailsFromCheck(check),
+    isRecheck: true,
+    previousVerification: buildPreviouslyVerifiedInfo(existingRow, verifiedBy),
   };
 }
 
@@ -214,7 +239,11 @@ async function resolveDuplicateCheck(userId, txCode) {
   if (existing.userId === userId && isWithinRecheckWindow(existing.createdAt)) {
     return { action: 'recheck', existing };
   }
-  return { action: 'block', issue: buildDuplicateTxIssue(txCode) };
+  return {
+    action: 'existing',
+    existing,
+    verifiedBy: existing.userId === userId ? 'self' : 'other',
+  };
 }
 
 function buildCheckRecordValues({
@@ -356,6 +385,19 @@ async function extractScreenshotData({ screenshotBuffer, screenshotMime, screens
     };
   }
 
+  if (method === 'cbe') {
+    const cbe = await verifyCbeReceipt({ buffer, mime, screenshotPath });
+    return {
+      extracted: cbe.extracted,
+      geminiUsed: cbe.geminiUsed,
+      geminiError: cbe.geminiError,
+      initialQr: cbe.qrData,
+      cbeQrFields: cbe.qrFields,
+      cbeApiFields: cbe.cbeOfficial,
+      buffer,
+    };
+  }
+
   const geminiPromise = (buffer
     ? extractPaymentFromBuffer(buffer, method, mime)
     : extractPaymentFromScreenshot(screenshotPath, method)
@@ -414,7 +456,7 @@ async function runReceiptVerification({
 }) {
   const {
     extracted, geminiUsed, geminiError, initialQr, buffer, dashenQrFields, boaQrFields, boaResolve,
-    telebirrQrFields, telebirrResolve, cbeApiFields,
+    telebirrQrFields, telebirrResolve, cbeQrFields, cbeApiFields,
   } = await extractScreenshotData(
     { screenshotBuffer, screenshotMime, screenshotPath },
     method,
@@ -432,8 +474,10 @@ async function runReceiptVerification({
       ? boaQrFields
       : method === 'telebirr' && telebirrQrFields
         ? telebirrQrFields
-        : extractQrReceiptFields(method, qrData);
-  if (method === 'cbe' && qrData?.verificationToken) {
+        : method === 'cbe' && cbeQrFields
+          ? cbeQrFields
+          : extractQrReceiptFields(method, qrData);
+  if (method === 'cbe' && !cbeQrFields && qrData?.verificationToken) {
     const cbeApiFieldsResolved = cbeApiFields || await fetchCbeTransactionFromQr(qrData);
     qrFields = mergeCbeApiIntoQrFields(qrFields, cbeApiFieldsResolved);
     if (cbeApiFieldsResolved?.transactionCode) {
@@ -468,18 +512,16 @@ async function runReceiptVerification({
       const dup = await resolveDuplicateCheck(userId, validation.txCode);
       if (dup.action === 'recheck') {
         validation.recheckExisting = dup.existing;
-      } else if (dup.action === 'block') {
-        validation.passed = false;
-        validation.issues = [dup.issue, ...validation.issues];
-        validation.errors = [dup.issue.message, ...validation.errors];
+      } else if (dup.action === 'existing') {
+        validation.recheckExisting = dup.existing;
+        validation.previousVerification = buildPreviouslyVerifiedInfo(dup.existing, dup.verifiedBy);
       }
     } else {
       const duplicateCheck = await findCheckByTxCode(validation.txCode);
       if (duplicateCheck) {
-        const dupIssue = buildDuplicateTxIssue(validation.txCode);
-        validation.passed = false;
-        validation.issues = [dupIssue, ...validation.issues];
-        validation.errors = [dupIssue.message, ...validation.errors];
+        // Guest or unauthenticated — return the existing verification instead of erroring
+        validation.recheckExisting = duplicateCheck;
+        validation.previousVerification = buildPreviouslyVerifiedInfo(duplicateCheck, 'other');
       }
     }
 
@@ -532,6 +574,12 @@ export async function submitReceiptCheck({
     }
 
     if (result.validation.recheckExisting) {
+      if (result.validation.previousVerification) {
+        return buildExistingVerifiedResult(
+          result.validation.recheckExisting,
+          result.validation.previousVerification.verifiedBy,
+        );
+      }
       return finalizeRecheck(userId, result.validation.recheckExisting);
     }
 
@@ -638,8 +686,8 @@ export async function submitReferenceCheck({
   if (dup.action === 'recheck') {
     return finalizeRecheck(userId, dup.existing);
   }
-  if (dup.action === 'block') {
-    throw new CheckError(dup.issue.message, 409, { issues: [dup.issue] });
+  if (dup.action === 'existing') {
+    return buildExistingVerifiedResult(dup.existing, dup.verifiedBy);
   }
 
   const duplicateTopUp = await findTopUpByTxCode(result.txCode);
@@ -769,8 +817,8 @@ export async function submitSmsCheck({
   if (dup.action === 'recheck') {
     return finalizeRecheck(userId, dup.existing);
   }
-  if (dup.action === 'block') {
-    throw new CheckError(dup.issue.message, 409, { issues: [dup.issue] });
+  if (dup.action === 'existing') {
+    return buildExistingVerifiedResult(dup.existing, dup.verifiedBy);
   }
 
   const duplicateTopUp = await findTopUpByTxCode(result.txCode);

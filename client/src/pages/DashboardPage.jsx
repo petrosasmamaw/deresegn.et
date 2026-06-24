@@ -47,7 +47,11 @@ export default function DashboardPage() {
   const successPayload = (result) => ({
     success: true,
     resolvedDetails: result.payload.resolvedDetails,
-    check: result.payload.check,
+    check: {
+      ...(result.payload.check || {}),
+      previousVerification:
+        result.payload.check?.previousVerification || result.payload.previousVerification || null,
+    },
     isRecheck: result.payload.isRecheck,
   })
 

@@ -16,7 +16,18 @@ import {
   normalizeTelebirrInvoiceId,
 } from './telebirrReceiptService.js';
 
-const QR_BUDGET_MS = 18000;
+const QR_BUDGET_MS = 9000;
+const OCR_GRACE_MS = 800;
+
+const EMPTY_EXTRACTED = {
+  senderName: null,
+  senderAccount: null,
+  receiverName: null,
+  receiverAccount: null,
+  amount: null,
+  date: null,
+  transactionCode: null,
+};
 
 function isTelebirrQrPayload(raw) {
   if (!raw) return false;
@@ -24,11 +35,21 @@ function isTelebirrQrPayload(raw) {
   return Boolean(extractTelebirrInvoiceFromPayload(raw));
 }
 
-/** Aggressive QR scan — full image for QR-only crops, bottom-focused for full receipts. */
+/** Aggressive QR scan — generic decoder first, then targeted crops with remaining budget. */
 async function decodeTelebirrQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, preparedImage = null } = {}) {
   const prepared = preparedImage || await prepareQrScanImage(buffer);
-  const quick = await decodeQrFromBuffer(buffer, { maxMs: Math.min(maxMs, 10000), image: prepared });
-  if (quick?.raw && isTelebirrQrPayload(quick.raw)) return quick;
+  const deadline = Date.now() + maxMs;
+  const shouldStop = () => Date.now() >= deadline;
+  const remaining = () => Math.max(0, deadline - Date.now());
+
+  const quick = await decodeQrFromBuffer(buffer, { maxMs: Math.min(maxMs, 8000), image: prepared });
+  if (quick?.raw && isTelebirrQrPayload(quick.raw)) {
+    console.log('[Telebirr] QR decoded (generic)');
+    return quick;
+  }
+
+  const left = remaining();
+  if (left < 1500) return quick?.raw ? quick : buildQrDataFromRaw(null);
 
   try {
     let image = prepared;
@@ -38,17 +59,14 @@ async function decodeTelebirrQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepar
       image = image.clone().scale(Math.min(factor, 3));
     }
 
-    const deadline = Date.now() + maxMs;
-    const shouldStop = () => Date.now() >= deadline;
     const h = image.bitmap.height;
     const w = image.bitmap.width;
     const qrFocusedCrop = height / width < 0.75;
 
     const variants = [];
     if (qrFocusedCrop) {
-      for (const scale of [4, 5, 6, 8]) {
+      for (const scale of [4, 6]) {
         variants.push(image.clone().scale(scale));
-        variants.push(image.clone().greyscale().scale(scale));
         variants.push(image.clone().greyscale().invert().scale(scale));
       }
     }
@@ -65,14 +83,13 @@ async function decodeTelebirrQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepar
     const validated = scanImageForQrValidated(image, shouldStop, isTelebirrQrPayload);
     if (validated) return buildQrDataFromRaw(validated);
 
-    const bottomCuts = qrFocusedCrop ? [0, 0.2, 0.35] : [0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75];
+    const bottomCuts = qrFocusedCrop ? [0, 0.35] : [0.5, 0.6, 0.7];
     for (const cut of bottomCuts) {
       if (shouldStop()) break;
       const y = Math.floor(h * cut);
       const crops = [
         image.clone().crop({ x: 0, y, w, h: h - y }).scale(4),
         image.clone().crop({ x: 0, y, w, h: h - y }).greyscale().invert().scale(5),
-        image.clone().crop({ x: Math.floor(w * 0.05), y, w: Math.floor(w * 0.9), h: h - y }).scale(5),
       ];
       for (const variant of crops) {
         if (shouldStop()) break;
@@ -102,6 +119,9 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
     throw new Error('Telebirr verification requires a screenshot buffer');
   }
 
+  const started = Date.now();
+  console.log('[Telebirr] verify', buffer.length, 'bytes', mime);
+
   let geminiUsed = true;
   let geminiError = null;
 
@@ -112,28 +132,24 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
     .catch((err) => {
       geminiError = err.message;
       geminiUsed = false;
-      return {
-        data: {
-          senderName: null,
-          senderAccount: null,
-          receiverName: null,
-          receiverAccount: null,
-          amount: null,
-          date: null,
-          transactionCode: null,
-        },
-      };
+      return { data: { ...EMPTY_EXTRACTED } };
     });
-
-  const qrPromise = preparedPromise.then((prepared) =>
-    decodeTelebirrQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, preparedImage: prepared }),
-  );
 
   const screenshotPrefetchPromise = geminiPromise.then(async (outcome) => {
     const id = normalizeTelebirrInvoiceId(outcome.data?.transactionCode);
     if (!id) return null;
     const official = await fetchTelebirrReceipt(id);
     return official ? { invoiceId: id, official } : null;
+  });
+
+  const qrPromise = preparedPromise.then(async (prepared) => {
+    const prefetch = await screenshotPrefetchPromise;
+    if (prefetch?.official) return buildQrDataFromRaw(null);
+    const invoiceFromOcr = await geminiPromise.then(
+      (outcome) => normalizeTelebirrInvoiceId(outcome.data?.transactionCode),
+    );
+    if (invoiceFromOcr) return buildQrDataFromRaw(null);
+    return decodeTelebirrQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, preparedImage: prepared });
   });
 
   const qrPrefetchPromise = qrPromise.then(async (qrData) => {
@@ -145,12 +161,50 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
     return official ? { invoiceId: id, official } : null;
   });
 
-  const [geminiOutcome, qrData, screenshotPrefetch, qrPrefetch] = await Promise.all([
+  const fullPipelinePromise = Promise.all([
     geminiPromise,
     qrPromise,
     screenshotPrefetchPromise,
     qrPrefetchPromise,
-  ]);
+  ]).then(([geminiOutcome, qrData, screenshotPrefetch, qrPrefetch]) => ({
+    geminiOutcome,
+    qrData,
+    screenshotPrefetch,
+    qrPrefetch,
+  }));
+
+  const outcome = await new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    qrPromise.then(async (qrData) => {
+      if (!qrData?.raw || !isTelebirrQrPayload(qrData.raw)) return;
+      const geminiOutcome = await Promise.race([
+        geminiPromise,
+        new Promise((r) => setTimeout(() => r({ data: { ...EMPTY_EXTRACTED } }), OCR_GRACE_MS)),
+      ]);
+      finish({ geminiOutcome, qrData, screenshotPrefetch: null, qrPrefetch: null });
+    });
+
+    screenshotPrefetchPromise.then(async (prefetch) => {
+      if (!prefetch?.official) return;
+      const geminiOutcome = await geminiPromise;
+      finish({
+        geminiOutcome,
+        qrData: buildQrDataFromRaw(null),
+        screenshotPrefetch: prefetch,
+        qrPrefetch: null,
+      });
+    });
+
+    fullPipelinePromise.then(finish);
+  });
+
+  const { geminiOutcome, qrData, screenshotPrefetch, qrPrefetch } = outcome;
   const extracted = geminiOutcome.data;
   if (geminiError) console.warn('[Gemini]', geminiError);
 
@@ -185,6 +239,8 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
   if (qrData?.raw && !telebirrResolve?.official) {
     console.log('[Telebirr] QR payload length:', qrData.raw.length);
   }
+
+  console.log('[Telebirr] done in', Date.now() - started, 'ms');
 
   return {
     extracted,
