@@ -3,7 +3,6 @@ import { CheckCircle2, ShieldCheck } from 'lucide-react'
 import './BirrVerifyHero.css'
 
 const NOTE_W = 96
-const NOTE_H = 56
 
 const NOTES = [
   { src: '/200BirrNote.jpg', lbl: '200 ETB', cls: 's200' },
@@ -18,7 +17,6 @@ function easeInOut(t) {
 export default function BirrVerifyHero({ onVerifyClick }) {
   const sceneRef = useRef(null)
   const dhRef = useRef(null)
-  const bgRef = useRef(null)
   const hexRef = useRef(null)
   const dialRef = useRef(null)
   const slotRef = useRef(null)
@@ -33,9 +31,6 @@ export default function BirrVerifyHero({ onVerifyClick }) {
   const drRef = useRef(null)
   const machRef = useRef(null)
   const stackRef = useRef(null)
-  const vcRef = useRef(null)
-  const vc2Ref = useRef(null)
-  const nvRef = useRef(null)
   const beamRef = useRef(null)
   const dotsRef = useRef([])
 
@@ -44,7 +39,6 @@ export default function BirrVerifyHero({ onVerifyClick }) {
     const scene = sceneRef.current
     if (!hero || !scene) return
 
-    const bgC = bgRef.current
     const hxC = hexRef.current
     const dC = dialRef.current
     const slot = slotRef.current
@@ -59,46 +53,23 @@ export default function BirrVerifyHero({ onVerifyClick }) {
     const dR = drRef.current
     const mach = machRef.current
     const stack = stackRef.current
-    const vcEl = vcRef.current
-    const vc2 = vc2Ref.current
-    const nvEl = nvRef.current
     const beam = beamRef.current
     const dots = dotsRef.current.filter(Boolean)
 
-    if (!bgC || !hxC || !dC || !slot || !sm || !sf || !ss || !hxi || !mach || !stack || !vcEl || !vc2 || !nvEl || !beam || !dL || !dR) {
+    if (!hxC || !dC || !slot || !sm || !sf || !ss || !hxi || !mach || !stack || !beam || !dL || !dR) {
       return undefined
     }
 
-    const bCtx = bgC.getContext('2d')
     const hCtx = hxC.getContext('2d')
     const dCtx = dC.getContext('2d')
 
     let ni = 0
-    let vc = 0
     const strips = []
     const timers = []
     let running = true
     let hxAng = 0
     let dialAng = 0
     let rafId = 0
-
-    const resizeBg = () => {
-      bgC.width = hero.offsetWidth || scene.offsetWidth || 680
-      bgC.height = hero.offsetHeight || scene.offsetHeight || 300
-      bCtx.clearRect(0, 0, bgC.width, bgC.height)
-      for (let i = 0; i < 40; i += 1) {
-        const x = Math.random() * bgC.width
-        const y = Math.random() * (bgC.height * 0.62)
-        const r = Math.random() * 1.1
-        const a = Math.random() * 0.38 + 0.05
-        bCtx.beginPath()
-        bCtx.arc(x, y, r, 0, Math.PI * 2)
-        bCtx.fillStyle = `rgba(198,162,78,${a})`
-        bCtx.fill()
-      }
-    }
-
-    resizeBg()
 
     const drawHex = (ang, highlight) => {
       hCtx.clearRect(0, 0, 58, 58)
@@ -256,15 +227,15 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       const img = document.createElement('img')
       img.src = src
       img.alt = ''
-      const dark = document.createElement('div')
-      dark.className = 'dh-note-dark'
+      const blu = document.createElement('div')
+      blu.className = 'dh-note-blu'
       const holo = document.createElement('div')
       holo.className = 'dh-note-holo'
       const stamp = document.createElement('div')
       stamp.className = 'dh-stamp'
       stamp.innerHTML = '<span class="dh-stamp-txt">PASS<br>✓ OK</span>'
       inner.appendChild(img)
-      inner.appendChild(dark)
+      inner.appendChild(blu)
       inner.appendChild(holo)
       inner.appendChild(stamp)
       wrap.appendChild(inner)
@@ -294,9 +265,6 @@ export default function BirrVerifyHero({ onVerifyClick }) {
     const phaseReceive = (note, data, vaultX) => {
       if (!running) return
       setDot(5)
-      vc += 1
-      vcEl.textContent = String(vc)
-      vc2.textContent = `${vc} note${vc !== 1 ? 's' : ''} secured`
       dialAng += Math.PI * 0.45
       addStrip(data.cls)
       burst(vaultX, hero.offsetHeight - 70, true)
@@ -331,10 +299,11 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       setLights('green')
       hxi.style.color = '#C6A24E'
 
-      note.inner.style.filter = 'blur(0) brightness(1.05) saturate(1.1)'
+      note.inner.style.filter = 'blur(0) brightness(1.03)'
       note.inner.style.opacity = '1'
       note.inner.style.transform = 'perspective(200px) rotateY(0deg) scale(1)'
       note.wrap.classList.add('verified')
+      note.wrap.classList.remove('pending')
       note.stamp.classList.add('pop')
 
       burst(machX, hero.offsetHeight - 110, false)
@@ -418,10 +387,9 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       if (!running) return
       const data = NOTES[ni % NOTES.length]
       ni += 1
-      nvEl.textContent = data.lbl
-
       const note = makeNote(data.src)
-      note.inner.style.filter = 'blur(3.5px) brightness(0.58) saturate(0.5)'
+      note.wrap.classList.add('pending')
+      note.inner.style.filter = 'blur(2.5px)'
       note.inner.style.transform = 'perspective(200px) rotateY(-5deg)'
       note.inner.style.transition = 'none'
 
@@ -466,8 +434,6 @@ export default function BirrVerifyHero({ onVerifyClick }) {
     })
     obs.observe(scene)
 
-    const onResize = () => resizeBg()
-    window.addEventListener('resize', onResize)
     T(() => runCycle(), 500)
 
     return () => {
@@ -476,7 +442,6 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       cancelAnimationFrame(rafId)
       stopVibrate()
       obs.disconnect()
-      window.removeEventListener('resize', onResize)
       hero.querySelectorAll('.dh-note,.dh-particle').forEach((el) => el.remove())
     }
   }, [])
@@ -509,18 +474,6 @@ export default function BirrVerifyHero({ onVerifyClick }) {
 
         <div className="birr-verify-scene" ref={sceneRef} aria-hidden="true">
           <div className="dh" ref={dhRef}>
-            <canvas className="dh-bgc" ref={bgRef} />
-            <div className="dh-vign" />
-
-            <div className="dh-note-lbl">
-              <div className="dh-note-val" ref={nvRef}>200 ETB</div>
-              <div className="dh-note-sub">BIRR NOTE</div>
-            </div>
-            <div className="dh-hud-r">
-              <div className="dh-hud-val" ref={vcRef}>0</div>
-              <div className="dh-hud-lbl">VERIFIED</div>
-            </div>
-
             <div className="dh-entry">
               <div className="dh-entry-top">
                 <div className="dh-entry-inner"><div className="dh-entry-dot" /></div>
@@ -597,7 +550,6 @@ export default function BirrVerifyHero({ onVerifyClick }) {
                 <span className="dh-vault-lbl">Secure Vault</span>
                 <div className="dh-vault-div" />
                 <div className="dh-vault-stack" ref={stackRef} />
-                <span className="dh-vault-count" ref={vc2Ref}>0 notes secured</span>
               </div>
             </div>
 
