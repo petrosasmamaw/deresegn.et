@@ -6,8 +6,10 @@ import { db } from "./src/config/drizzle.js";
 import * as schema from "./src/db/schema.js";
 import { ensureRegistrationBonus } from "./src/services/balanceLedgerService.js";
 import { getTrustedOrigins } from "./src/config/clientOrigins.js";
+import { validateAuthEnv } from "./src/config/validateAuthEnv.js";
 
 dotenv.config();
+validateAuthEnv();
 
 const authBaseURL = process.env.BETTER_AUTH_URL || "http://localhost:5000/api/auth";
 

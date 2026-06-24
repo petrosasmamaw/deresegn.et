@@ -1,6 +1,7 @@
 const DEFAULT_ORIGINS = [
   'http://localhost:5173',
   'https://deresegn-et.vercel.app',
+  'https://check-deresegn-et.vercel.app',
 ];
 
 function normalizeOrigin(url) {
