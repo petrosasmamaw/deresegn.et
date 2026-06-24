@@ -11,6 +11,7 @@
     "db:studio": "drizzle-kit studio",
     "db:reset": "node src/init/resetAuthTables.js",
     "seed:users": "node scripts/seedUsers.mjs",
+    "generate:secret": "node scripts/generateSecret.mjs",
     "train:dashen": "node scripts/trainDashen.mjs",
     "test:boa-fraud": "node scripts/testBoaFraudMock.mjs"
   },
