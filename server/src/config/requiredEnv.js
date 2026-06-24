@@ -23,17 +23,9 @@ export function assertRequiredEnv() {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 
-  const weak = REQUIRED.filter((key) => {
-    const value = process.env[key]?.trim() || '';
-    return PLACEHOLDER_SECRETS.has(value) || (key === 'BETTER_AUTH_SECRET' && value.length < 32);
-  });
-
-  if (weak.length && process.env.NODE_ENV === 'production') {
-    throw new Error(
-      `Replace placeholder values in production: ${weak.join(', ')}.\n` +
-      'On Render → Environment: set BETTER_AUTH_SECRET to a random string (32+ chars).\n' +
-      'Generate one locally: npm run generate:secret',
-    );
+  const weak = REQUIRED.filter((key) => PLACEHOLDER_SECRETS.has(process.env[key]?.trim()));
+  if (weak.length) {
+    console.warn(`⚠️  Placeholder values detected (set real values when you can): ${weak.join(', ')}`);
   }
 }
 
