@@ -5,7 +5,7 @@ import axios from '../api/axiosInstance'
 import { unwrap } from '../api/unwrap'
 import { VerificationFailureList } from './VerificationResult'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
-import VerificationFormatGuide, { MODAL_SPLIT_STYLE } from './VerificationFormatGuide'
+import VerificationFormatGuide from './VerificationFormatGuide'
 
 const METHODS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet payment' },
@@ -221,7 +221,7 @@ export default function TopUpModal({
                     >
                       <div className="flex items-center gap-3">
                         <m.icon size={20} style={{ color: 'var(--color-primary)' }} />
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm">{m.label}</p>
                           <p className="text-xs text-[var(--color-text-secondary)]">{m.desc}</p>
                         </div>
@@ -257,7 +257,7 @@ export default function TopUpModal({
                 >
                   <div className="flex items-center gap-3">
                     <Camera size={20} style={{ color: 'var(--color-primary)' }} />
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm">Screenshot + QR</p>
                       <p className="text-xs text-[var(--color-text-secondary)]">Upload receipt image</p>
                     </div>
@@ -273,7 +273,7 @@ export default function TopUpModal({
                 >
                   <div className="flex items-center gap-3">
                     <Hash size={20} style={{ color: 'var(--color-accent)' }} />
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm">Payment ID only</p>
                       <p className="text-xs text-[var(--color-text-secondary)]">Invoice / FT reference lookup</p>
                     </div>
@@ -289,7 +289,7 @@ export default function TopUpModal({
                 >
                   <div className="flex items-center gap-3">
                     <MessageSquare size={20} style={{ color: 'var(--color-info)' }} />
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm">Bank SMS</p>
                       <p className="text-xs text-[var(--color-text-secondary)]">Paste transaction SMS with receipt link</p>
                     </div>
@@ -300,8 +300,8 @@ export default function TopUpModal({
             )}
 
             {step === 3 && verifyMode === 'screenshot' && (
-              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
-              <form onSubmit={(e) => { e.preventDefault(); runTopUpScreenshot() }} className="modal-split-main p-6 space-y-5">
+              <div className="modal-split modal-split-bleed">
+              <form onSubmit={(e) => { e.preventDefault(); runTopUpScreenshot() }} className="modal-split-main modal-split-main-pad space-y-5">
                 <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
                 <p className="text-sm font-semibold">Step 3: Upload Payment Screenshot</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
@@ -317,7 +317,7 @@ export default function TopUpModal({
                     </div>
                   )}
                 </div>
-                {preview && <img src={preview} alt="Preview" className="rounded-lg max-h-40 mx-auto border" />}
+                {preview && <img src={preview} alt="Preview" className="mt-3 rounded-lg border max-h-40 mx-auto object-contain w-full" />}
 
                 <button type="submit" disabled={loading || !screenshot} className="btn-primary w-full">
                   {loading ? 'Processing...' : 'Verify & Top Up'}
@@ -328,8 +328,8 @@ export default function TopUpModal({
             )}
 
             {step === 3 && verifyMode === 'reference' && (
-              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
-              <form onSubmit={runTopUpReference} className="modal-split-main p-6 space-y-5">
+              <div className="modal-split modal-split-bleed">
+              <form onSubmit={runTopUpReference} className="modal-split-main modal-split-main-pad space-y-5">
                 <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
                 <p className="text-sm font-semibold">Step 3: Enter Payment ID</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
@@ -360,8 +360,8 @@ export default function TopUpModal({
             )}
 
             {step === 3 && verifyMode === 'sms' && (
-              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
-              <form onSubmit={runTopUpSms} className="modal-split-main p-6 space-y-5">
+              <div className="modal-split modal-split-bleed">
+              <form onSubmit={runTopUpSms} className="modal-split-main modal-split-main-pad space-y-5">
                 <button type="button" onClick={() => setStep(2)} className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>← Back</button>
                 <p className="text-sm font-semibold">Step 3: Paste Transaction SMS</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">

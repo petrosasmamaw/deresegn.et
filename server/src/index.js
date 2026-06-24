@@ -11,16 +11,25 @@ import adminRoutes from './routes/adminRoutes.js'
 import errorHandler from './middleware/errorHandler.js'
 import { testConnection } from './db/index.js'
 import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
+import { isTrustedOrigin } from './config/clientOrigins.js'
 
 dotenv.config()
 
 const app = express()
 
 // CORS configuration for better-auth
-const clientOrigin = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
-
 app.use(cors({
-  origin: [clientOrigin, 'http://localhost:5173'],
+  origin(origin, callback) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (isTrustedOrigin(origin)) {
+      callback(null, origin);
+      return;
+    }
+    callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
 }))
 

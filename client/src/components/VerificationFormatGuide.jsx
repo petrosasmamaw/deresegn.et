@@ -148,5 +148,3 @@ export default function VerificationFormatGuide({ method, mode = 'screenshot' })
 
   return null
 }
-
-export const MODAL_SPLIT_STYLE = { margin: '-24px -24px -24px', width: 'calc(100% + 48px)' }

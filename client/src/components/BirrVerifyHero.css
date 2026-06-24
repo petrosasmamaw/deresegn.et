@@ -132,6 +132,9 @@
   height: 300px;
   overflow: hidden;
   background: #0E2420;
+  --dh-rail-bottom: 38px;
+  --dh-machine-h: 130px;
+  --dh-note-w: 96px;
 }
 
 .birr-verify-scene::before {
@@ -905,6 +908,20 @@
   opacity: 1;
 }
 
+@media (max-width: 767px) {
+  .birr-verify-hero-copy {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hero-verify-cta {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: none;
+    width: 100%;
+  }
+}
+
 @media (max-width: 640px) {
   .birr-verify-hero {
     padding-top: 8px;
@@ -930,7 +947,10 @@
   }
 
   .hero-verify-btn {
-    margin-left: auto;
+    margin-left: 0;
+    flex: 1 1 100%;
+    justify-content: center;
+    min-height: 44px;
   }
 
   .birr-verify-hero-copy .page-title {
@@ -943,6 +963,9 @@
 
   .birr-verify-scene {
     height: 240px;
+    --dh-rail-bottom: 30px;
+    --dh-machine-h: 112px;
+    --dh-note-w: 80px;
   }
 
   .dh-floor,
@@ -985,5 +1008,32 @@
   .dh-entry {
     width: 34px;
     height: 112px;
+  }
+}
+
+@media (max-width: 380px) {
+  .birr-verify-scene {
+    height: 220px;
+  }
+
+  .dh-vault {
+    right: 8px;
+  }
+
+  .dh-entry {
+    left: 6px;
+    width: 28px;
+  }
+
+  .dh-entry-lbl {
+    display: none;
+  }
+
+  .dh-m-label .dh-m-sub {
+    display: none;
+  }
+
+  .dh-slot-label {
+    display: none;
   }
 }

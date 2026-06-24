@@ -1034,6 +1034,19 @@ body {
   min-width: 0;
 }
 
+.modal-split-bleed {
+  margin: 0 calc(-1 * var(--modal-gutter, 24px)) calc(-1 * var(--modal-gutter, 24px));
+  width: calc(100% + 2 * var(--modal-gutter, 24px));
+}
+
+.modal-split-main-pad {
+  padding: 24px;
+}
+
+.modal-body {
+  --modal-gutter: 24px;
+}
+
 .receipt-example-panel {
   position: relative;
   background: var(--color-ink);
@@ -1539,6 +1552,10 @@ body {
 }
 
 @media (max-width: 640px) {
+  body {
+    overflow-x: hidden;
+  }
+
   .page-title {
     font-size: var(--text-xl);
   }
@@ -1553,6 +1570,7 @@ body {
 
   .mobile-shell {
     padding: 16px 14px 0;
+    min-height: 0;
   }
 
   .mobile-stack {
@@ -1629,6 +1647,15 @@ body {
 
   .modal-body {
     padding: 16px;
+    --modal-gutter: 16px;
+  }
+
+  .modal-split-main-pad {
+    padding: 16px;
+  }
+
+  .receipt-example-image {
+    max-height: 220px;
   }
 
   .modal-footer {

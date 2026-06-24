@@ -187,10 +187,33 @@ export default function BirrVerifyHero({ onVerifyClick }) {
     }
 
     const W = () => hero.offsetWidth || scene.offsetWidth || 680
-    const MX = () => W() / 2
-    const VX = () => W() - 20 - 52
-    const railB = () => 38
-    const noteHalf = () => NOTE_W / 2
+
+    const readSceneVar = (name, fallback) => {
+      const raw = getComputedStyle(scene).getPropertyValue(name).trim()
+      const value = parseFloat(raw)
+      return Number.isNaN(value) ? fallback : value
+    }
+
+    const centerX = (el) => {
+      if (!el) return W() / 2
+      const rect = el.getBoundingClientRect()
+      const heroRect = hero.getBoundingClientRect()
+      return rect.left - heroRect.left + rect.width / 2
+    }
+
+    const MX = () => centerX(mach)
+    const VX = () => centerX(hero.querySelector('.dh-vault'))
+    const railB = () => readSceneVar('--dh-rail-bottom', 38)
+    const noteHalf = () => {
+      const sample = hero.querySelector('.dh-note-inner')
+      const width = sample?.offsetWidth || readSceneVar('--dh-note-w', NOTE_W)
+      return width / 2
+    }
+    const slotInsertBottom = () => {
+      const slotRect = slot.getBoundingClientRect()
+      const heroRect = hero.getBoundingClientRect()
+      return heroRect.bottom - slotRect.top + 6
+    }
 
     const burst = (cx, cy, green) => {
       for (let i = 0; i < 8; i += 1) {
@@ -375,8 +398,8 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       ss.textContent = 'INSERTING...'
       sf.style.width = '30%'
 
-      const slotB = hero.offsetHeight - 38 - 130 + 130 - 18 - 12
-      const insideB = slotB - 14
+      const slotBottom = slotInsertBottom()
+      const insideB = slotBottom - 12
 
       moveNote(note, machX, machX, railBottom, insideB, 380, () => {
         phaseInside(note, data, machX, insideB, railBottom, vaultX)

@@ -5,7 +5,7 @@ import { VerificationFailureList, VerificationSuccessNote, VerificationWarningLi
 import VerificationCertificate from './VerificationCertificate'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 import ReceiptDetailFields from './ReceiptDetailFields'
-import VerificationFormatGuide, { MODAL_SPLIT_STYLE } from './VerificationFormatGuide'
+import VerificationFormatGuide from './VerificationFormatGuide'
 
 const METHODS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt with Invoice No. & QR' },
@@ -381,7 +381,7 @@ export default function CheckerModal({
                     >
                       <div className="flex items-center gap-3">
                         <m.icon size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="font-semibold text-[var(--text-sm)]">{m.label}</p>
                           <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">{m.desc}</p>
                         </div>
@@ -413,7 +413,7 @@ export default function CheckerModal({
                 >
                   <div className="flex items-center gap-3">
                     <Camera size={20} style={{ color: 'var(--color-primary)' }} />
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-[var(--text-sm)]">Screenshot + QR</p>
                       <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">Upload receipt image for QR and text verification</p>
                     </div>
@@ -429,7 +429,7 @@ export default function CheckerModal({
                 >
                   <div className="flex items-center gap-3">
                     <Hash size={20} style={{ color: 'var(--color-accent)' }} />
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-[var(--text-sm)]">Payment ID only</p>
                       <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">No screenshot — official bank lookup by reference</p>
                     </div>
@@ -446,7 +446,7 @@ export default function CheckerModal({
                   >
                     <div className="flex items-center gap-3">
                       <MessageSquare size={20} style={{ color: 'var(--color-info)' }} />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-[var(--text-sm)]">Bank SMS</p>
                         <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">Paste the transaction SMS — we fetch the official receipt and compare</p>
                       </div>
@@ -469,8 +469,8 @@ export default function CheckerModal({
             )}
 
             {step === 3 && verifyMode === 'screenshot' && (
-              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
-                <form onSubmit={handleQuickVerify} className="modal-split-main p-6 space-y-5">
+              <div className="modal-split modal-split-bleed">
+                <form onSubmit={handleQuickVerify} className="modal-split-main modal-split-main-pad space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
                     ← Back to Type
@@ -520,8 +520,8 @@ export default function CheckerModal({
             )}
 
             {step === 3 && verifyMode === 'reference' && (
-              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
-              <form onSubmit={runReferenceVerify} className="modal-split-main p-6 space-y-5">
+              <div className="modal-split modal-split-bleed">
+              <form onSubmit={runReferenceVerify} className="modal-split-main modal-split-main-pad space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
                     ← Back to Type
@@ -570,8 +570,8 @@ export default function CheckerModal({
             )}
 
             {step === 3 && verifyMode === 'sms' && (
-              <div className="modal-split" style={MODAL_SPLIT_STYLE}>
-              <form onSubmit={runSmsVerify} className="modal-split-main p-6 space-y-5">
+              <div className="modal-split modal-split-bleed">
+              <form onSubmit={runSmsVerify} className="modal-split-main modal-split-main-pad space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
                     ← Back to Type

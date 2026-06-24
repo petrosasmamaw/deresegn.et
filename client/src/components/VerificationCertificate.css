@@ -239,4 +239,24 @@
     width: 100%;
     justify-content: center;
   }
+
+  .payment-verify-diff-row {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: start;
+  }
+
+  .payment-verify-diff-row dt {
+    grid-column: 1 / -1;
+  }
+
+  .payment-verify-diff-row dd {
+    grid-column: 1;
+  }
+
+  .payment-verify-diff-row span {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+  }
 }

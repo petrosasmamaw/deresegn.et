@@ -4,11 +4,12 @@ import { toNodeHandler } from "better-auth/node";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "./src/config/drizzle.js";
 import * as schema from "./src/db/schema.js";
+import { ensureRegistrationBonus } from "./src/services/balanceLedgerService.js";
+import { getTrustedOrigins } from "./src/config/clientOrigins.js";
 
 dotenv.config();
 
 const authBaseURL = process.env.BETTER_AUTH_URL || "http://localhost:5000/api/auth";
-const clientOrigin = (process.env.CLIENT_URL || "http://localhost:5173").replace(/\/+$/, "");
 
 if (!process.env.BETTER_AUTH_SECRET) {
   console.warn("BETTER_AUTH_SECRET is not set. Set it in server/.env");
@@ -19,7 +20,7 @@ console.log("🔐 Loading Better Auth (drizzle adapter)");
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: authBaseURL,
-  trustedOrigins: [clientOrigin, "http://localhost:5173"],
+  trustedOrigins: getTrustedOrigins(),
   useSecureCookies: process.env.NODE_ENV === "production",
   defaultCookieAttributes: {
     httpOnly: true,
@@ -50,6 +51,22 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     autoSignIn: true,
     requireEmailVerification: false,
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          // Defer until after Better Auth commits the new user row.
+          setImmediate(async () => {
+            try {
+              await ensureRegistrationBonus(user.id);
+            } catch (err) {
+              console.error("Registration bonus failed for new user:", user.id, err.message);
+            }
+          });
+        },
+      },
+    },
   },
 });
 
