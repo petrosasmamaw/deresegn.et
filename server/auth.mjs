@@ -7,12 +7,14 @@ import * as schema from "./src/db/schema.js";
 import { ensureRegistrationBonus } from "./src/services/balanceLedgerService.js";
 import { getTrustedOrigins } from "./src/config/clientOrigins.js";
 import { validateAuthEnv } from "./src/config/validateAuthEnv.js";
+import { resolveAuthBaseUrl, usesVercelProxyAuth } from "./src/config/authBaseUrl.js";
 
 dotenv.config();
 validateAuthEnv();
 
-const authBaseURL = process.env.BETTER_AUTH_URL || "http://localhost:5000/api/auth";
+const authBaseURL = resolveAuthBaseUrl();
 const isProduction = process.env.NODE_ENV === "production";
+const cookieSameSite = isProduction && !usesVercelProxyAuth() ? "none" : "lax";
 
 if (!process.env.BETTER_AUTH_SECRET) {
   console.warn("BETTER_AUTH_SECRET is not set. Set it in server/.env");
@@ -29,13 +31,13 @@ export const auth = betterAuth({
     defaultCookieAttributes: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      sameSite: cookieSameSite,
     },
   },
   defaultCookieAttributes: {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
+    sameSite: cookieSameSite,
   },
   database: drizzleAdapter(db, {
     provider: "pg",

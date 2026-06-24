@@ -16,12 +16,21 @@ export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWi
     if (!data?.user) {
       return rejectWithValue('Signup failed — no user returned')
     }
-    const res = await axios.get('/users/me')
-    const profile = unwrap(res)
-    if (!profile?.user) {
-      return rejectWithValue('Could not load user profile')
+
+    const { data: session } = await authClient.getSession()
+    if (!session?.user) {
+      return rejectWithValue('Account created but session was not saved. Try logging in.')
     }
-    return profile.user
+
+    try {
+      const res = await axios.get('/users/me')
+      const profile = unwrap(res)
+      if (profile?.user) return profile.user
+    } catch {
+      // Fall back to session user when profile fetch fails
+    }
+
+    return session.user
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message)
   }
@@ -39,12 +48,21 @@ export const login = createAsyncThunk('auth/login', async (payload, { rejectWith
     if (!data?.user) {
       return rejectWithValue('Login failed — no user returned')
     }
-    const res = await axios.get('/users/me')
-    const profile = unwrap(res)
-    if (!profile?.user) {
-      return rejectWithValue('Could not load user profile')
+
+    const { data: session } = await authClient.getSession()
+    if (!session?.user) {
+      return rejectWithValue('Login succeeded but session was not saved. Try again or clear site cookies.')
     }
-    return profile.user
+
+    try {
+      const res = await axios.get('/users/me')
+      const profile = unwrap(res)
+      if (profile?.user) return profile.user
+    } catch {
+      // Fall back to session user when profile fetch fails
+    }
+
+    return session.user
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message)
   }
