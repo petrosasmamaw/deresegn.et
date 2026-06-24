@@ -1,223 +1,485 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { Landmark, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { CheckCircle2, ShieldCheck } from 'lucide-react'
 import './BirrVerifyHero.css'
 
-const NOTE_WIDTH = 96
-const NOTE_HEIGHT = 56
+const NOTE_W = 96
+const NOTE_H = 56
 
 const NOTES = [
-  { src: '/200BirrNote.jpg', stripColor: '#c8a44e' },
-  { src: '/100BirrNote.jpg', stripColor: '#4a90c8' },
-  { src: '/50BirrNote.png', stripColor: '#c84a4a' },
+  { src: '/200BirrNote.jpg', lbl: '200 ETB', cls: 's200' },
+  { src: '/100BirrNote.jpg', lbl: '100 ETB', cls: 's100' },
+  { src: '/50BirrNote.png', lbl: '50 ETB', cls: 's50' },
 ]
 
-const PHASE = {
-  APPROACH: 1200,
-  SCANNING: 900,
-  EXIT: 900,
-  BANK: 400,
-  RESET: 600,
-}
-
-function createParticles(originX, originY) {
-  const distance = 28 + Math.random() * 14
-  return Array.from({ length: 8 }, (_, i) => {
-    const angle = (i / 8) * Math.PI * 2 + (Math.random() - 0.5) * 0.4
-    return {
-      id: `${Date.now()}-${i}-${Math.random()}`,
-      left: originX,
-      top: originY,
-      px: `${Math.cos(angle) * distance}px`,
-      py: `${Math.sin(angle) * distance}px`,
-    }
-  })
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
 }
 
 export default function BirrVerifyHero({ onVerifyClick }) {
   const sceneRef = useRef(null)
-  const machineRef = useRef(null)
-  const bankRef = useRef(null)
-  const noteIndexRef = useRef(0)
-  const timeoutsRef = useRef([])
-  const mountedRef = useRef(true)
-
-  const [noteVisible, setNoteVisible] = useState(false)
-  const [noteLeft, setNoteLeft] = useState(-120)
-  const [noteTop, setNoteTop] = useState(0)
-  const [noteTransition, setNoteTransition] = useState('none')
-  const [noteOpacity, setNoteOpacity] = useState(1)
-  const [verified, setVerified] = useState(false)
-  const [doorsOpen, setDoorsOpen] = useState(false)
-  const [screenStatus, setScreenStatus] = useState('idle')
-  const [slotGlow, setSlotGlow] = useState('')
-  const [lightState, setLightState] = useState('green')
-  const [bankStrips, setBankStrips] = useState([])
-  const [particles, setParticles] = useState([])
-  const [activeNoteIndex, setActiveNoteIndex] = useState(0)
-
-  const clearAllTimeouts = useCallback(() => {
-    timeoutsRef.current.forEach(clearTimeout)
-    timeoutsRef.current = []
-  }, [])
-
-  const schedule = useCallback((fn, ms) => {
-    const id = setTimeout(() => {
-      if (mountedRef.current) fn()
-    }, ms)
-    timeoutsRef.current.push(id)
-    return id
-  }, [])
-
-  const getPositions = useCallback(() => {
-    const scene = sceneRef.current
-    const machine = machineRef.current
-    const bank = bankRef.current
-    if (!scene || !machine || !bank) return null
-
-    const sceneRect = scene.getBoundingClientRect()
-    const machineRect = machine.getBoundingClientRect()
-    const bankRect = bank.getBoundingClientRect()
-
-    const noteW = window.innerWidth <= 640 ? 80 : NOTE_WIDTH
-    const noteH = window.innerWidth <= 640 ? 48 : NOTE_HEIGHT
-
-    return {
-      start: -120,
-      machine: machineRect.left - sceneRect.left + machineRect.width / 2 - noteW / 2,
-      bank: bankRect.left - sceneRect.left + bankRect.width / 2 - noteW / 2,
-      noteTop: machineRect.top - sceneRect.top + machineRect.height / 2 - noteH / 2,
-      machineCenterX: machineRect.left - sceneRect.left + machineRect.width / 2,
-      machineCenterY: machineRect.top - sceneRect.top + machineRect.height / 2,
-      bankCenterX: bankRect.left - sceneRect.left + bankRect.width / 2,
-      bankCenterY: bankRect.top - sceneRect.top + bankRect.height / 2,
-    }
-  }, [])
-
-  const burstParticles = useCallback((x, y) => {
-    const burst = createParticles(x, y)
-    setParticles((prev) => [...prev, ...burst])
-    schedule(() => {
-      setParticles((prev) => prev.filter((p) => !burst.find((b) => b.id === p.id)))
-    }, 650)
-  }, [schedule])
-
-  const addBankStrip = useCallback((color) => {
-    const id = `${Date.now()}-${Math.random()}`
-    setBankStrips((prev) => {
-      const next = [...prev, { id, color }]
-      return next.length > 6 ? next.slice(-6) : next
-    })
-  }, [])
-
-  const runCycle = useCallback(() => {
-    if (!mountedRef.current) return
-
-    const pos = getPositions()
-    if (!pos) {
-      schedule(runCycle, 100)
-      return
-    }
-
-    const idx = noteIndexRef.current
-    setActiveNoteIndex(idx)
-
-    setNoteVisible(true)
-    setVerified(false)
-    setDoorsOpen(false)
-    setScreenStatus('idle')
-    setSlotGlow('')
-    setLightState('green')
-    setNoteOpacity(1)
-    setNoteTop(pos.noteTop)
-    setNoteTransition('none')
-    setNoteLeft(pos.start)
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!mountedRef.current) return
-        setNoteTransition('left 1200ms ease-in-out')
-        setNoteLeft(pos.machine)
-      })
-    })
-
-    schedule(() => {
-      setScreenStatus('scanning')
-      setSlotGlow('gold')
-      setLightState('gold')
-
-      schedule(() => {
-        setVerified(true)
-        setScreenStatus('verified')
-        setSlotGlow('green')
-        setLightState('green')
-        setDoorsOpen(true)
-        burstParticles(pos.machineCenterX, pos.machineCenterY)
-
-        schedule(() => {
-          setNoteTransition('left 900ms ease-in-out')
-          setNoteLeft(pos.bank)
-
-          schedule(() => {
-            addBankStrip(NOTES[idx].stripColor)
-            burstParticles(pos.bankCenterX, pos.bankCenterY)
-            setNoteOpacity(0)
-            setDoorsOpen(false)
-            setScreenStatus('idle')
-            setSlotGlow('')
-            setLightState('green')
-
-            schedule(() => {
-              setNoteVisible(false)
-              setVerified(false)
-              noteIndexRef.current = (idx + 1) % NOTES.length
-
-              schedule(() => {
-                runCycle()
-              }, PHASE.RESET)
-            }, PHASE.BANK)
-          }, PHASE.EXIT)
-        }, 80)
-      }, PHASE.SCANNING)
-    }, PHASE.APPROACH)
-  }, [getPositions, schedule, burstParticles, addBankStrip])
-
-  const runCycleRef = useRef(null)
-  runCycleRef.current = runCycle
+  const dhRef = useRef(null)
+  const bgRef = useRef(null)
+  const hexRef = useRef(null)
+  const dialRef = useRef(null)
+  const slotRef = useRef(null)
+  const smRef = useRef(null)
+  const sfRef = useRef(null)
+  const ssRef = useRef(null)
+  const hiRef = useRef(null)
+  const l1Ref = useRef(null)
+  const l2Ref = useRef(null)
+  const l3Ref = useRef(null)
+  const dlRef = useRef(null)
+  const drRef = useRef(null)
+  const machRef = useRef(null)
+  const stackRef = useRef(null)
+  const vcRef = useRef(null)
+  const vc2Ref = useRef(null)
+  const nvRef = useRef(null)
+  const beamRef = useRef(null)
+  const dotsRef = useRef([])
 
   useEffect(() => {
-    mountedRef.current = true
+    const hero = dhRef.current
+    const scene = sceneRef.current
+    if (!hero || !scene) return
 
-    const startDelay = setTimeout(() => {
-      runCycleRef.current?.()
-    }, 300)
+    const bgC = bgRef.current
+    const hxC = hexRef.current
+    const dC = dialRef.current
+    const slot = slotRef.current
+    const sm = smRef.current
+    const sf = sfRef.current
+    const ss = ssRef.current
+    const hxi = hiRef.current
+    const l1 = l1Ref.current
+    const l2 = l2Ref.current
+    const l3 = l3Ref.current
+    const dL = dlRef.current
+    const dR = drRef.current
+    const mach = machRef.current
+    const stack = stackRef.current
+    const vcEl = vcRef.current
+    const vc2 = vc2Ref.current
+    const nvEl = nvRef.current
+    const beam = beamRef.current
+    const dots = dotsRef.current.filter(Boolean)
 
-    const handleResize = () => {
-      const pos = getPositions()
-      if (pos) setNoteTop(pos.noteTop)
+    if (!bgC || !hxC || !dC || !slot || !sm || !sf || !ss || !hxi || !mach || !stack || !vcEl || !vc2 || !nvEl || !beam || !dL || !dR) {
+      return undefined
     }
 
-    window.addEventListener('resize', handleResize)
+    const bCtx = bgC.getContext('2d')
+    const hCtx = hxC.getContext('2d')
+    const dCtx = dC.getContext('2d')
+
+    let ni = 0
+    let vc = 0
+    const strips = []
+    const timers = []
+    let running = true
+    let hxAng = 0
+    let dialAng = 0
+    let rafId = 0
+
+    const resizeBg = () => {
+      bgC.width = hero.offsetWidth || scene.offsetWidth || 680
+      bgC.height = hero.offsetHeight || scene.offsetHeight || 300
+      bCtx.clearRect(0, 0, bgC.width, bgC.height)
+      for (let i = 0; i < 40; i += 1) {
+        const x = Math.random() * bgC.width
+        const y = Math.random() * (bgC.height * 0.62)
+        const r = Math.random() * 1.1
+        const a = Math.random() * 0.38 + 0.05
+        bCtx.beginPath()
+        bCtx.arc(x, y, r, 0, Math.PI * 2)
+        bCtx.fillStyle = `rgba(198,162,78,${a})`
+        bCtx.fill()
+      }
+    }
+
+    resizeBg()
+
+    const drawHex = (ang, highlight) => {
+      hCtx.clearRect(0, 0, 58, 58)
+      hCtx.save()
+      hCtx.translate(29, 29)
+      hCtx.rotate(ang)
+      for (let s = 0; s < 6; s += 1) {
+        const a0 = (s * Math.PI) / 3 - Math.PI / 6
+        const a1 = ((s + 1) * Math.PI) / 3 - Math.PI / 6
+        const c = highlight
+          ? (s % 2 ? 'rgba(62,143,98,0.75)' : 'rgba(62,143,98,0.3)')
+          : (s % 2 ? 'rgba(198,162,78,0.5)' : 'rgba(198,162,78,0.18)')
+        hCtx.beginPath()
+        hCtx.moveTo(0, 0)
+        hCtx.lineTo(Math.cos(a0) * 27, Math.sin(a0) * 27)
+        hCtx.lineTo(Math.cos(a1) * 27, Math.sin(a1) * 27)
+        hCtx.closePath()
+        hCtx.fillStyle = c
+        hCtx.fill()
+        hCtx.strokeStyle = 'rgba(6,14,12,0.55)'
+        hCtx.lineWidth = 1
+        hCtx.stroke()
+      }
+      hCtx.beginPath()
+      hCtx.arc(0, 0, 27, 0, Math.PI * 2)
+      hCtx.strokeStyle = highlight ? 'rgba(62,143,98,0.85)' : 'rgba(198,162,78,0.5)'
+      hCtx.lineWidth = 1.5
+      hCtx.stroke()
+      hCtx.restore()
+    }
+
+    const drawDial = (ang) => {
+      dCtx.clearRect(0, 0, 50, 50)
+      dCtx.beginPath()
+      dCtx.arc(25, 25, 22, 0, Math.PI * 2)
+      dCtx.strokeStyle = 'rgba(198,162,78,0.32)'
+      dCtx.lineWidth = 1.5
+      dCtx.stroke()
+      for (let i = 0; i < 12; i += 1) {
+        const a = (i * Math.PI) / 6
+        const x1 = 25 + Math.cos(a) * 18
+        const y1 = 25 + Math.sin(a) * 18
+        const x2 = 25 + Math.cos(a) * 22
+        const y2 = 25 + Math.sin(a) * 22
+        dCtx.beginPath()
+        dCtx.moveTo(x1, y1)
+        dCtx.lineTo(x2, y2)
+        dCtx.strokeStyle = 'rgba(198,162,78,0.38)'
+        dCtx.lineWidth = 1
+        dCtx.stroke()
+      }
+      dCtx.save()
+      dCtx.translate(25, 25)
+      dCtx.rotate(ang)
+      dCtx.beginPath()
+      dCtx.moveTo(0, 0)
+      dCtx.lineTo(0, -14)
+      dCtx.strokeStyle = 'rgba(198,162,78,0.8)'
+      dCtx.lineWidth = 2
+      dCtx.lineCap = 'round'
+      dCtx.stroke()
+      dCtx.restore()
+      dCtx.beginPath()
+      dCtx.arc(25, 25, 3, 0, Math.PI * 2)
+      dCtx.fillStyle = 'rgba(198,162,78,0.7)'
+      dCtx.fill()
+    }
+
+    drawDial(0)
+
+    const loop = () => {
+      if (!running) return
+      hxAng += 0.018
+      dialAng += 0.007
+      drawHex(hxAng, false)
+      drawDial(dialAng)
+      rafId = requestAnimationFrame(loop)
+    }
+    loop()
+
+    const setDot = (i) => {
+      dots.forEach((d, x) => d.classList.toggle('on', x === i))
+    }
+
+    const setLights = (mode) => {
+      ;[l1, l2, l3].forEach((light, i) => {
+        light.className = 'dh-light'
+        if (mode === 'gold' && i < 2) light.classList.add('a')
+        if (mode === 'green') light.classList.add('g')
+      })
+    }
+
+    const openDoors = () => {
+      dL.classList.add('open')
+      dR.classList.add('open')
+    }
+
+    const closeDoors = () => {
+      dL.classList.remove('open')
+      dR.classList.remove('open')
+    }
+
+    const startVibrate = () => mach.classList.add('vibrate')
+    const stopVibrate = () => mach.classList.remove('vibrate')
+
+    const T = (fn, ms) => {
+      const id = setTimeout(fn, ms)
+      timers.push(id)
+      return id
+    }
+
+    const clearTs = () => {
+      timers.forEach(clearTimeout)
+      timers.length = 0
+    }
+
+    const W = () => hero.offsetWidth || scene.offsetWidth || 680
+    const MX = () => W() / 2
+    const VX = () => W() - 20 - 52
+    const railB = () => 38
+    const noteHalf = () => NOTE_W / 2
+
+    const burst = (cx, cy, green) => {
+      for (let i = 0; i < 8; i += 1) {
+        const p = document.createElement('div')
+        p.className = `dh-particle${green ? ' gr' : ''}`
+        const a = (i / 8) * Math.PI * 2
+        const d = 20 + Math.random() * 16
+        p.style.left = `${cx - 2}px`
+        p.style.top = `${cy - 2}px`
+        p.style.setProperty('--dx', `${Math.cos(a) * d}px`)
+        p.style.setProperty('--dy', `${Math.sin(a) * d}px`)
+        hero.appendChild(p)
+        T(() => p.parentNode?.removeChild(p), 780)
+      }
+    }
+
+    const addStrip = (cls) => {
+      strips.push(cls)
+      if (strips.length > 6) strips.shift()
+      stack.innerHTML = ''
+      strips.forEach((c) => {
+        const s = document.createElement('div')
+        s.className = `dh-v-strip ${c}`
+        stack.appendChild(s)
+        requestAnimationFrame(() => requestAnimationFrame(() => s.classList.add('show')))
+      })
+    }
+
+    const makeNote = (src) => {
+      const wrap = document.createElement('div')
+      wrap.className = 'dh-note'
+      const inner = document.createElement('div')
+      inner.className = 'dh-note-inner'
+      const img = document.createElement('img')
+      img.src = src
+      img.alt = ''
+      const dark = document.createElement('div')
+      dark.className = 'dh-note-dark'
+      const holo = document.createElement('div')
+      holo.className = 'dh-note-holo'
+      const stamp = document.createElement('div')
+      stamp.className = 'dh-stamp'
+      stamp.innerHTML = '<span class="dh-stamp-txt">PASS<br>✓ OK</span>'
+      inner.appendChild(img)
+      inner.appendChild(dark)
+      inner.appendChild(holo)
+      inner.appendChild(stamp)
+      wrap.appendChild(inner)
+      hero.appendChild(wrap)
+      return { wrap, inner, stamp }
+    }
+
+    const setNotePos = (note, x, bottomPx) => {
+      note.wrap.style.left = `${x - noteHalf()}px`
+      note.wrap.style.bottom = `${bottomPx}px`
+    }
+
+    const moveNote = (note, fromX, toX, fromB, toB, dur, cb) => {
+      let start = null
+      const frame = (ts) => {
+        if (!running) return
+        if (!start) start = ts
+        const p = Math.min((ts - start) / dur, 1)
+        const ep = easeInOut(p)
+        setNotePos(note, fromX + (toX - fromX) * ep, fromB + (toB - fromB) * ep)
+        if (p < 1) requestAnimationFrame(frame)
+        else if (cb) cb()
+      }
+      requestAnimationFrame(frame)
+    }
+
+    const phaseReceive = (note, data, vaultX) => {
+      if (!running) return
+      setDot(5)
+      vc += 1
+      vcEl.textContent = String(vc)
+      vc2.textContent = `${vc} note${vc !== 1 ? 's' : ''} secured`
+      dialAng += Math.PI * 0.45
+      addStrip(data.cls)
+      burst(vaultX, hero.offsetHeight - 70, true)
+      note.wrap.style.transition = 'opacity 0.4s'
+      note.wrap.style.opacity = '0'
+      T(() => {
+        closeDoors()
+        slot.className = 'dh-slot'
+        setLights('')
+      }, 320)
+      T(() => note.wrap.parentNode?.removeChild(note.wrap), 500)
+      T(() => { if (running) runCycle() }, 850)
+    }
+
+    const phaseExit = (note, data, machX, insideB, railBottom, vaultX) => {
+      if (!running) return
+      setDot(4)
+      moveNote(note, machX, machX, insideB, railBottom, 300, () => {
+        note.inner.style.transform = 'perspective(200px) rotateY(4deg)'
+        moveNote(note, machX, vaultX, railBottom, railBottom, 950, () => {
+          phaseReceive(note, data, vaultX)
+        })
+      })
+    }
+
+    const phaseVerified = (note, data, machX, insideB, railBottom, vaultX) => {
+      if (!running) return
+      setDot(3)
+      sm.textContent = 'VERIFIED'
+      sm.className = 'dh-scr-main green'
+      ss.textContent = 'AUTHENTICATED ✓'
+      setLights('green')
+      hxi.style.color = '#C6A24E'
+
+      note.inner.style.filter = 'blur(0) brightness(1.05) saturate(1.1)'
+      note.inner.style.opacity = '1'
+      note.inner.style.transform = 'perspective(200px) rotateY(0deg) scale(1)'
+      note.wrap.classList.add('verified')
+      note.stamp.classList.add('pop')
+
+      burst(machX, hero.offsetHeight - 110, false)
+      openDoors()
+      T(() => phaseExit(note, data, machX, insideB, railBottom, vaultX), 650)
+    }
+
+    const phaseInside = (note, data, machX, insideB, railBottom, vaultX) => {
+      if (!running) return
+      setDot(2)
+      note.inner.style.opacity = '0.15'
+      note.inner.style.transform = 'perspective(200px) rotateY(-8deg) scale(0.9)'
+
+      slot.classList.remove('gold')
+      slot.classList.add('green')
+      sm.textContent = 'SCANNING'
+      sm.className = 'dh-scr-main green'
+      ss.textContent = 'VERIFYING...'
+      sf.style.width = '0%'
+      T(() => {
+        sf.style.width = '100%'
+        sf.className = 'dh-scr-fill green'
+      }, 40)
+
+      startVibrate()
+      beam.style.height = '0px'
+      beam.style.background = 'linear-gradient(to bottom,transparent,rgba(62,143,98,0.7),transparent)'
+      beam.classList.add('on')
+
+      let bStart = null
+      const animBeam = (ts) => {
+        if (!running) {
+          beam.classList.remove('on')
+          return
+        }
+        if (!bStart) bStart = ts
+        const p = (ts - bStart) / 900
+        if (p > 1) {
+          beam.classList.remove('on')
+          return
+        }
+        beam.style.height = `${Math.sin(p * Math.PI) * 48}px`
+        requestAnimationFrame(animBeam)
+      }
+      requestAnimationFrame(animBeam)
+
+      let blinkN = 0
+      const blinkId = setInterval(() => {
+        blinkN += 1
+        hxi.style.color = blinkN % 2 ? '#3E8F62' : 'rgba(62,143,98,0.3)'
+        hxAng += 0.06
+      }, 150)
+      timers.push(blinkId)
+
+      T(() => {
+        clearInterval(blinkId)
+        stopVibrate()
+        phaseVerified(note, data, machX, insideB, railBottom, vaultX)
+      }, 1100)
+    }
+
+    const phaseEnter = (note, data, machX, railBottom, vaultX) => {
+      if (!running) return
+      setDot(1)
+      slot.classList.add('gold')
+      setLights('gold')
+      sm.textContent = 'CERTIFY'
+      sm.className = 'dh-scr-main'
+      ss.textContent = 'INSERTING...'
+      sf.style.width = '30%'
+
+      const slotB = hero.offsetHeight - 38 - 130 + 130 - 18 - 12
+      const insideB = slotB - 14
+
+      moveNote(note, machX, machX, railBottom, insideB, 380, () => {
+        phaseInside(note, data, machX, insideB, railBottom, vaultX)
+      })
+    }
+
+    const runCycle = () => {
+      if (!running) return
+      const data = NOTES[ni % NOTES.length]
+      ni += 1
+      nvEl.textContent = data.lbl
+
+      const note = makeNote(data.src)
+      note.inner.style.filter = 'blur(3.5px) brightness(0.58) saturate(0.5)'
+      note.inner.style.transform = 'perspective(200px) rotateY(-5deg)'
+      note.inner.style.transition = 'none'
+
+      sm.textContent = 'IDLE'
+      sm.className = 'dh-scr-main'
+      ss.textContent = 'AWAITING NOTE'
+      sf.style.width = '0%'
+      sf.className = 'dh-scr-fill'
+      setLights('')
+      slot.className = 'dh-slot'
+      hxi.style.color = '#3E8F62'
+
+      const startX = -120
+      const machX = MX()
+      const vaultX = VX()
+      const bottom = railB()
+      setNotePos(note, startX, bottom)
+      setDot(0)
+
+      T(() => {
+        note.inner.style.transition = 'filter 0.5s,transform 0.4s'
+        moveNote(note, startX, machX, bottom, bottom, 1200, () => {
+          phaseEnter(note, data, machX, bottom, vaultX)
+        })
+      }, 100)
+    }
+
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting) {
+          running = false
+          clearTs()
+          cancelAnimationFrame(rafId)
+          stopVibrate()
+        } else if (!running) {
+          running = true
+          loop()
+          clearTs()
+          T(() => runCycle(), 300)
+        }
+      })
+    })
+    obs.observe(scene)
+
+    const onResize = () => resizeBg()
+    window.addEventListener('resize', onResize)
+    T(() => runCycle(), 500)
 
     return () => {
-      mountedRef.current = false
-      clearTimeout(startDelay)
-      clearAllTimeouts()
-      window.removeEventListener('resize', handleResize)
+      running = false
+      clearTs()
+      cancelAnimationFrame(rafId)
+      stopVibrate()
+      obs.disconnect()
+      window.removeEventListener('resize', onResize)
+      hero.querySelectorAll('.dh-note,.dh-particle').forEach((el) => el.remove())
     }
-  }, [clearAllTimeouts, getPositions])
-
-  const screenContent = () => {
-    if (screenStatus === 'scanning') return <span>SCANNING...</span>
-    if (screenStatus === 'verified') {
-      return (
-        <>
-          <span>VERIFIED</span>
-          <span>PASS</span>
-        </>
-      )
-    }
-    return <span>IDLE</span>
-  }
+  }, [])
 
   return (
     <section className="birr-verify-hero">
@@ -237,11 +499,7 @@ export default function BirrVerifyHero({ onVerifyClick }) {
                 <p className="hero-verify-cta-title">Verify Receipt</p>
                 <p className="hero-verify-cta-desc">Confirm Telebirr, CBE &amp; bank payments in seconds</p>
               </div>
-              <button
-                type="button"
-                onClick={onVerifyClick}
-                className="hero-verify-btn"
-              >
+              <button type="button" onClick={onVerifyClick} className="hero-verify-btn">
                 <CheckCircle2 size={14} strokeWidth={2.25} />
                 <span>Verify now</span>
               </button>
@@ -250,72 +508,118 @@ export default function BirrVerifyHero({ onVerifyClick }) {
         </div>
 
         <div className="birr-verify-scene" ref={sceneRef} aria-hidden="true">
-        <div className="birr-verify-conveyor" />
+          <div className="dh" ref={dhRef}>
+            <canvas className="dh-bgc" ref={bgRef} />
+            <div className="dh-vign" />
 
-        <div className="verify-machine-wrap" ref={machineRef}>
-          <div className="verify-machine-label">
-            <div className="verify-machine-title">Check Deresegn</div>
-            <div className="verify-machine-subtitle">VERIFY MACHINE</div>
-          </div>
-          <div className="verify-machine-body">
-            <div className={`verify-slot${slotGlow ? ` verify-slot--${slotGlow}` : ''}`} />
-            <div className={`verify-screen verify-screen--${screenStatus}`}>
-              {screenContent()}
+            <div className="dh-note-lbl">
+              <div className="dh-note-val" ref={nvRef}>200 ETB</div>
+              <div className="dh-note-sub">BIRR NOTE</div>
             </div>
-            <div className={`verify-light${lightState === 'gold' ? ' verify-light--gold' : ' verify-light--green'}`} />
-          </div>
-        </div>
+            <div className="dh-hud-r">
+              <div className="dh-hud-val" ref={vcRef}>0</div>
+              <div className="dh-hud-lbl">VERIFIED</div>
+            </div>
 
-        <div className={`verify-doors${doorsOpen ? ' verify-doors--open' : ''}`}>
-          <div className="verify-doors-inner">
-            <div className="verify-door verify-door-left" />
-            <div className="verify-door verify-door-right" />
-          </div>
-        </div>
+            <div className="dh-entry">
+              <div className="dh-entry-top">
+                <div className="dh-entry-inner"><div className="dh-entry-dot" /></div>
+              </div>
+              <div className="dh-entry-post" />
+              <div className="dh-entry-lbl">ENTRY<br />GATE</div>
+            </div>
 
-        <div className="verify-bank" ref={bankRef}>
-          <Landmark className="verify-bank-icon" size={24} strokeWidth={1.5} />
-          <div className="verify-bank-label">Secure Bank</div>
-          <div className="verify-bank-strips">
-            {bankStrips.map((strip) => (
-              <div
-                key={strip.id}
-                className="verify-bank-strip"
-                style={{ background: strip.color }}
-              />
-            ))}
-          </div>
-        </div>
+            <div className="dh-machine" ref={machRef}>
+              <div className="dh-m-label">
+                <span className="dh-m-name">Check Deresegn</span>
+                <span className="dh-m-sub">AI VERIFY MACHINE</span>
+              </div>
+              <div className="dh-m-body">
+                <div className="dh-m-side-l" />
+                <div className="dh-m-side-b" />
+                <div className="dh-m-face">
+                  <div className="dh-m-top-stripe" />
+                  <div className="dh-m-corner tl" /><div className="dh-m-corner tr" />
+                  <div className="dh-m-corner bl" /><div className="dh-m-corner br" />
+                  <div className="dh-slot-wrap">
+                    <div className="dh-slot" ref={slotRef}>
+                      <div className="dh-slot-teeth">
+                        {Array.from({ length: 12 }).map((_, i) => (
+                          <div key={i} className="dh-slot-tooth" />
+                        ))}
+                      </div>
+                    </div>
+                    <span className="dh-slot-label">INPUT SLOT</span>
+                  </div>
+                  <div className="dh-hex-ring">
+                    <canvas ref={hexRef} id="dhHC" width="58" height="58" />
+                    <div className="dh-hex-inner" ref={hiRef}>⬡</div>
+                  </div>
+                  <div className="dh-screen">
+                    <div className="dh-screen-scanline" />
+                    <div className="dh-screen-content">
+                      <span className="dh-scr-main" ref={smRef}>IDLE</span>
+                      <div className="dh-scr-bar"><div className="dh-scr-fill" ref={sfRef} /></div>
+                      <span className="dh-scr-sub" ref={ssRef}>AWAITING NOTE</span>
+                    </div>
+                  </div>
+                  <div className="dh-m-bottom">
+                    <div className="dh-lights">
+                      <div className="dh-light" ref={l1Ref} />
+                      <div className="dh-light" ref={l2Ref} />
+                      <div className="dh-light" ref={l3Ref} />
+                    </div>
+                    <span className="dh-m-ver">DRS-3D</span>
+                  </div>
+                </div>
+              </div>
+              <div className="dh-m-feet"><div className="dh-m-foot" /><div className="dh-m-foot" /></div>
+            </div>
 
-        {noteVisible && (
-          <div
-            className={`verify-note${verified ? ' verify-note--verified' : ' verify-note--unverified'}`}
-            style={{
-              left: noteLeft,
-              top: noteTop,
-              opacity: noteOpacity,
-              transition: `${noteTransition}, opacity 400ms ease`,
-            }}
-          >
-            <img src={NOTES[activeNoteIndex].src} alt="" draggable={false} />
-            <span className={`verify-note-stamp${verified ? ' verify-note-stamp--visible' : ''}`}>
-              OK
-            </span>
-          </div>
-        )}
+            <div className="dh-door-wrap">
+              <div className="dh-door-l" ref={dlRef}><div className="dh-door-etch"><div className="dh-door-sym" /></div></div>
+              <div className="dh-door-r" ref={drRef}><div className="dh-door-etch"><div className="dh-door-sym" /></div></div>
+            </div>
 
-        {particles.map((p) => (
-          <span
-            key={p.id}
-            className="verify-particle"
-            style={{
-              left: p.left,
-              top: p.top,
-              '--px': p.px,
-              '--py': p.py,
-            }}
-          />
-        ))}
+            <div className="dh-vault">
+              <div className="dh-vault-body">
+                <div className="dh-vault-top" />
+                <div className="dh-vault-side-r" />
+                <div className="dh-vault-dial">
+                  <canvas ref={dialRef} width="50" height="50" />
+                  <div className="dh-vault-dial-center">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <circle cx="7" cy="7" r="5" stroke="#C6A24E" strokeWidth="1.2" />
+                      <path d="M7 3v4l3 2" stroke="#C6A24E" strokeWidth="1" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                </div>
+                <span className="dh-vault-lbl">Secure Vault</span>
+                <div className="dh-vault-div" />
+                <div className="dh-vault-stack" ref={stackRef} />
+                <span className="dh-vault-count" ref={vc2Ref}>0 notes secured</span>
+              </div>
+            </div>
+
+            <div className="dh-scan-beam" ref={beamRef} />
+
+            <div className="dh-rail">
+              <div className="dh-rail-line" />
+              <div className="dh-rail-top" />
+              <div className="dh-rail-glow" />
+            </div>
+            <div className="dh-floor"><div className="dh-floor-grid" /></div>
+
+            <div className="dh-phase-bar">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className={`dh-ph${i === 0 ? ' on' : ''}`}
+                  ref={(el) => { dotsRef.current[i] = el }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
