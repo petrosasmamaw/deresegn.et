@@ -4,6 +4,7 @@ import { fetchTelebirrReceipt } from './telebirrReceiptService.js';
 import {
   fetchCbeBranchReceipt,
   fetchCbeTransactionByReference,
+  fetchCbeTransactionFromQr,
 } from './cbeReceiptService.js';
 
 export const SMS_SCREENSHOT_PLACEHOLDER = 'sms://verification';
@@ -77,7 +78,11 @@ async function fetchOfficialForSms(parsed) {
   }
 
   if (parsed.method === 'cbe') {
-    if (parsed.receiptUrl) {
+    if (parsed.verificationToken) {
+      const fromApi = await fetchCbeTransactionFromQr({ verificationToken: parsed.verificationToken });
+      if (fromApi) return fromApi;
+    }
+    if (parsed.receiptUrl && /BranchReceipt/i.test(parsed.receiptUrl)) {
       const fromBranch = await fetchCbeBranchReceipt(parsed.receiptUrl);
       if (fromBranch) return fromBranch;
     }
@@ -90,36 +95,49 @@ async function fetchOfficialForSms(parsed) {
 }
 
 function validateParsedSms(parsed) {
-  const issues = [];
+  if (parsed.method === 'cbe') {
+    const hasBranch = parsed.receiptUrl && /BranchReceipt/i.test(parsed.receiptUrl);
+    const hasMbReceipt = Boolean(parsed.verificationToken)
+      || /mbreciept\.cbe\.com\.et/i.test(parsed.receiptUrl || '');
+    const hasReference = parsed.transactionCode && parsed.accountSuffix;
 
-  if (!parsed.transactionCode) {
-    issues.push(issue('error', 'SMS_PARSE_FAILED', 'smsText',
-      'Could not find a transaction reference in the SMS. Paste the full message including the receipt link.'));
+    if (!hasBranch && !hasMbReceipt && !parsed.transactionCode) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Paste the full CBE SMS including the receipt link (mbreciept.cbe.com.et or apps.cbe.com.et/BranchReceipt/…).')];
+    }
+    if (hasBranch && !parsed.transactionCode) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Could not read the FT reference from the BranchReceipt link. Paste the full SMS.')];
+    }
+    if (!hasBranch && !hasMbReceipt) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'CBE SMS must include mbreciept.cbe.com.et or BranchReceipt link.')];
+    }
+    return [];
   }
 
   if (parsed.method === 'telebirr') {
-    if (!parsed.receiptUrl && !parsed.transactionCode) {
-      issues.push(issue('error', 'SMS_PARSE_FAILED', 'smsText',
-        'Telebirr SMS must include the receipt link or transaction number (DF…).'));
+    if (!parsed.transactionCode && !parsed.receiptUrl) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Paste the full Telebirr SMS with transaction number (DF…) and ethiotelecom.et/receipt link.')];
     }
-    if (!parsed.amount) {
-      issues.push(issue('error', 'SMS_PARSE_FAILED', 'smsText',
-        'Could not read the transferred amount from the Telebirr SMS.'));
+    if (!parsed.transactionCode) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Telebirr SMS must include the transaction number (DF…) or receipt link.')];
     }
+    if (!parsed.amount && !parsed.receiptUrl) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Could not read the transferred amount from the Telebirr SMS.')];
+    }
+    return [];
   }
 
-  if (parsed.method === 'cbe') {
-    if (!parsed.receiptUrl) {
-      issues.push(issue('error', 'SMS_PARSE_FAILED', 'smsText',
-        'CBE SMS must include the BranchReceipt link (apps.cbe.com.et:100/BranchReceipt/…).'));
-    }
-    if (!parsed.amount) {
-      issues.push(issue('error', 'SMS_PARSE_FAILED', 'smsText',
-        'Could not read the credited/debited amount from the CBE SMS.'));
-    }
+  if (!parsed.transactionCode) {
+    return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+      'Could not find a transaction reference in the SMS. Paste the full message including the receipt link.')];
   }
 
-  return issues;
+  return [];
 }
 
 function crossCheckSmsVsOfficial(parsed, official) {
@@ -158,16 +176,29 @@ function crossCheckSmsVsOfficial(parsed, official) {
         { smsValue: parsed.amount, officialValue: official.amount }));
     }
 
+    if (parsed.senderAccount && official.senderAccount
+      && !accountsMatch(parsed.senderAccount, official.senderAccount)) {
+      issues.push(issue('error', 'SMS_ACCOUNT_MISMATCH', 'senderAccount',
+        `SMS sender account "${parsed.senderAccount}" does not match the official CBE receipt "${official.senderAccount}".`,
+        { smsValue: parsed.senderAccount, officialValue: official.senderAccount }));
+    }
+
     const smsAccount = parsed.account;
     if (smsAccount) {
       const officialAccount = parsed.direction === 'credit'
         ? official.receiverAccount
         : official.senderAccount;
       if (officialAccount && !accountsMatch(smsAccount, officialAccount)) {
-        issues.push(issue('error', 'SMS_ACCOUNT_MISMATCH', 'senderAccount',
+        issues.push(issue('error', 'SMS_ACCOUNT_MISMATCH', 'receiverAccount',
           `SMS account "${smsAccount}" does not match the official CBE receipt account "${officialAccount}".`,
           { smsValue: smsAccount, officialValue: officialAccount }));
       }
+    }
+
+    if (parsed.senderName && official.senderName && !namesMatch(parsed.senderName, official.senderName)) {
+      issues.push(issue('error', 'SMS_RECEIVER_MISMATCH', 'senderName',
+        `SMS sender "${parsed.senderName}" does not match official receipt "${official.senderName}".`,
+        { smsValue: parsed.senderName, officialValue: official.senderName }));
     }
   }
 
@@ -194,13 +225,20 @@ export async function verifySmsTransaction(method, smsText) {
     return {
       passed: false,
       parsed,
-      official: null,
-      txCode: parsed.transactionCode || null,
+      official: official || null,
+      txCode: parsed.transactionCode || official?.transactionCode || null,
       resolvedDetails: null,
       issues: [issue('error', 'OFFICIAL_RECORD_NOT_FOUND', 'smsText',
         'Could not load the official receipt from the SMS link. The link may be expired or invalid.')],
       message: 'Could not load the official receipt from the SMS link.',
     };
+  }
+
+  if (!parsed.amount && official.amount) {
+    parsed.amount = String(official.amount);
+  }
+  if (!parsed.transactionCode && official.transactionCode) {
+    parsed.transactionCode = normalizeTxCode(official.transactionCode);
   }
 
   const crossIssues = crossCheckSmsVsOfficial(parsed, official);

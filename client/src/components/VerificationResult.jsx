@@ -81,7 +81,7 @@ export function VerificationFailureList({ issues = [], title = 'Receipt could no
       </div>
       <ul className="payment-verify-list">
         {issues.map((item, idx) => (
-          <li key={item.code || idx} className="payment-verify-item payment-verify-item-error">
+          <li key={`${item.code || 'issue'}-${item.field || 'f'}-${idx}`} className="payment-verify-item payment-verify-item-error">
             <span className="payment-verify-item-label">
               {CODE_LABELS[item.code] || FIELD_LABELS[item.field] || item.code?.replace(/_/g, ' ') || 'Error'}
             </span>
@@ -106,7 +106,7 @@ export function VerificationWarningList({ issues = [] }) {
       </div>
       <ul className="payment-verify-list">
         {warnings.map((item, idx) => (
-          <li key={item.code || idx} className="payment-verify-item payment-verify-item-warn">
+          <li key={`${item.code || 'warn'}-${item.field || 'f'}-${idx}`} className="payment-verify-item payment-verify-item-warn">
             <p className="payment-verify-item-msg">{item.message}</p>
           </li>
         ))}

@@ -36,8 +36,7 @@ const SMS_PLACEHOLDERS = {
   telebirr: `Dear customer
 You have transferred ETB 60.00 to Receiver Name (2519****4025)...
 https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
-  cbe: `Dear Mr Petros your Account 1****7112 has been credited with ETB 100...
-for Reciept https://apps.cbe.com.et:100/BranchReceipt/FT2616987RR0&33687112`,
+  cbe: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
 }
 
 const EMPTY_REFERENCE = {

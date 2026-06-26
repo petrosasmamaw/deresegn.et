@@ -67,9 +67,8 @@ https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
   },
   cbe: {
     title: 'SMS format',
-    hint: 'Paste the full CBE SMS including the BranchReceipt link.',
-    body: `Dear Mr Petros your Account 1****7112 has been credited with ETB 100.00 on 17-JUN-26 from Sender Name(1****2345) with Ref No FT2616987RR0. Your Current Balance is ETB 5,420.00.
-for Reciept https://apps.cbe.com.et:100/BranchReceipt/FT2616987RR0&33687112`,
+    hint: 'Paste the full CBE SMS including the receipt link (mbreciept.cbe.com.et or BranchReceipt).',
+    body: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Your current balance is ETB 3,103.06. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
   },
 }
 

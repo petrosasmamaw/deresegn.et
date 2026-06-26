@@ -51,8 +51,7 @@ const SMS_PLACEHOLDERS = {
   telebirr: `Dear customer
 You have transferred ETB 60.00 to Receiver Name (2519****4025) on 17/06/2026 18:14:15. Your transaction number is DFH51OFIED...
 https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
-  cbe: `Dear Mr Petros your Account 1****7112 has been credited with ETB 100...
-for Reciept https://apps.cbe.com.et:100/BranchReceipt/FT2616987RR0&33687112`,
+  cbe: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
 }
 
 const UPLOAD_HINTS = {
@@ -594,7 +593,7 @@ export default function CheckerModal({
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-2">
                     {method === 'telebirr'
                       ? 'Include the full message with transaction number and ethiotelecom.et/receipt link.'
-                      : 'Include the full message with credited/debited amount and apps.cbe.com.et BranchReceipt link.'}
+                      : 'Include the full message with amount and mbreciept.cbe.com.et or BranchReceipt link.'}
                   </p>
                 </div>
 
