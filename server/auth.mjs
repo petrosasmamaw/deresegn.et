@@ -7,20 +7,22 @@ import * as schema from "./src/db/schema.js";
 import { ensureRegistrationBonus } from "./src/services/balanceLedgerService.js";
 import { getTrustedOrigins } from "./src/config/clientOrigins.js";
 import { validateAuthEnv } from "./src/config/validateAuthEnv.js";
-import { resolveAuthBaseUrl, isCrossOriginAuth } from "./src/config/authBaseUrl.js";
+import { resolveAuthBaseUrl, getAuthCookieAttributes } from "./src/config/authBaseUrl.js";
 
 dotenv.config();
 validateAuthEnv();
 
 const authBaseURL = resolveAuthBaseUrl();
 const isProduction = process.env.NODE_ENV === "production";
-const cookieSameSite = isProduction && isCrossOriginAuth() ? "none" : "lax";
+const cookieAttributes = getAuthCookieAttributes(isProduction);
 
 if (!process.env.BETTER_AUTH_SECRET) {
   console.warn("BETTER_AUTH_SECRET is not set. Set it in server/.env");
 }
 
 console.log("🔐 Loading Better Auth (drizzle adapter)");
+console.log(`   baseURL: ${authBaseURL}`);
+console.log(`   cookie sameSite: ${cookieAttributes.sameSite}${cookieAttributes.partitioned ? " (partitioned)" : ""}`);
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
@@ -28,17 +30,9 @@ export const auth = betterAuth({
   trustedOrigins: getTrustedOrigins(),
   useSecureCookies: isProduction,
   advanced: {
-    defaultCookieAttributes: {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: cookieSameSite,
-    },
+    defaultCookieAttributes: cookieAttributes,
   },
-  defaultCookieAttributes: {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: cookieSameSite,
-  },
+  defaultCookieAttributes: cookieAttributes,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {

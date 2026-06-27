@@ -1,3 +1,5 @@
+import { resolveAuthBaseUrl } from './authBaseUrl.js';
+
 /** Warn when production auth env is misconfigured. */
 export function validateAuthEnv() {
   const authUrl = (process.env.BETTER_AUTH_URL || '').trim();
@@ -17,13 +19,21 @@ export function validateAuthEnv() {
 
   const authHost = hostFromUrl(authUrl);
   const clientHost = hostFromUrl(clientUrl);
+  const resolved = resolveAuthBaseUrl();
+  const resolvedHost = hostFromUrl(resolved);
 
-  if (clientUrl && authHost && clientHost && authHost !== clientHost) {
+  if (authHost.includes('vercel.app') && resolvedHost.includes('onrender.com')) {
+    console.error(
+      '❌ BETTER_AUTH_URL must NOT point at Vercel when using direct Render API.',
+      '\n   Change Render env to:',
+      `\n   BETTER_AUTH_URL=${resolved}`,
+    );
+  } else if (clientUrl && resolvedHost && clientHost && resolvedHost !== clientHost) {
     console.log(
       '✅ Direct API mode: frontend on',
       clientHost,
       '→ API on',
-      authHost,
+      resolvedHost,
       '(cross-origin cookies: SameSite=None).',
     );
   }
