@@ -68,6 +68,11 @@ const CODE_LABELS = {
   SMS_ACCOUNT_MISMATCH: 'Account error',
   INVALID_SMS: 'Invalid SMS',
   SMS_REQUIRED: 'SMS required',
+  OFFICIAL_RECORD_NOT_FOUND: 'Payment ID',
+  BANK_EGRESS_FAILED: 'Bank connection',
+  INVALID_REFERENCE_INPUT: 'Payment ID',
+  CBE_VERIFY_FAILED: 'CBE verification',
+  TELEBIRR_VERIFY_FAILED: 'Telebirr verification',
 }
 
 export function VerificationFailureList({ issues = [], title = 'Receipt could not be verified' }) {

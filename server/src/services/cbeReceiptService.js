@@ -1,7 +1,7 @@
 import { PDFParse } from 'pdf-parse';
 import fs from 'fs/promises';
 import { normalizeTxCode } from '../utils/txCode.js';
-import { outboundFetch } from '../utils/outboundFetch.js';
+import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
 import { extractCbeMbReceiptToken, decodeQrFromBuffer, prepareQrScanImage, buildQrDataFromRaw } from './qrService.js';
 import { extractPaymentFromBuffer } from './geminiService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
@@ -192,43 +192,67 @@ async function parseCbePdfBuffer(buffer) {
   }
 }
 
-/** Reference-only CBE verify: FT + last 8 digits of payer account (apps.cbe.com.et PDF). */
-export async function fetchCbeTransactionByReference(ftNumber, accountSuffix) {
-  const ft = normalizeTxCode(ftNumber);
-  const digits = String(accountSuffix || '').replace(/\D/g, '');
-  if (!ft || !/^FT[A-Z0-9]{8,}$/i.test(ft) || digits.length < 8) return null;
-
-  const last8 = digits.slice(-8);
-  const url = `${CBE_RECEIPT_BASE}${encodeURIComponent(`${ft}${last8}`)}`;
-
+async function fetchCbePdfFromUrl(url, label) {
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        Accept: 'application/pdf,*/*',
-      },
+    const response = await outboundFetch(url, {
+      timeoutMs: BANK_FETCH_TIMEOUT_MS,
+      retries: BANK_FETCH_RETRIES,
+      headers: { Accept: 'application/pdf,*/*' },
     });
-    clearTimeout(timer);
 
     if (!response.ok) {
-      console.warn('[CBE PDF] HTTP', response.status, ft);
+      console.warn(`[CBE PDF] HTTP ${response.status} (${label})`, url);
       return null;
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.slice(0, 4).toString() !== '%PDF') {
-      console.warn('[CBE PDF] Non-PDF response for', ft);
+      const preview = buffer.slice(0, 120).toString('utf8').replace(/\s+/g, ' ').trim();
+      console.warn(`[CBE PDF] Non-PDF (${label}):`, preview.slice(0, 80));
       return null;
     }
 
     return parseCbePdfBuffer(buffer);
   } catch (err) {
-    console.warn('[CBE PDF] fetch failed:', err.message);
+    console.warn(`[CBE PDF] ${label} failed:`, err.message);
     return null;
   }
+}
+
+function buildCbeAccountSuffixCandidates(accountSuffix) {
+  const digits = String(accountSuffix || '').replace(/\D/g, '');
+  if (!digits) return [];
+  const candidates = new Set();
+  if (digits.length >= 8) candidates.add(digits.slice(-8));
+  if (digits.length >= 10) candidates.add(digits);
+  if (digits.length > 8 && digits.length < 10) candidates.add(digits);
+  return [...candidates];
+}
+
+/** Reference-only CBE verify: FT + last 8 digits of payer account (official CBE PDF). */
+export async function fetchCbeTransactionByReference(ftNumber, accountSuffix) {
+  const ft = normalizeTxCode(ftNumber);
+  const suffixes = buildCbeAccountSuffixCandidates(accountSuffix);
+  if (!ft || !/^FT[A-Z0-9]{8,}$/i.test(ft) || !suffixes.length) return null;
+
+  const urls = suffixes.flatMap((suffix) => [
+    {
+      url: `https://apps.cbe.com.et:100/BranchReceipt/${encodeURIComponent(ft)}&${suffix}`,
+      label: `BranchReceipt-${suffix}`,
+    },
+    {
+      url: `${CBE_RECEIPT_BASE}${encodeURIComponent(`${ft}${suffix}`)}`,
+      label: `legacy-id-${suffix}`,
+    },
+  ]);
+
+  const results = await Promise.all(urls.map(async ({ url, label }) => {
+    const official = await fetchCbePdfFromUrl(url, label);
+    if (official) official.source = 'cbe_branch_receipt_pdf';
+    return official;
+  }));
+
+  return results.find(Boolean) || null;
 }
 
 export function parseCbeBranchReceiptUrl(receiptUrl) {
@@ -247,39 +271,12 @@ export async function fetchCbeBranchReceipt(receiptUrl) {
   const parsed = parseCbeBranchReceiptUrl(receiptUrl);
   if (!parsed?.receiptUrl) return null;
 
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
-    const response = await fetch(parsed.receiptUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        Accept: 'application/pdf,*/*',
-      },
-    });
-    clearTimeout(timer);
-
-    if (!response.ok) {
-      console.warn('[CBE BranchReceipt] HTTP', response.status);
-      return null;
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.slice(0, 4).toString() !== '%PDF') {
-      console.warn('[CBE BranchReceipt] Non-PDF response');
-      return null;
-    }
-
-    const official = await parseCbePdfBuffer(buffer);
-    if (official) {
-      official.source = 'cbe_branch_receipt_pdf';
-      official.receiptUrl = parsed.receiptUrl;
-    }
-    return official;
-  } catch (err) {
-    console.warn('[CBE BranchReceipt] fetch failed:', err.message);
-    return null;
+  const official = await fetchCbePdfFromUrl(parsed.receiptUrl, 'BranchReceipt-link');
+  if (official) {
+    official.source = 'cbe_branch_receipt_pdf';
+    official.receiptUrl = parsed.receiptUrl;
   }
+  return official;
 }
 
 export function mergeCbeApiIntoQrFields(qrFields, cbeApiFields) {

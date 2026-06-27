@@ -8,6 +8,8 @@ const MODELS = [
   'gemini-2.0-flash',
 ];
 
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45000;
+
 let cachedGenAI = null;
 let cachedApiKey = null;
 const cachedModels = new Map();
@@ -32,9 +34,15 @@ function getGenerativeModel(apiKey, modelName) {
 
 async function callModel(apiKey, modelName, base64, mimeType, prompt) {
   const model = getGenerativeModel(apiKey, modelName);
-  const result = await model.generateContent([
-    { text: prompt },
-    { inlineData: { mimeType, data: base64 } },
+  const timeout = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Gemini request timed out')), GEMINI_TIMEOUT_MS);
+  });
+  const result = await Promise.race([
+    model.generateContent([
+      { text: prompt },
+      { inlineData: { mimeType, data: base64 } },
+    ]),
+    timeout,
   ]);
   return result.response.text().trim();
 }

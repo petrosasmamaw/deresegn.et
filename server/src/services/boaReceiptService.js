@@ -3,9 +3,10 @@ import { decodeQrFromBuffer, prepareQrScanImage, buildQrDataFromRaw } from './qr
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { extractBoaFieldsFromQrPayload } from './boaQrCrypto.js';
 import { normalizeTxCode, txCodesMatch } from '../utils/txCode.js';
+import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
 
 const BOA_API = 'https://cs.bankofabyssinia.com/api/onlineSlip/getDetails/?id=';
-const API_TIMEOUT_MS = 5000;
+const API_TIMEOUT_MS = BANK_FETCH_TIMEOUT_MS;
 const NEARBY_BUDGET_MS = 8000;
 const QR_BUDGET_MS = 9000;
 const OCR_GRACE_MS = 800;
@@ -135,16 +136,14 @@ async function fetchBoaApiOnce(reference, suffix = '') {
 
   const url = `${BOA_API}${encodeURIComponent(`${id}${suffix}`)}`;
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-    const response = await fetch(url, {
-      signal: controller.signal,
+    const response = await outboundFetch(url, {
+      timeoutMs: API_TIMEOUT_MS,
+      retries: BANK_FETCH_RETRIES,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         Accept: 'application/json, text/plain, */*',
+        Referer: 'https://cs.bankofabyssinia.com/',
       },
     });
-    clearTimeout(timer);
 
     if (!response.ok) return null;
     const data = await response.json();

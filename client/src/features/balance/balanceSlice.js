@@ -24,6 +24,7 @@ export const submitTopUp = createAsyncThunk(
 
       const res = await axios.post('/balance/topup', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000,
       })
       const data = unwrap(res)
       return {
@@ -45,7 +46,7 @@ export const submitTopUpReference = createAsyncThunk(
         method,
         transactionCode,
         accountSuffix,
-      }, { timeout: 60000 })
+      }, { timeout: 120000 })
       const data = unwrap(res)
       return {
         balance: data.newBalance,
@@ -62,7 +63,7 @@ export const submitTopUpSms = createAsyncThunk(
   'balance/topupSms',
   async ({ method, smsText }, { rejectWithValue }) => {
     try {
-      const res = await axios.post('/balance/topup/sms', { method, smsText }, { timeout: 60000 })
+      const res = await axios.post('/balance/topup/sms', { method, smsText }, { timeout: 120000 })
       const data = unwrap(res)
       return {
         balance: data.newBalance,

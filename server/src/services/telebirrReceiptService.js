@@ -1,9 +1,9 @@
 import { normalizeTxCode } from '../utils/txCode.js';
 import { extractTelebirrInvoiceFromPayload } from './qrService.js';
-import { outboundFetch } from '../utils/outboundFetch.js';
+import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
 
 const TELEBIRR_RECEIPT_BASE = 'https://transactioninfo.ethiotelecom.et/receipt/';
-const API_TIMEOUT_MS = 8000;
+const API_TIMEOUT_MS = BANK_FETCH_TIMEOUT_MS;
 const inflightReceiptFetches = new Map();
 
 function parseAmount(value) {
@@ -116,9 +116,10 @@ export async function fetchTelebirrReceipt(invoiceId) {
     try {
       const response = await outboundFetch(url, {
         timeoutMs: API_TIMEOUT_MS,
-        retries: 1,
+        retries: BANK_FETCH_RETRIES,
         headers: {
           Accept: 'text/html,application/xhtml+xml,*/*',
+          Referer: 'https://transactioninfo.ethiotelecom.et/',
         },
       });
 

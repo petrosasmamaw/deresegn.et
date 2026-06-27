@@ -13,6 +13,7 @@ import { testConnection } from './db/index.js'
 import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
 import { isTrustedOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
+import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
 
 dotenv.config()
 
@@ -81,8 +82,25 @@ app.get('/api/health', (req, res) => {
     build: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'dev',
     features: {
       cbeMbReceiptSms: true,
+      cbeBranchReceiptRef: true,
+      bankProbe: true,
     },
   })
+})
+
+app.get('/api/health/banks', async (req, res) => {
+  try {
+    const banks = await probeBankConnectivity()
+    const allOk = banks.every((b) => b.ok)
+    res.status(allOk ? 200 : 503).json({
+      status: allOk ? 'ok' : 'degraded',
+      banks,
+      cached: getBankConnectivityStatus(),
+      time: new Date().toISOString(),
+    })
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message })
+  }
 })
 
 // Error handler must be last
@@ -110,6 +128,9 @@ async function start() {
   app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`)
     console.log(`📡 API available at http://localhost:${PORT}/api`)
+    if (process.env.NODE_ENV === 'production') {
+      startBankConnectivityMonitor()
+    }
   })
 }
 

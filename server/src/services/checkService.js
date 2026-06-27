@@ -673,12 +673,14 @@ export async function submitReferenceCheck({
 
   if (!result.passed) {
     throw new CheckError(result.message, 422, {
-      issues: [{
-        type: 'error',
-        code: 'OFFICIAL_RECORD_NOT_FOUND',
-        field: 'transactionCode',
-        message: result.message,
-      }],
+      issues: result.issues?.length
+        ? result.issues
+        : [{
+          type: 'error',
+          code: 'OFFICIAL_RECORD_NOT_FOUND',
+          field: 'transactionCode',
+          message: result.message,
+        }],
     });
   }
 

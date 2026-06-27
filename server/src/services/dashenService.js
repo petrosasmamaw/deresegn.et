@@ -16,13 +16,14 @@ import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { analyzeQrAuthenticity } from './qrAuthenticityService.js';
 import { extractPaymentFromBuffer } from './geminiService.js';
 import { normalizeTxCode } from '../utils/txCode.js';
+import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
 
 const RECEIPT_BASE = 'https://receipt.dashensuperapp.com/receipt';
 const DASHEN_REF_RE = /\b(\d{3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i;
 const QR_BUDGET_MS = 9000;
 const QR_FAST_MS = 2500;
 const SUCCESS_QR_MS = 5000;
-const PDF_TIMEOUT_MS = 8000;
+const PDF_TIMEOUT_MS = BANK_FETCH_TIMEOUT_MS;
 const SUPERAPP_OCR_GRACE_MS = 800;
 
 const inflightPdfFetches = new Map();
@@ -223,16 +224,11 @@ export async function fetchDashenTransactionByReference(reference) {
   const fetchPromise = (async () => {
     const url = `${RECEIPT_BASE}/${ref}`;
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), PDF_TIMEOUT_MS);
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-          Accept: 'application/pdf,*/*',
-        },
+      const response = await outboundFetch(url, {
+        timeoutMs: PDF_TIMEOUT_MS,
+        retries: BANK_FETCH_RETRIES,
+        headers: { Accept: 'application/pdf,*/*' },
       });
-      clearTimeout(timer);
 
       if (!response.ok) {
         console.warn('[Dashen] PDF HTTP', response.status, ref);

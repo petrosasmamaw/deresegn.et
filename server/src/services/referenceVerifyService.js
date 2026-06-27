@@ -3,6 +3,7 @@ import { fetchTelebirrReceipt, normalizeTelebirrInvoiceId } from './telebirrRece
 import { fetchDashenTransactionByReference } from './dashenService.js';
 import { fetchCbeTransactionByReference } from './cbeReceiptService.js';
 import { fetchBoaTransactionByReference } from './boaReceiptService.js';
+import { isBankEgressHealthy, bankEgressFailureMessage } from './bankConnectivityProbe.js';
 
 const DASHEN_IPSS_RE = /\d{3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,}/i;
 export const REFERENCE_SCREENSHOT_PLACEHOLDER = 'reference://payment-id-verification';
@@ -155,13 +156,25 @@ export async function lookupOfficialByReference(method, input) {
   }
 
   if (!official?.transactionCode || !official?.amount) {
+    console.warn('[Reference] No official record:', method, validated.transactionCode, validated.accountSuffix || '');
+    const egressOk = await isBankEgressHealthy();
     return {
       passed: false,
       validated,
       official: null,
       resolvedDetails: null,
       txCode: validated.transactionCode,
-      message: 'No official bank record found for this payment ID. Check the reference and account digits, then try again.',
+      message: egressOk
+        ? 'No official bank record found for this payment ID. Check the reference and account digits, then try again.'
+        : bankEgressFailureMessage(),
+      issues: [{
+        type: 'error',
+        code: egressOk ? 'OFFICIAL_RECORD_NOT_FOUND' : 'BANK_EGRESS_FAILED',
+        field: 'transactionCode',
+        message: egressOk
+          ? 'No official bank record found for this payment ID. Check the reference and account digits, then try again.'
+          : bankEgressFailureMessage(),
+      }],
     };
   }
 

@@ -50,7 +50,7 @@ export const performReferenceCheck = createAsyncThunk(
         method,
         transactionCode,
         accountSuffix,
-      }, { timeout: 60000 })
+      }, { timeout: 120000 })
       const data = unwrap(res)
       return {
         check: {
@@ -72,7 +72,7 @@ export const performSmsCheck = createAsyncThunk(
   'checks/performSms',
   async ({ method, smsText }, { rejectWithValue }) => {
     try {
-      const res = await axios.post('/check/sms', { method, smsText }, { timeout: 60000 })
+      const res = await axios.post('/check/sms', { method, smsText }, { timeout: 120000 })
       const data = unwrap(res)
       return {
         check: {
