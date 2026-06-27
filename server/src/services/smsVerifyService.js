@@ -6,7 +6,6 @@ import {
   fetchCbeTransactionByReference,
   fetchCbeTransactionFromQr,
 } from './cbeReceiptService.js';
-import { isBankEgressHealthy, bankEgressFailureMessage } from './bankConnectivityProbe.js';
 
 export const SMS_SCREENSHOT_PLACEHOLDER = 'sms://verification';
 
@@ -223,18 +222,15 @@ export async function verifySmsTransaction(method, smsText) {
 
   const official = await fetchOfficialForSms(parsed);
   if (!official?.transactionCode || !official?.amount) {
-    const egressOk = await isBankEgressHealthy();
-    const failMessage = egressOk
-      ? 'Could not load the official receipt from the SMS link. The link may be expired or invalid.'
-      : bankEgressFailureMessage();
     return {
       passed: false,
       parsed,
       official: official || null,
       txCode: parsed.transactionCode || official?.transactionCode || null,
       resolvedDetails: null,
-      issues: [issue('error', egressOk ? 'OFFICIAL_RECORD_NOT_FOUND' : 'BANK_EGRESS_FAILED', 'smsText', failMessage)],
-      message: failMessage,
+      issues: [issue('error', 'OFFICIAL_RECORD_NOT_FOUND', 'smsText',
+        'Could not load the official receipt from the SMS link. The link may be expired or invalid.')],
+      message: 'Could not load the official receipt from the SMS link.',
     };
   }
 

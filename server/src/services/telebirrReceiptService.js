@@ -1,10 +1,64 @@
 import { normalizeTxCode } from '../utils/txCode.js';
 import { extractTelebirrInvoiceFromPayload } from './qrService.js';
-import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
+import { outboundFetch } from '../utils/outboundFetch.js';
+import { httpsGetText } from '../utils/httpsGet.js';
 
 const TELEBIRR_RECEIPT_BASE = 'https://transactioninfo.ethiotelecom.et/receipt/';
-const API_TIMEOUT_MS = BANK_FETCH_TIMEOUT_MS;
+const isProduction = process.env.NODE_ENV === 'production';
+const TELEBIRR_TIMEOUT_MS = Number(process.env.TELEBIRR_FETCH_TIMEOUT_MS)
+  || (isProduction ? 55000 : 20000);
+const TELEBIRR_RETRIES = Number(process.env.TELEBIRR_FETCH_RETRIES)
+  || (isProduction ? 3 : 1);
 const inflightReceiptFetches = new Map();
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+const TELEBIRR_HEADERS = {
+  Accept: 'text/html,application/xhtml+xml,*/*',
+  Referer: 'https://transactioninfo.ethiotelecom.et/',
+  'Accept-Language': 'en-US,en;q=0.9',
+};
+
+/** Telebirr receipt page — native HTTPS first (Render-compatible), fetch() fallback. */
+async function fetchTelebirrHtml(url, invoiceId) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= TELEBIRR_RETRIES; attempt += 1) {
+    try {
+      const res = await httpsGetText(url, {
+        timeoutMs: TELEBIRR_TIMEOUT_MS,
+        headers: TELEBIRR_HEADERS,
+      });
+      if (res.ok && res.text) return res.text;
+      console.warn('[Telebirr] HTTPS HTTP', res.status, invoiceId);
+    } catch (err) {
+      lastError = err;
+      console.warn('[Telebirr] HTTPS attempt', attempt + 1, invoiceId, err.message);
+    }
+
+    try {
+      const response = await outboundFetch(url, {
+        timeoutMs: TELEBIRR_TIMEOUT_MS,
+        retries: 0,
+        headers: { ...TELEBIRR_HEADERS, Connection: 'close' },
+      });
+      if (response.ok) return await response.text();
+      console.warn('[Telebirr] fetch HTTP', response.status, invoiceId);
+    } catch (err) {
+      lastError = err;
+      console.warn('[Telebirr] fetch attempt', attempt + 1, invoiceId, err.message);
+    }
+
+    if (attempt < TELEBIRR_RETRIES) {
+      await sleep(600 * (attempt + 1));
+    }
+  }
+
+  if (lastError) console.warn('[Telebirr] all attempts failed', invoiceId, lastError.message);
+  return null;
+}
 
 function parseAmount(value) {
   if (value == null) return null;
@@ -114,21 +168,9 @@ export async function fetchTelebirrReceipt(invoiceId) {
   const fetchPromise = (async () => {
     const url = `${TELEBIRR_RECEIPT_BASE}${encodeURIComponent(id)}`;
     try {
-      const response = await outboundFetch(url, {
-        timeoutMs: API_TIMEOUT_MS,
-        retries: BANK_FETCH_RETRIES,
-        headers: {
-          Accept: 'text/html,application/xhtml+xml,*/*',
-          Referer: 'https://transactioninfo.ethiotelecom.et/',
-        },
-      });
+      const html = await fetchTelebirrHtml(url, id);
+      if (!html) return null;
 
-      if (!response.ok) {
-        console.warn('[Telebirr] HTTP', response.status, id);
-        return null;
-      }
-
-      const html = await response.text();
       const mapped = mapTelebirrHtml(html, id);
       if (mapped) {
         console.log('[Telebirr] Official receipt loaded:', id, 'amount', mapped.amount);
