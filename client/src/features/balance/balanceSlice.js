@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import axios from '../../api/axiosInstance'
 import { unwrap } from '../../api/unwrap'
+import { compressImageForUpload } from '../../lib/compressImage'
 
 export const fetchBalance = createAsyncThunk('balance/fetch', async (_, { rejectWithValue }) => {
   try {
@@ -16,8 +17,9 @@ export const submitTopUp = createAsyncThunk(
   'balance/topup',
   async ({ screenshot, method = 'telebirr' }, { rejectWithValue }) => {
     try {
+      const uploadFile = await compressImageForUpload(screenshot)
       const formData = new FormData()
-      formData.append('screenshot', screenshot)
+      formData.append('screenshot', uploadFile)
       formData.append('method', method)
 
       const res = await axios.post('/balance/topup', formData, {

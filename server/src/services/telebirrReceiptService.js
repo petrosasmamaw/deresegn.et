@@ -1,5 +1,6 @@
 import { normalizeTxCode } from '../utils/txCode.js';
 import { extractTelebirrInvoiceFromPayload } from './qrService.js';
+import { outboundFetch } from '../utils/outboundFetch.js';
 
 const TELEBIRR_RECEIPT_BASE = 'https://transactioninfo.ethiotelecom.et/receipt/';
 const API_TIMEOUT_MS = 8000;
@@ -113,16 +114,13 @@ export async function fetchTelebirrReceipt(invoiceId) {
   const fetchPromise = (async () => {
     const url = `${TELEBIRR_RECEIPT_BASE}${encodeURIComponent(id)}`;
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-      const response = await fetch(url, {
-        signal: controller.signal,
+      const response = await outboundFetch(url, {
+        timeoutMs: API_TIMEOUT_MS,
+        retries: 1,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           Accept: 'text/html,application/xhtml+xml,*/*',
         },
       });
-      clearTimeout(timer);
 
       if (!response.ok) {
         console.warn('[Telebirr] HTTP', response.status, id);

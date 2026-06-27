@@ -1,6 +1,7 @@
 import { PDFParse } from 'pdf-parse';
 import fs from 'fs/promises';
 import { normalizeTxCode } from '../utils/txCode.js';
+import { outboundFetch } from '../utils/outboundFetch.js';
 import { extractCbeMbReceiptToken, decodeQrFromBuffer, prepareQrScanImage, buildQrDataFromRaw } from './qrService.js';
 import { extractPaymentFromBuffer } from './geminiService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
@@ -42,7 +43,9 @@ const CBE_API_HEADERS = {
 function mapCbeApiResponse(data) {
   if (!data?.id) return null;
 
-  const amount = parseFloat(data.amountCredited ?? data.amountDebited);
+  const amount = parseFloat(
+    data.amountCredited ?? data.amountDebited ?? data.debitAmount ?? data.creditAmount,
+  );
   return {
     transactionCode: normalizeTxCode(data.id),
     amount: Number.isNaN(amount) || amount <= 0 ? null : String(amount),
@@ -63,8 +66,10 @@ export async function fetchCbeTransactionFromQr(qrData) {
   const url = `https://Mb.cbe.com.et/api/v1/transactions/public/transaction-detail/${token}`;
 
   try {
-    const response = await fetch(url, {
+    const response = await outboundFetch(url, {
       method: 'GET',
+      timeoutMs: 18000,
+      retries: 2,
       headers: CBE_API_HEADERS,
     });
 
@@ -74,9 +79,13 @@ export async function fetchCbeTransactionFromQr(qrData) {
     }
 
     const data = await response.json();
-    return mapCbeApiResponse(data);
+    const mapped = mapCbeApiResponse(data);
+    if (!mapped) {
+      console.warn('[CBE API] Unmapped response for token', token);
+    }
+    return mapped;
   } catch (err) {
-    console.warn('[CBE API]', err.message);
+    console.warn('[CBE API]', err.message, 'token', token);
     return null;
   }
 }

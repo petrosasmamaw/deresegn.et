@@ -1,13 +1,15 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import axios from '../../api/axiosInstance'
 import { unwrap } from '../../api/unwrap'
+import { compressImageForUpload } from '../../lib/compressImage'
 
 export const performCheck = createAsyncThunk(
   'checks/perform',
   async ({ screenshot, method, form, withDetails = true }, { rejectWithValue }) => {
     try {
+      const uploadFile = await compressImageForUpload(screenshot)
       const formData = new FormData()
-      formData.append('screenshot', screenshot)
+      formData.append('screenshot', uploadFile)
       formData.append('method', method)
       formData.append('withDetails', withDetails ? 'true' : 'false')
       if (withDetails) {

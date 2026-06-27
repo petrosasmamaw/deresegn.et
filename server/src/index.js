@@ -37,7 +37,7 @@ app.use(cors({
   credentials: true,
 }))
 
-app.use(express.json())
+app.use(express.json({ limit: '2mb' }))
 app.use(cookieParser())
 
 // Mount Better Auth handler (dynamic import)
@@ -75,7 +75,14 @@ app.use('/api/users', appAuthRoutes)
 app.use('/api/admin', adminRoutes)
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() })
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString(),
+    build: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'dev',
+    features: {
+      cbeMbReceiptSms: true,
+    },
+  })
 })
 
 // Error handler must be last

@@ -6,12 +6,38 @@ function cleanUrl(raw) {
   return String(raw || '').replace(/[).,;]+$/g, '').trim();
 }
 
+function repairSmsUrls(blob) {
+  let out = blob;
+
+  // Mobile SMS apps sometimes break long URLs across lines — rejoin them.
+  out = out.replace(
+    /(https?:\/\/mbreciept\.cbe\.com\.et\/[^\s]+(?:\s+[^\s]+)*)/gi,
+    (url) => url.replace(/\s+/g, ''),
+  );
+  out = out.replace(
+    /(https?:\/\/apps\.cbe\.com\.et(?::\d+)?\/BranchReceipt\/[^\s]+(?:\s+[^\s]+)*)/gi,
+    (url) => url.replace(/\s+/g, ''),
+  );
+  out = out.replace(
+    /(https?:\/\/transactioninfo\.ethiotelecom\.et\/receipt\/[^\s]+(?:\s+[^\s]+)*)/gi,
+    (url) => url.replace(/\s+/g, ''),
+  );
+  out = out.replace(
+    /\b(mbreciept\.cbe\.com\.et\/[^\s]+(?:\s+[^\s]+)*)/gi,
+    (url) => url.replace(/\s+/g, ''),
+  );
+
+  return out;
+}
+
 function normalizeSmsBlob(text) {
-  return String(text || '')
+  const raw = String(text || '')
     .replace(/\u00a0/g, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .replace(/\r\n/g, '\n')
+    .replace(/\r\n/g, '\n');
+
+  return repairSmsUrls(raw)
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -79,7 +105,7 @@ export function detectSmsMethod(text) {
   }
   if (/apps\.cbe\.com\.et.*BranchReceipt/i.test(blob)
     || /mbreciept\.cbe\.com\.et/i.test(blob)
-    || /thank you for banking with cbe/i.test(blob)
+    || /thanks?\s+for\s+banking\s+with\s+cbe/i.test(blob)
     || /\bfor\s+rec(?:eipt|iept)\s+https?:\/\/apps\.cbe\.com\.et/i.test(blob)
     || /\bBranchReceipt\/FT[A-Z0-9]+/i.test(blob)) {
     return 'cbe';

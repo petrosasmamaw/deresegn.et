@@ -9,10 +9,13 @@ function shouldUseSameOriginApi() {
   if (typeof window === 'undefined') return false;
   if (isLocalDev()) return false;
 
-  const configured = import.meta.env.VITE_API_URL;
+  const configured = import.meta.env.VITE_API_URL?.trim();
   if (configured?.startsWith('/')) return true;
+  // Explicit absolute API URL — call Render (or other host) directly.
+  if (configured?.startsWith('http')) return false;
 
-  return window.location.hostname.endsWith('.vercel.app');
+  // Deployed with no VITE_API_URL — use /api rewrite on the same origin.
+  return true;
 }
 
 function toAbsoluteUrl(pathOrUrl) {
