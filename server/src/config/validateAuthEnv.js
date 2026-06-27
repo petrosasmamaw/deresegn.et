@@ -7,32 +7,25 @@ export function validateAuthEnv() {
   if (!isProduction) return;
 
   if (!authUrl) {
-    console.error('❌ BETTER_AUTH_URL is missing.');
+    console.error('❌ BETTER_AUTH_URL is missing on Render.');
     return;
+  }
+
+  if (!clientUrl) {
+    console.warn('⚠️  CLIENT_URL is missing — set your Vercel app URL for CORS and cookies.');
   }
 
   const authHost = hostFromUrl(authUrl);
   const clientHost = hostFromUrl(clientUrl);
-  const renderHost = authHost.includes('onrender.com');
-  const vercelClient = clientHost.includes('vercel.app');
-  const vercelAuth = authHost.includes('vercel.app');
 
-  // Vercel proxy setup: both URLs should be the Vercel app (BETTER_AUTH_URL = .../api/auth)
-  if (vercelClient && vercelAuth && authHost === clientHost) {
-    console.log('✅ Auth proxy mode: BETTER_AUTH_URL matches Vercel frontend (cookies via /api rewrite).');
-    return;
-  }
-
-  // Direct cross-origin: API on Render, client on Vercel — cookies often blocked by browsers
-  if (renderHost && vercelClient) {
-    console.warn(
-      '⚠️  Cross-origin auth (Render API + Vercel client) — browsers may block session cookies.',
-      '\n   Use Vercel /api proxy (client/vercel.json) and set:',
-      `\n   BETTER_AUTH_URL=${clientUrl.replace(/\/+$/, '')}/api/auth`,
-      `\n   VITE_API_URL=/api`,
-      `\n   VITE_AUTH_URL=/api/auth`,
+  if (clientUrl && authHost && clientHost && authHost !== clientHost) {
+    console.log(
+      '✅ Direct API mode: frontend on',
+      clientHost,
+      '→ API on',
+      authHost,
+      '(cross-origin cookies: SameSite=None).',
     );
-    return;
   }
 
   if (clientUrl && authHost === clientHost && !authUrl.includes('/api/auth')) {

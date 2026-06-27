@@ -18,7 +18,7 @@ dotenv.config()
 
 const app = express()
 
-// Required on Render when behind Vercel proxy (X-Forwarded-* headers)
+// Required on Render when behind a reverse proxy (X-Forwarded-* headers)
 app.set('trust proxy', 1)
 
 // CORS configuration for better-auth

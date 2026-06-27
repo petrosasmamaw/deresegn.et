@@ -1,39 +1,22 @@
-/** Resolve Better Auth public URL (browser-facing, via Vercel proxy when applicable). */
+/** Public Better Auth URL — the Render API URL in production. */
 export function resolveAuthBaseUrl() {
-  const clientUrl = (process.env.CLIENT_URL || '').trim().replace(/\/+$/, '');
   const configured = (process.env.BETTER_AUTH_URL || '').trim().replace(/\/+$/, '');
-  const fallback = 'http://localhost:5000/api/auth';
+  if (configured) return configured;
+
   const isProduction = process.env.NODE_ENV === 'production';
-
-  if (!configured) {
-    return isProduction && clientUrl ? `${clientUrl}/api/auth` : fallback;
+  if (isProduction) {
+    console.warn('⚠️  BETTER_AUTH_URL not set — using localhost fallback (set in Render env).');
   }
-
-  // Render API + Vercel client: cookies only work through the Vercel /api proxy.
-  if (
-    isProduction
-    && clientUrl.includes('vercel.app')
-    && configured.includes('onrender.com')
-  ) {
-    const proxyUrl = `${clientUrl}/api/auth`;
-    console.warn(
-      '⚠️  BETTER_AUTH_URL points to Render — auto-using Vercel proxy URL for session cookies:',
-      proxyUrl,
-    );
-    return proxyUrl;
-  }
-
-  return configured;
+  return 'http://localhost:5000/api/auth';
 }
 
-export function usesVercelProxyAuth() {
-  const authUrl = resolveAuthBaseUrl();
+/** Vercel frontend + Render API = cross-origin cookies (SameSite=None). */
+export function isCrossOriginAuth() {
   const clientUrl = (process.env.CLIENT_URL || '').trim();
-  if (!clientUrl) return false;
+  const authUrl = resolveAuthBaseUrl();
+  if (!clientUrl || !authUrl) return false;
   try {
-    const authHost = new URL(authUrl).hostname;
-    const clientHost = new URL(clientUrl).hostname;
-    return authHost.includes('vercel.app') && authHost === clientHost;
+    return new URL(clientUrl).origin !== new URL(authUrl).origin;
   } catch {
     return false;
   }
