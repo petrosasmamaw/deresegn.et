@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../features/auth/authSlice'
-import { LogOut, Shield, Plus } from 'lucide-react'
+import { LogOut, Plus } from 'lucide-react'
 import { useDashboardUi } from '../context/DashboardUiContext'
 
 export default function Navbar() {
@@ -21,9 +21,13 @@ export default function Navbar() {
       <div className="container mx-auto px-4 navbar-inner flex items-center justify-between gap-4">
         {/* Logo */}
         <div className="flex items-center gap-2.5 flex-shrink-0 min-w-0">
-          <div className="p-1.5 md:p-2 rounded-lg flex-shrink-0" style={{ background: 'rgba(198, 162, 78, 0.12)' }}>
-            <Shield size={18} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-          </div>
+          <img
+            src="/deresegn-logo.svg"
+            alt="Deresegn logo"
+            width={28}
+            height={28}
+            className="rounded-md flex-shrink-0"
+          />
           <a href="/" className="navbar-brand truncate">
             Deresegn
           </a>
