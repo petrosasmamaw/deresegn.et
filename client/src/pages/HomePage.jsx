@@ -31,6 +31,13 @@ export default function HomePage() {
 
       <div className="auth-hero-body px-4 pb-10">
         <div className="w-full max-w-md mx-auto space-y-4">
+          <nav className="card flex flex-wrap gap-2 p-3 justify-center" aria-label="Quick links">
+            <a href="#verify-deresegn" className="btn-secondary">Verify Deresegn</a>
+            <a href="#topup" className="btn-secondary">Topup</a>
+            <a href="#register" className="btn-secondary">Register</a>
+            <a href="#login" className="btn-secondary">Login</a>
+          </nav>
+
           <nav className="card flex flex-col sm:flex-row gap-3 p-4" aria-label="Main navigation">
             <Link to="/login" className="btn-primary flex-1 flex items-center justify-center gap-2">
               <LogIn size={18} />
@@ -64,11 +71,35 @@ export default function HomePage() {
           </div>
 
           <AuthSeoBlurb />
+
+          <section id="verify-deresegn" className="sr-only">
+            <h2>Verify Deresegn</h2>
+            <p>Verify Ethiopian receipts by screenshot, payment ID, QR, and SMS after login.</p>
+            <a href={`${SITE_URL}/login`}>Open verify deresegn</a>
+          </section>
+
+          <section id="topup" className="sr-only">
+            <h2>Topup</h2>
+            <p>Top up your account balance to run more verifications.</p>
+            <a href={`${SITE_URL}/login`}>Open topup</a>
+          </section>
+
+          <section id="register" className="sr-only">
+            <h2>Register</h2>
+            <a href={`${SITE_URL}/register`}>Open register</a>
+          </section>
+
+          <section id="login" className="sr-only">
+            <h2>Login</h2>
+            <a href={`${SITE_URL}/login`}>Open login</a>
+          </section>
         </div>
       </div>
 
       {/* Structured nav for search engines */}
       <footer className="sr-only">
+        <a href={`${SITE_URL}/#verify-deresegn`}>Verify Deresegn</a>
+        <a href={`${SITE_URL}/#topup`}>Topup</a>
         <a href={`${SITE_URL}/login`}>Login to Check Deresegn</a>
         <a href={`${SITE_URL}/register`}>Register for Deresegn Check</a>
       </footer>
