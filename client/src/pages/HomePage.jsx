@@ -16,7 +16,7 @@ export default function HomePage() {
     <main className="auth-hero min-h-screen">
       <header className="hero-section auth-hero-top text-center px-4">
         <img
-          src="/deresegn-logo.png"
+          src="/deresegn-logo.svg"
           alt="Check Deresegn logo — Ethiopia receipt verification"
           width={96}
           height={96}

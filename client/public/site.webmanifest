@@ -1,0 +1,21 @@
+{
+  "name": "Check Deresegn",
+  "short_name": "Deresegn",
+  "description": "Check and verify Ethiopian payment receipts online.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#14432A",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/deresegn-logo.svg",
+      "sizes": "600x600",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -50,7 +50,7 @@ export default function LoginPage() {
     <main className="auth-hero">
       <div className="hero-section auth-hero-top">
         <img
-          src="/deresegn-logo.png"
+          src="/deresegn-logo.svg"
           alt="Check Deresegn"
           width={56}
           height={56}
