@@ -25,7 +25,7 @@ const PAYMENT_ID_TEMPLATES = {
     hint: 'Enter the 10-character Invoice No. from your Telebirr receipt.',
     lines: [
       { label: 'Field', value: 'Invoice No.' },
-      { label: 'Example', value: 'DF52MV8ILW' },
+      { label: 'Example', value: 'DG65L5I9M5' },
       { label: 'Format', value: '10 uppercase letters & digits' },
     ],
   },

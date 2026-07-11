@@ -89,7 +89,7 @@ export function validateReferenceInput(method, { transactionCode, accountSuffix 
     case 'telebirr': {
       const id = normalizeTelebirrInvoiceId(code);
       if (!id) {
-        throw validationError('Enter a valid Telebirr Invoice No. (10 characters, e.g. DF52MV8ILW)', 'transactionCode');
+        throw validationError('Enter a valid Telebirr Invoice No. (10 characters, e.g. DG65L5I9M5)', 'transactionCode');
       }
       return { transactionCode: id, accountSuffix: null };
     }

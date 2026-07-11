@@ -24,7 +24,7 @@ const REFERENCE_DETAIL_BY_METHOD = {
 
 const REFERENCE_FIELDS = {
   telebirr: [
-    { key: 'transactionCode', label: 'Invoice No.', placeholder: 'DF52MV8ILW', hint: '10-character invoice number' },
+    { key: 'transactionCode', label: 'Invoice No.', placeholder: 'DG65L5I9M5', hint: '10-character invoice number' },
   ],
   cbe: [
     { key: 'transactionCode', label: 'FT Reference', placeholder: 'FT26169D8C5M', hint: 'Transaction reference starting with FT' },
@@ -158,7 +158,9 @@ export default function TopUpModal({
     ? 'SMS matched official receipt and was sent to your account'
     : verifyMode === 'reference'
       ? 'Payment ID matched official record and was sent to your account'
-      : 'Payment confirmed from screenshot & QR code'
+      : method === 'telebirr'
+        ? 'Payment confirmed from screenshot via official Telebirr record'
+        : 'Payment confirmed from screenshot & QR code'
 
   if (!isOpen) return null
 
@@ -257,8 +259,12 @@ export default function TopUpModal({
                   <div className="flex items-center gap-3">
                     <Camera size={20} style={{ color: 'var(--color-primary)' }} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm">Screenshot + QR</p>
-                      <p className="text-xs text-[var(--color-text-secondary)]">Upload receipt image</p>
+                      <p className="font-semibold text-sm">Screenshot</p>
+                      <p className="text-xs text-[var(--color-text-secondary)]">
+                        {method === 'telebirr'
+                          ? 'Upload receipt — Invoice No. verified officially'
+                          : 'Upload receipt image'}
+                      </p>
                     </div>
                     <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-primary)' }} />
                   </div>
@@ -305,6 +311,7 @@ export default function TopUpModal({
                 <p className="text-sm font-semibold">Step 3: Upload Payment Screenshot</p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
                   Send payment via {METHOD_LABELS[method]} to the account above, then upload the receipt. Receiver name and account must match.
+                  {method === 'telebirr' && ' We read the Invoice No. from your screenshot and verify it officially — QR code is optional.'}
                 </p>
 
                 <div className="drop-zone p-8 text-center cursor-pointer">

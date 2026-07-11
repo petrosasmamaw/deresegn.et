@@ -22,13 +22,16 @@ export function requiresQrCode(method) {
 }
 
 export function getQrMissingMessage(method) {
+  if (method === 'telebirr') {
+    return 'Upload a Telebirr receipt screenshot with the Invoice No. clearly visible. We read the payment ID from the receipt and verify it on the official Telebirr site — QR code is optional.';
+  }
   const bank = getMethodLabel(method);
   return `Your screenshot must include a QR code. Upload a full ${bank} receipt with the QR code clearly visible.`;
 }
 
 export function getTransactionCodePlaceholder(method) {
   const placeholders = {
-    telebirr: 'e.g. DFC7TG1O11',
+    telebirr: 'e.g. DG65L5I9M5',
     cbe: 'e.g. FT26169D8C5M',
     boa: 'e.g. FT26169X4SRS',
     dashen: 'e.g. 110IPSS2616900WO',
@@ -66,7 +69,7 @@ Field mapping:
 - receiverName = "Credited Party" name
 - receiverAccount = "Credited Party" phone/account
 - amount = "Settled Amount" (NOT "Total Paid Amount" which includes fees)
-- transactionCode = "Invoice No." (usually starts with DFC)
+- transactionCode = "Invoice No." (10 characters, e.g. DFC7TG1O11, DF52MV8ILW, DG65L5I9M5)
 - date = payment date as shown`,
 
   boa: `${BASE_RULES}

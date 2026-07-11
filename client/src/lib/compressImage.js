@@ -1,11 +1,23 @@
-/** Compress large phone screenshots so they pass Vercel's ~4.5MB proxy limit. */
+/** Resize receipt screenshots for fast server OCR (always optimize, not only >4MB). */
+const MAX_EDGE = 1600;
+const JPEG_QUALITY = 0.78;
+const OPTIMIZE_ABOVE_BYTES = 350 * 1024;
+
 export async function compressImageForUpload(file, maxBytes = 3.5 * 1024 * 1024) {
-  if (!file?.type?.startsWith('image/') || file.size <= maxBytes) {
+  if (!file?.type?.startsWith('image/')) {
     return file;
   }
 
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+  const longEdge = Math.max(bitmap.width, bitmap.height);
+  const shouldResize = longEdge > MAX_EDGE || file.size > OPTIMIZE_ABOVE_BYTES;
+
+  if (!shouldResize && file.size <= maxBytes) {
+    bitmap.close();
+    return file;
+  }
+
+  const scale = Math.min(1, MAX_EDGE / longEdge);
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
 
@@ -17,10 +29,10 @@ export async function compressImageForUpload(file, maxBytes = 3.5 * 1024 * 1024)
   bitmap.close();
 
   const blob = await new Promise((resolve) => {
-    canvas.toBlob(resolve, 'image/jpeg', 0.82);
+    canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY);
   });
 
-  if (!blob || blob.size >= file.size) {
+  if (!blob) {
     return file;
   }
 

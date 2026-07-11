@@ -1,4 +1,9 @@
 import { normalizeTxCode } from '../utils/txCode.js';
+import {
+  normalizeTelebirrInvoiceId,
+  extractTelebirrInvoiceFromText,
+  extractTelebirrInvoiceFromExtracted,
+} from '../utils/telebirrInvoice.js';
 import { extractTelebirrInvoiceFromPayload } from './qrService.js';
 import { outboundFetch } from '../utils/outboundFetch.js';
 import { httpsGetText } from '../utils/httpsGet.js';
@@ -6,9 +11,9 @@ import { httpsGetText } from '../utils/httpsGet.js';
 const TELEBIRR_RECEIPT_BASE = 'https://transactioninfo.ethiotelecom.et/receipt/';
 const isProduction = process.env.NODE_ENV === 'production';
 const TELEBIRR_TIMEOUT_MS = Number(process.env.TELEBIRR_FETCH_TIMEOUT_MS)
-  || (isProduction ? 55000 : 20000);
+  || (isProduction ? 30000 : 12000);
 const TELEBIRR_RETRIES = Number(process.env.TELEBIRR_FETCH_RETRIES)
-  || (isProduction ? 3 : 1);
+  || (isProduction ? 2 : 0);
 const inflightReceiptFetches = new Map();
 
 function sleep(ms) {
@@ -19,6 +24,7 @@ const TELEBIRR_HEADERS = {
   Accept: 'text/html,application/xhtml+xml,*/*',
   Referer: 'https://transactioninfo.ethiotelecom.et/',
   'Accept-Language': 'en-US,en;q=0.9',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 };
 
 /** Telebirr receipt page — native HTTPS first (Render-compatible), fetch() fallback. */
@@ -110,23 +116,6 @@ function mapTelebirrHtml(html, invoiceId) {
   };
 }
 
-/** Telebirr invoice IDs are 10 chars: DFC + 7 or DF + 8. */
-export function normalizeTelebirrInvoiceId(value) {
-  const id = normalizeTxCode(value);
-  if (!id || !/^DF[A-Z0-9]{6,12}$/i.test(id)) return null;
-
-  const exact = id.match(/^(DFC[A-Z0-9]{7}|DF[A-Z0-9]{8})$/i);
-  if (exact) return exact[1].toUpperCase();
-
-  if (id.length > 10 && /^DF/i.test(id)) {
-    const trimmed = id.slice(0, 10);
-    const t = trimmed.match(/^(DFC[A-Z0-9]{7}|DF[A-Z0-9]{8})$/i);
-    if (t) return t[1].toUpperCase();
-  }
-
-  return id.toUpperCase();
-}
-
 function nearbyTelebirrInvoices(invoiceId) {
   const id = normalizeTelebirrInvoiceId(invoiceId);
   if (!id || id.length < 8) return [];
@@ -148,7 +137,7 @@ export function collectTelebirrInvoiceCandidates(qrData, extracted = null) {
   const candidates = new Set();
   const fromQr = extractTelebirrInvoiceFromPayload(qrData?.raw)
     || normalizeTelebirrInvoiceId(qrData?.transactionCode);
-  const fromShot = normalizeTelebirrInvoiceId(extracted?.transactionCode);
+  const fromShot = extractTelebirrInvoiceFromExtracted(extracted);
 
   if (fromShot) candidates.add(fromShot);
   if (fromQr) candidates.add(fromQr);
@@ -318,3 +307,9 @@ export function mergeTelebirrApiIntoQrFields(qrFields, telebirrFields) {
     telebirrApiSource: true,
   };
 }
+
+export {
+  normalizeTelebirrInvoiceId,
+  extractTelebirrInvoiceFromText,
+  extractTelebirrInvoiceFromExtracted,
+} from '../utils/telebirrInvoice.js';

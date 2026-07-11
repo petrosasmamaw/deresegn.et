@@ -8,7 +8,7 @@ import ReceiptDetailFields from './ReceiptDetailFields'
 import VerificationFormatGuide from './VerificationFormatGuide'
 
 const METHODS = [
-  { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt with Invoice No. & QR' },
+  { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt with Invoice No.' },
   { id: 'cbe', label: 'Commercial Bank of Ethiopia (CBE)', icon: Building2, desc: 'CBE success screen or VAT/web receipt with FT reference & QR' },
   { id: 'boa', label: 'Bank of Abyssinia', icon: Building2, desc: 'BOA transfer receipt with FT reference' },
   { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen VAT receipt with IPSS reference' },
@@ -23,7 +23,7 @@ const REFERENCE_DETAIL_BY_METHOD = {
 
 const REFERENCE_FIELDS = {
   telebirr: [
-    { key: 'transactionCode', label: 'Invoice No.', placeholder: 'DF52MV8ILW', hint: '10-character invoice number' },
+    { key: 'transactionCode', label: 'Invoice No.', placeholder: 'DG65L5I9M5', hint: '10-character invoice number' },
   ],
   dashen: [
     { key: 'transactionCode', label: 'IPSS Reference', placeholder: '110IPSS2616900WO', hint: 'VAT receipt reference only — not Super App QR' },
@@ -39,7 +39,7 @@ const REFERENCE_FIELDS = {
 }
 
 const TX_PLACEHOLDERS = {
-  telebirr: 'e.g. DFC7TG1O11',
+  telebirr: 'e.g. DG65L5I9M5',
   cbe: 'e.g. FT26169D8C5M',
   boa: 'e.g. FT26169X4SRS',
   dashen: 'e.g. 110IPSS2616900WO',
@@ -55,7 +55,7 @@ https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
 }
 
 const UPLOAD_HINTS = {
-  telebirr: 'Full Telebirr receipt with QR code at the bottom',
+  telebirr: 'Full Telebirr receipt with Invoice No. visible (QR optional — we verify by payment ID)',
   cbe: 'CBE mobile success screen or VAT/web receipt with QR code at the bottom',
   boa: 'Bank of Abyssinia receipt with "Scan the QR to Verify"',
   dashen: 'Dashen receipt or "Successfully paid!" screen with QR code',
@@ -258,7 +258,9 @@ export default function CheckerModal({
       ? 'Verified from official bank record (no screenshot)'
       : withDetails
         ? 'Verified with your entered details'
-        : 'Verified from screenshot & QR code'
+        : method === 'telebirr'
+          ? 'Verified from screenshot via official Telebirr record'
+          : 'Verified from screenshot & QR code'
 
   const previousVerification = (successCheck || lastResult)?.previousVerification || null
   const previousVerificationLabel = previousVerification?.verifiedBy === 'self'
@@ -400,7 +402,7 @@ export default function CheckerModal({
                   </button>
                   <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 2: Choose Verification Type</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    Screenshot uses QR + OCR. Payment ID or SMS looks up the official bank record.
+                    Screenshot reads Invoice No. and verifies officially. Payment ID or SMS also works without an image.
                   </p>
                 </div>
 
@@ -413,8 +415,8 @@ export default function CheckerModal({
                   <div className="flex items-center gap-3">
                     <Camera size={20} style={{ color: 'var(--color-primary)' }} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-[var(--text-sm)]">Screenshot + QR</p>
-                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">Upload receipt image for QR and text verification</p>
+                      <p className="font-semibold text-[var(--text-sm)]">Screenshot</p>
+                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">Upload receipt — we read Invoice No. and verify officially</p>
                     </div>
                     <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-primary)' }} />
                   </div>
@@ -476,7 +478,9 @@ export default function CheckerModal({
                   </button>
                   <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Upload Receipt Screenshot</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    We check the official bank QR code (must not be fake). Full screenshot: text + QR are compared. Cropped screenshot: QR code only.
+                    {method === 'telebirr'
+                      ? 'We read the Invoice No. from your screenshot and verify it on the official Telebirr site. QR code is optional if the invoice number is visible.'
+                      : 'We check the official bank QR code (must not be fake). Full screenshot: text + QR are compared. Cropped screenshot: QR code only.'}
                   </p>
                 </div>
 

@@ -173,6 +173,12 @@ export function detectScreenshotCropped({
   qrAuthentic,
   qrFields,
 }) {
+  if (qrFields?.telebirrApiSource && !qrAuthentic) {
+    if (!extracted?.senderName && qrFields?.senderName) return true;
+    if (!extracted?.receiverName && qrFields?.receiverName) return true;
+    if (!screenshotTx && qrFields?.transactionCode) return true;
+  }
+
   if (!qrAuthentic) return false;
 
   if (screenshotTx && qrTx) {

@@ -22,7 +22,7 @@ const BANK_DOMAINS = {
 function isPlainTransactionCode(text) {
   const t = String(text || '').trim();
   if (!t || t.length > 32) return false;
-  return /^(DFC[A-Z0-9]{6,14}|FT[A-Z0-9]{8,14}|\d{3}IPSS[A-Z0-9]{8,}|IPSS\d+[A-Z0-9]+)$/i.test(t);
+  return /^(?:[A-Z]{3}[A-Z0-9]{7}|[A-Z]{2}[A-Z0-9]{8}|FT[A-Z0-9]{8,14}|\d{3}IPSS[A-Z0-9]{8,}|IPSS\d+[A-Z0-9]+)$/i.test(t);
 }
 function isSignedBankBinaryQr(text) {
   const t = String(text || '').trim();

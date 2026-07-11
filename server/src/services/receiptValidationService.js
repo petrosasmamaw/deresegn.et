@@ -16,6 +16,7 @@ import {
   mergeReceiptSources,
   hasOfficialQrTruth,
 } from './qrFieldExtractor.js';
+import { extractTelebirrInvoiceFromExtracted } from './telebirrReceiptService.js';
 
 function issue(type, code, field, message, extra = {}) {
   return { type, code, field, message, ...extra };
@@ -197,6 +198,20 @@ function validateTopUpReceiver({
   const shotName = extracted?.receiverName;
 
   if (screenshotCropped && method === 'telebirr') {
+    if (qrFields?.telebirrApiSource) {
+      if (!qrFields.receiverAccount || !accountsMatch(qrFields.receiverAccount, expectedAccount)) {
+        issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
+          `Receiver account error: official record shows "${qrFields.receiverAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
+          { qrValue: qrFields.receiverAccount, expectedValue: expectedAccount }));
+      }
+      if (qrFields.receiverName && !namesMatch(qrFields.receiverName, expectedName)) {
+        issues.push(issue('error', 'RECEIVER_NAME_MISMATCH', 'receiverName',
+          `Receiver name error: official record shows "${qrFields.receiverName}" but top-up must be sent to "${expectedName}".`,
+          { qrValue: qrFields.receiverName, expectedValue: expectedName }));
+      }
+      return;
+    }
+
     if (!qrAccount || !accountsMatch(qrAccount, expectedAccount)) {
       issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
         `Receiver account error: QR data does not match your registered account "${expectedAccount}".`,
@@ -351,10 +366,17 @@ function validateTelebirrReceipt({
   telebirrResolve,
 }) {
   const hasOfficial = Boolean(qrFields?.telebirrApiSource);
+  const screenshotInvoice = extractTelebirrInvoiceFromExtracted(extracted);
 
-  if (!hasOfficial && !qrFound) {
+  if (!hasOfficial && !qrFound && !screenshotInvoice) {
     issues.push(issue('error', 'TELEBIRR_VERIFY_FAILED', 'transactionCode',
-      'Could not verify this Telebirr receipt. Upload a screenshot with the QR code visible, or a clear invoice number.'));
+      'Could not verify this Telebirr receipt. Upload a screenshot with the Invoice No. clearly visible, or enter the payment ID directly.'));
+    return;
+  }
+
+  if (!hasOfficial && screenshotInvoice) {
+    issues.push(issue('error', 'TELEBIRR_VERIFY_FAILED', 'transactionCode',
+      `Could not verify Telebirr payment "${screenshotInvoice}". The Invoice No. was read from your screenshot but no official record was found. Check the number is correct.`));
     return;
   }
 
@@ -674,18 +696,29 @@ export function validateReceiptSubmission({
   });
 
   if (requiresQrCode(method)) {
-  if (!qrFound) {
-    if (!(method === 'telebirr' && qrFields?.telebirrApiSource)
-      && !(method === 'dashen' && qrFields?.dashenApiSource)) {
+  if (method === 'telebirr') {
+    const telebirrOfficial = Boolean(qrFields?.telebirrApiSource);
+    const telebirrScreenshotInvoice = extractTelebirrInvoiceFromExtracted(extracted);
+
+    if (!telebirrOfficial && !qrFound && !telebirrScreenshotInvoice) {
+      issues.push(issue('error', 'QR_MISSING', 'screenshot', getQrMissingMessage(method), { qrValue: null }));
+    } else if (telebirrOfficial) {
+      // Official Telebirr record loaded — QR/OCR optional
+    } else if (qrFound && qrAuthenticity && !qrAuthenticity.authentic) {
+      const fakeIssue = buildFakeQrIssue(qrAuthenticity, method);
+      issues.push(issue('error', fakeIssue.code, fakeIssue.field, fakeIssue.message, { qrFormat: qrAuthenticity.format }));
+    } else if (!telebirrOfficial && qrFound && !qrTx && !telebirrScreenshotInvoice) {
+      issues.push(issue('error', 'QR_UNREADABLE', 'transactionCode',
+        'Could not read the Telebirr Invoice No. from your screenshot. Make sure the full receipt is visible with the Invoice No. text readable — QR code is optional.',
+        { qrValue: null }));
+    }
+  } else if (!qrFound) {
+    if (!(method === 'dashen' && qrFields?.dashenApiSource)) {
       issues.push(issue('error', 'QR_MISSING', 'screenshot', getQrMissingMessage(method), { qrValue: null }));
     }
   } else if (qrAuthenticity && !qrAuthenticity.authentic) {
       const fakeIssue = buildFakeQrIssue(qrAuthenticity, method);
       issues.push(issue('error', fakeIssue.code, fakeIssue.field, fakeIssue.message, { qrFormat: qrAuthenticity.format }));
-    } else if (method === 'telebirr' && !qrTx && !qrFields?.telebirrApiSource) {
-      issues.push(issue('error', 'QR_UNREADABLE', 'transactionCode',
-        `A QR code was found on your ${getMethodLabel(method)} receipt but could not be read clearly. Upload a sharper screenshot with the full QR code visible.`,
-        { qrValue: null }));
     }
   }
 
@@ -749,6 +782,11 @@ export function validateReceiptSubmission({
       }[method] || 'QR code')
       : 'QR code';
     validateScreenshotAgainstTruth({ issues, extracted, qrFields, truthLabel });
+  }
+
+  if (method === 'telebirr' && qrFields?.telebirrApiSource && !qrFound) {
+    issues.push(issue('warning', 'TELEBIRR_OFFICIAL_VERIFIED', null,
+      'Verified via official Telebirr record using Invoice No. from your screenshot.'));
   }
 
   if (method === 'telebirr' && qrFound && qrAuthentic && !qrFields?.telebirrApiSource && !screenshotCropped) {

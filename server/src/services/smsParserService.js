@@ -178,7 +178,7 @@ export function parseTelebirrSms(text) {
   const blob = normalizeSmsBlob(text);
   const receiptUrl = cleanUrl(blob.match(/https?:\/\/transactioninfo\.ethiotelecom\.et\/receipt\/[A-Z0-9]+/i)?.[0]);
   const invoiceFromUrl = receiptUrl?.match(/\/receipt\/([A-Z0-9]+)/i)?.[1];
-  const invoiceFromText = blob.match(/\btransaction number is\s+(DF[A-Z0-9]{6,})/i)?.[1];
+  const invoiceFromText = blob.match(/\btransaction number is\s+([A-Z0-9]{8,12})/i)?.[1];
 
   const transactionCode = normalizeTelebirrInvoiceId(invoiceFromUrl)
     || normalizeTelebirrInvoiceId(invoiceFromText)

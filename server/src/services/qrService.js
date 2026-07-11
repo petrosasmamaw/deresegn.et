@@ -10,6 +10,12 @@ import {
   HybridBinarizer,
   GlobalHistogramBinarizer,
 } from '@zxing/library';
+import { TELEBIRR_INVOICE_RE } from '../utils/telebirrInvoice.js';
+
+function matchTelebirrInvoice(text) {
+  const hit = String(text).match(/\b([A-Z]{2,3}[A-Z0-9]{7,8})\b/i)?.[1];
+  return hit && TELEBIRR_INVOICE_RE.test(hit) ? hit.toUpperCase() : null;
+}
 
 /** Decode Telebirr QR binary payload — invoice is hex-encoded after 0A marker. */
 export function extractTelebirrInvoiceFromPayload(payload) {
@@ -37,22 +43,36 @@ export function extractTelebirrInvoiceFromPayload(payload) {
     }
     if (hex.length >= 10) {
       const ascii = Buffer.from(hex, 'hex').toString('ascii');
-      const exact = ascii.match(/\b(DFC[A-Z0-9]{7}|DF[A-Z0-9]{8})\b/i);
-      if (exact) return exact[1].toUpperCase();
-      if (/^DFC[A-Z0-9]{7}/i.test(ascii)) {
+      const exact = matchTelebirrInvoice(ascii);
+      if (exact) return exact;
+      if (/^[A-Z]{2,3}[A-Z0-9]{7,8}/i.test(ascii)) {
         return ascii.slice(0, 10).toUpperCase();
       }
-      const telebirr = ascii.match(/^(DFC[A-Z0-9]{7})(?=[^A-Z0-9]|$)/i)
-        || ascii.match(/^(DF[A-Z0-9]{8})(?=[^A-Z0-9]|$)/i);
+      const telebirr = ascii.match(/^([A-Z]{2,3}[A-Z0-9]{7,8})(?=[^A-Z0-9]|$)/i);
       if (telebirr) return telebirr[1].toUpperCase();
     }
   }
 
-  const direct = text.match(/\b(DFC[A-Z0-9]{7})\b/i)
-    || text.match(/\b(DF[A-Z0-9]{8})\b/i)
-    || text.match(/\b(DFC[A-Z0-9]{6,7})\b/i)
-    || text.match(/\b(DF[A-Z0-9]{7,8})\b/i);
-  if (direct) return direct[1].toUpperCase();
+  const direct = matchTelebirrInvoice(text);
+  if (direct) return direct;
+
+  // Scan decoded binary chunks for embedded invoice IDs
+  const chunks = [text];
+  if (/^[A-Za-z0-9+/=]+$/.test(text) && text.length > 16) {
+    try {
+      const decoded = Buffer.from(text, 'base64');
+      chunks.push(decoded.toString('ascii'), decoded.toString('utf8'), decoded.toString('hex'));
+    } catch {
+      // ignore
+    }
+  }
+  for (const chunk of chunks) {
+    const hits = [...String(chunk).matchAll(/\b([A-Z]{2,3}[A-Z0-9]{7,8})\b/gi)];
+    for (const hit of hits) {
+      const normalized = matchTelebirrInvoice(hit[1]);
+      if (normalized) return normalized;
+    }
+  }
 
   return null;
 }
@@ -111,7 +131,7 @@ export function parseTransactionFromQr(qrText) {
 
   const patterns = [
     /(?:invoice|txn|transaction|reference|ref)[:\s#-]*([A-Z0-9]{8,20})/i,
-    /\b(DFC[A-Z0-9]{6,14})\b/i,
+    /\b([A-Z]{2,3}[A-Z0-9]{7,8})\b/i,
     /\b(FT[A-Z0-9]{8,14})\b/i,
     /\b(\d{3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i,
     /\b(IPSS\d+[A-Z0-9]+)\b/i,
