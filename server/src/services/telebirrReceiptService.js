@@ -7,6 +7,10 @@ import {
 import { extractTelebirrInvoiceFromPayload } from './qrService.js';
 import { outboundFetch } from '../utils/outboundFetch.js';
 import { httpsGetText } from '../utils/httpsGet.js';
+import {
+  fetchTelebirrViaPetros,
+  isPetrosVerifierConfigured,
+} from './petrosVerifierService.js';
 
 const TELEBIRR_RECEIPT_BASE = 'https://transactioninfo.ethiotelecom.et/receipt/';
 const isProduction = process.env.NODE_ENV === 'production';
@@ -14,6 +18,13 @@ const TELEBIRR_TIMEOUT_MS = Number(process.env.TELEBIRR_FETCH_TIMEOUT_MS)
   || (isProduction ? 30000 : 12000);
 const TELEBIRR_RETRIES = Number(process.env.TELEBIRR_FETCH_RETRIES)
   || (isProduction ? 2 : 0);
+/** Prefer Petros verifier (works from US/Render). Direct Ethio Telecom is fallback / local. */
+const TELEBIRR_PREFER_PETROS = !/^(0|false|no)$/i.test(
+  String(process.env.TELEBIRR_PREFER_PETROS ?? 'true'),
+);
+const TELEBIRR_SKIP_DIRECT = /^(1|true|yes)$/i.test(
+  String(process.env.TELEBIRR_SKIP_DIRECT || ''),
+);
 const inflightReceiptFetches = new Map();
 
 function sleep(ms) {
@@ -155,14 +166,39 @@ export async function fetchTelebirrReceipt(invoiceId) {
   }
 
   const fetchPromise = (async () => {
-    const url = `${TELEBIRR_RECEIPT_BASE}${encodeURIComponent(id)}`;
     try {
+      // 1) Petros verifier (payment ID → official Telebirr record)
+      if (TELEBIRR_PREFER_PETROS && isPetrosVerifierConfigured()) {
+        const fromPetros = await fetchTelebirrViaPetros(id);
+        if (fromPetros) {
+          console.log('[Telebirr] Official receipt loaded:', id, 'amount', fromPetros.amount, 'via petros');
+          return fromPetros;
+        }
+      }
+
+      if (TELEBIRR_SKIP_DIRECT) {
+        console.warn('[Telebirr] Petros miss and TELEBIRR_SKIP_DIRECT=true — skipping Ethio Telecom');
+        return null;
+      }
+
+      // 2) Direct Ethio Telecom HTML (works from Ethiopia / some networks)
+      const url = `${TELEBIRR_RECEIPT_BASE}${encodeURIComponent(id)}`;
       const html = await fetchTelebirrHtml(url, id);
-      if (!html) return null;
+      if (!html) {
+        // 3) Petros fallback if prefer was false or first call failed
+        if (!TELEBIRR_PREFER_PETROS && isPetrosVerifierConfigured()) {
+          const fromPetros = await fetchTelebirrViaPetros(id);
+          if (fromPetros) {
+            console.log('[Telebirr] Official receipt loaded:', id, 'amount', fromPetros.amount, 'via petros-fallback');
+            return fromPetros;
+          }
+        }
+        return null;
+      }
 
       const mapped = mapTelebirrHtml(html, id);
       if (mapped) {
-        console.log('[Telebirr] Official receipt loaded:', id, 'amount', mapped.amount);
+        console.log('[Telebirr] Official receipt loaded:', id, 'amount', mapped.amount, 'via direct');
       }
       return mapped;
     } catch (err) {

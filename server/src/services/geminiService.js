@@ -15,9 +15,14 @@ const MODELS = [
   'gemini-3.1-flash-lite',
 ];
 
-const FAST_MODEL = 'gemini-2.5-flash-lite';
+/** Prefer the model that currently succeeds for Telebirr Invoice No. OCR. */
+const TELEBIRR_INVOICE_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash-lite',
+];
+
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 18000;
-const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 10000;
+const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 8000;
 
 let cachedGenAI = null;
 let cachedApiKey = null;
@@ -133,7 +138,7 @@ export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mime
   throw lastError || new Error('All Gemini models failed — check GEMINI_API_KEY and quota');
 }
 
-/** Fast Telebirr invoice-only OCR — single fastest model. */
+/** Fast Telebirr invoice-only OCR — prefer working flash-lite first (avoid multi-model timeouts). */
 export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image/jpeg') {
   if (isGeminiQuotaBlocked()) return null;
 
@@ -142,7 +147,7 @@ export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image
 
   const base64 = buffer.toString('base64');
 
-  for (const modelName of MODELS) {
+  for (const modelName of TELEBIRR_INVOICE_MODELS) {
     try {
       const text = await callModel(
         apiKey,
@@ -161,11 +166,14 @@ export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image
         return invoice;
       }
     } catch (err) {
+      console.warn(`[Gemini] invoice OCR ${modelName}:`, err.message);
       if (isQuotaError(err)) {
         markGeminiQuotaBlocked();
         return null;
       }
-      if (!isRetryableModelError(err)) break;
+      if (!isRetryableModelError(err) && !/timed out/i.test(err.message || '')) {
+        // try next preferred model
+      }
     }
   }
 

@@ -22,7 +22,8 @@ import {
 import { extractTelebirrInvoiceFromExtracted } from '../utils/telebirrInvoice.js';
 import { prepareOcrBuffer } from '../utils/prepareOcrBuffer.js';
 
-const QR_BUDGET_MS = 6000;
+/** Keep QR short — payment ID from invoice OCR or quick QR, then Petros. */
+const QR_BUDGET_MS = Number(process.env.TELEBIRR_QR_BUDGET_MS) || 2500;
 
 const EMPTY_EXTRACTED = {
   senderName: null,
@@ -70,7 +71,7 @@ async function decodeTelebirrQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepar
   const deadline = Date.now() + maxMs;
   const shouldStop = () => Date.now() >= deadline;
 
-  const quick = await decodeQrFromBuffer(buffer, { maxMs: Math.min(maxMs, 4000), image: prepared });
+  const quick = await decodeQrFromBuffer(buffer, { maxMs: Math.min(maxMs, 1800), image: prepared });
   const quickInvoice = resolveQrInvoice(quick);
   if (quickInvoice) {
     console.log('[Telebirr] QR decoded (generic):', quickInvoice);
@@ -80,13 +81,12 @@ async function decodeTelebirrQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepar
   try {
     const h = prepared.bitmap.height;
     const w = prepared.bitmap.width;
-    for (const cut of [0.3, 0.45, 0.55, 0.65]) {
+    for (const cut of [0.45, 0.55]) {
       if (shouldStop()) break;
       const y = Math.floor(h * cut);
       const crops = [
         prepared.clone().crop({ x: 0, y, w, h: h - y }).scale(3),
         prepared.clone().crop({ x: 0, y, w, h: h - y }).greyscale().invert().scale(4),
-        prepared.clone().crop({ x: 0, y, w, h: h - y }).scale(5),
       ];
       for (const variant of crops) {
         if (shouldStop()) break;
@@ -111,8 +111,73 @@ async function decodeTelebirrQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepar
 }
 
 /**
- * Telebirr verify — QR + official lookup first (no Gemini required).
- * Gemini 2.5 Flash-Lite only when QR/OCR cannot read the invoice.
+ * Race quick QR vs Gemini invoice OCR — resolve as soon as either finds Invoice No.
+ * `ocrPromise` may already be running (started during image prep).
+ */
+async function resolveInvoiceFast(buffer, mime, prepared, ocrPromise = null) {
+  let settled = false;
+  let qrData = buildQrDataFromRaw(null);
+
+  return new Promise((resolve) => {
+    const finish = (invoice, source, qr = null) => {
+      if (settled || !invoice) return;
+      settled = true;
+      if (qr) qrData = qr;
+      resolve({ invoice, source, qrData });
+    };
+
+    const qrTask = decodeTelebirrQrFromBuffer(buffer, {
+      maxMs: QR_BUDGET_MS,
+      preparedImage: prepared,
+    }).then((qr) => {
+      qrData = qr || qrData;
+      const invoice = resolveQrInvoice(qr);
+      if (invoice) {
+        console.log('[Telebirr] fast path invoice from QR:', invoice);
+        finish(invoice, 'qr', qr);
+      }
+      return qr;
+    }).catch((err) => {
+      console.warn('[Telebirr] QR race error:', err.message);
+      return null;
+    });
+
+    const ocrTask = (ocrPromise
+      || (isGeminiQuotaBlocked()
+        ? Promise.resolve(null)
+        : extractTelebirrInvoiceFromBuffer(buffer, mime)))
+      .then((invoice) => {
+        if (invoice) {
+          console.log('[Telebirr] fast path invoice from OCR:', invoice);
+          finish(invoice, 'focused', qrData);
+        }
+        return invoice;
+      })
+      .catch((err) => {
+        console.warn('[Telebirr] OCR race error:', err.message);
+        return null;
+      });
+
+    Promise.all([qrTask, ocrTask]).then(([qr, focusedInvoice]) => {
+      if (settled) return;
+      const fromQr = resolveQrInvoice(qr);
+      if (fromQr) {
+        finish(fromQr, 'qr', qr);
+        return;
+      }
+      if (focusedInvoice) {
+        finish(focusedInvoice, 'focused', qr || qrData);
+        return;
+      }
+      settled = true;
+      resolve({ invoice: null, source: null, qrData: qr || qrData });
+    });
+  });
+}
+
+/**
+ * Telebirr screenshot verify — extract Invoice No. fast, then Petros (same as payment ID).
+ * Skips full Gemini receipt OCR when Petros succeeds.
  */
 export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', screenshotPath }) {
   if (!buffer && screenshotPath) {
@@ -123,39 +188,39 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
   }
 
   const started = Date.now();
+  console.log('[Telebirr] verify', buffer.length, 'bytes', mime);
+
+  // Start invoice OCR immediately on original bytes (overlaps Jimp prep).
+  const ocrPromise = isGeminiQuotaBlocked()
+    ? Promise.resolve(null)
+    : extractTelebirrInvoiceFromBuffer(buffer, mime);
+
   const preparedInput = await prepareOcrBuffer(buffer, mime);
   buffer = preparedInput.buffer;
   mime = preparedInput.mime;
-  console.log('[Telebirr] verify', buffer.length, 'bytes', mime);
-
   const prepared = await prepareQrScanImage(buffer);
+  const fast = await resolveInvoiceFast(buffer, mime, prepared, ocrPromise);
+  let qrData = fast.qrData || buildQrDataFromRaw(null);
 
-  let qrData = await decodeTelebirrQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, preparedImage: prepared });
-  let officialHit = await officialFromInvoice(resolveQrInvoice(qrData), 'qr');
-
+  let officialHit = await officialFromInvoice(fast.invoice, fast.source || 'fast');
   let geminiUsed = false;
   let geminiError = null;
   let extracted = officialHit
     ? buildExtractedFromOfficial(officialHit)
     : { ...EMPTY_EXTRACTED };
 
-  if (!officialHit && !isGeminiQuotaBlocked()) {
-    const focusedInvoice = await extractTelebirrInvoiceFromBuffer(buffer, mime);
-    if (focusedInvoice) {
-      officialHit = await officialFromInvoice(focusedInvoice, 'focused');
-      if (officialHit) {
-        extracted = buildExtractedFromOfficial(officialHit);
-      }
-    }
-  }
-
+  // Slow path only when invoice still unknown / Petros miss
   if (!officialHit && !isGeminiQuotaBlocked()) {
     try {
       geminiUsed = true;
+      console.log('[Telebirr] falling back to full Gemini extract');
       const data = await extractPaymentFromBuffer(buffer, 'telebirr', mime);
       extracted = data;
       const geminiInvoice = extractTelebirrInvoiceFromExtracted(data);
       officialHit = await officialFromInvoice(geminiInvoice, 'screenshot');
+      if (officialHit) {
+        extracted = buildExtractedFromOfficial(officialHit);
+      }
     } catch (err) {
       geminiError = err.message;
       geminiUsed = false;
@@ -164,17 +229,6 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
   } else if (!officialHit && isGeminiQuotaBlocked()) {
     geminiError = 'Gemini quota exceeded — verified via QR and official Telebirr lookup only';
     console.warn('[Gemini]', geminiError);
-  }
-
-  if (!officialHit && !resolveQrInvoice(qrData)) {
-    const retryQr = await decodeTelebirrQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, preparedImage: prepared });
-    if (resolveQrInvoice(retryQr)) {
-      qrData = retryQr;
-      officialHit = await officialFromInvoice(resolveQrInvoice(retryQr), 'qr');
-      if (officialHit) {
-        extracted = buildExtractedFromOfficial(officialHit);
-      }
-    }
   }
 
   let qrFields = extractQrReceiptFields('telebirr', qrData);
@@ -198,9 +252,7 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
       ),
       verifiedVia: officialHit.source === 'qr'
         ? 'qr_invoice'
-        : officialHit.source === 'focused'
-          ? 'screenshot_invoice'
-          : 'screenshot_invoice',
+        : 'screenshot_invoice',
     };
     console.log('[Telebirr] Official record:', telebirrOfficial.transactionCode,
       'via', officialHit.source, 'amount', telebirrOfficial.amount);
