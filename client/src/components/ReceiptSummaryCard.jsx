@@ -1,14 +1,18 @@
-export default function ReceiptSummaryCard({ details = {}, title = 'Transaction Details' }) {
+import { useLocale } from '../i18n/LocaleContext'
+
+export default function ReceiptSummaryCard({ details = {}, title }) {
+  const { t } = useLocale()
+  const heading = title ?? t('field.transactionDetails')
   const rows = [
-    ['From', details.senderName, details.senderAccount],
-    ['To', details.receiverName, details.receiverAccount],
-    ['Amount', details.amount ? `${details.amount} ETB` : '—'],
-    ['Payment ID', details.transactionCode],
+    [t('field.from'), details.senderName, details.senderAccount],
+    [t('field.to'), details.receiverName, details.receiverAccount],
+    [t('field.amountShort'), details.amount ? `${details.amount} ETB` : '—'],
+    [t('field.paymentId'), details.transactionCode],
   ]
 
   return (
     <div className="receipt-card">
-      <div className="receipt-card-header">{title}</div>
+      <div className="receipt-card-header">{heading}</div>
       <div className="receipt-card-body">
         {rows.map(([label, primary, secondary]) => (
           <div key={label} className="receipt-card-row">

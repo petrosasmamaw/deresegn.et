@@ -1,23 +1,25 @@
 import { AlertCircle, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+import { useLocale } from '../i18n/LocaleContext'
 
 function VisualDiff({ item }) {
+  const { t } = useLocale()
   const rows = []
   if (item.formValue != null) {
-    rows.push({ label: 'You entered', value: item.formValue, status: 'entered' })
+    rows.push({ label: t('result.youEntered'), value: item.formValue, status: 'entered' })
   }
   if (item.screenshotValue != null) {
     const mismatch = item.formValue != null && item.formValue !== item.screenshotValue
-    rows.push({ label: 'Screenshot shows', value: item.screenshotValue, status: mismatch ? 'mismatch' : 'match' })
+    rows.push({ label: t('result.screenshotShows'), value: item.screenshotValue, status: mismatch ? 'mismatch' : 'match' })
   }
   if (item.qrValue != null) {
     const mismatch = (item.formValue != null && item.formValue !== item.qrValue)
       || (item.screenshotValue != null && item.screenshotValue !== item.qrValue)
-    rows.push({ label: 'Official record', value: item.qrValue, status: mismatch ? 'mismatch' : 'match' })
+    rows.push({ label: t('result.officialRecord'), value: item.qrValue, status: mismatch ? 'mismatch' : 'match' })
   }
   if (rows.length === 0) return null
 
   return (
-    <div className="payment-verify-diff" aria-label="Field comparison">
+    <div className="payment-verify-diff" aria-label={t('result.fieldCompare')}>
       {rows.map((row) => (
         <div
           key={row.label}
@@ -34,61 +36,40 @@ function VisualDiff({ item }) {
   )
 }
 
-const FIELD_LABELS = {
-  senderName: 'Sender name',
-  senderAccount: 'Sender account',
-  receiverName: 'Receiver name',
-  receiverAccount: 'Receiver account',
-  amount: 'Amount',
-  transactionCode: 'Payment ID',
-  screenshot: 'Screenshot',
-  smsText: 'SMS message',
+function issueLabel(t, item) {
+  if (item.code && t(`code.${item.code}`) !== `code.${item.code}`) {
+    return t(`code.${item.code}`)
+  }
+  const fieldMap = {
+    senderName: 'field.senderName',
+    senderAccount: 'field.senderAccount',
+    receiverName: 'field.receiverName',
+    receiverAccount: 'field.receiverAccount',
+    amount: 'common.amount',
+    transactionCode: 'field.paymentId',
+    screenshot: 'result.screenshot',
+    smsText: 'result.smsMessage',
+  }
+  if (item.field && fieldMap[item.field]) return t(fieldMap[item.field])
+  return item.code?.replace(/_/g, ' ') || t('result.error')
 }
 
-const CODE_LABELS = {
-  FRAUD_EDITED_RECEIPT: 'Payment ID error',
-  FAKE_QR_CODE: 'Fake QR code detected',
-  DUPLICATE_TX: 'Payment ID error',
-  QR_MISSING: 'QR code missing',
-  QR_UNREADABLE: 'QR code not readable',
-  TX_FORM_QR_MISMATCH: 'Payment ID error',
-  TX_FORM_SCREENSHOT_MISMATCH: 'Payment ID error',
-  TX_CODE_MISMATCH: 'Payment ID error',
-  SENDER_NAME_MISMATCH: 'Sender name error',
-  SENDER_ACCOUNT_MISMATCH: 'Sender account error',
-  RECEIVER_NAME_MISMATCH: 'Receiver name error',
-  RECEIVER_ACCOUNT_MISMATCH: 'Receiver account error',
-  AMOUNT_FORM_SCREENSHOT_MISMATCH: 'Amount error',
-  SCREENSHOT_REQUIRED: 'Screenshot required',
-  SMS_PARSE_FAILED: 'SMS parse error',
-  SMS_TX_MISMATCH: 'Payment ID error',
-  SMS_AMOUNT_MISMATCH: 'Amount error',
-  SMS_RECEIVER_MISMATCH: 'Receiver name error',
-  SMS_RECEIVER_ACCOUNT_MISMATCH: 'Receiver account error',
-  SMS_ACCOUNT_MISMATCH: 'Account error',
-  INVALID_SMS: 'Invalid SMS',
-  SMS_REQUIRED: 'SMS required',
-  OFFICIAL_RECORD_NOT_FOUND: 'Payment ID',
-  BANK_EGRESS_FAILED: 'Bank connection',
-  INVALID_REFERENCE_INPUT: 'Payment ID',
-  CBE_VERIFY_FAILED: 'CBE verification',
-  TELEBIRR_VERIFY_FAILED: 'Telebirr verification',
-}
-
-export function VerificationFailureList({ issues = [], title = 'Receipt could not be verified' }) {
+export function VerificationFailureList({ issues = [], title }) {
+  const { t } = useLocale()
   if (!issues.length) return null
+  const heading = title || t('result.couldNotVerify')
 
   return (
     <div className="payment-verify-fail">
       <div className="payment-verify-fail-header">
         <AlertCircle size={18} strokeWidth={1.5} aria-hidden="true" />
-        <p className="font-medium">{title}</p>
+        <p className="font-medium">{heading}</p>
       </div>
       <ul className="payment-verify-list">
         {issues.map((item, idx) => (
           <li key={`${item.code || 'issue'}-${item.field || 'f'}-${idx}`} className="payment-verify-item payment-verify-item-error">
             <span className="payment-verify-item-label">
-              {CODE_LABELS[item.code] || FIELD_LABELS[item.field] || item.code?.replace(/_/g, ' ') || 'Error'}
+              {issueLabel(t, item)}
             </span>
             <p className="payment-verify-item-msg">{item.message}</p>
             <VisualDiff item={item} />
@@ -100,6 +81,7 @@ export function VerificationFailureList({ issues = [], title = 'Receipt could no
 }
 
 export function VerificationWarningList({ issues = [] }) {
+  const { t } = useLocale()
   const warnings = issues.filter((i) => i.type === 'warning')
   if (!warnings.length) return null
 
@@ -107,7 +89,7 @@ export function VerificationWarningList({ issues = [] }) {
     <div className="payment-verify-warn">
       <div className="payment-verify-fail-header">
         <AlertTriangle size={18} strokeWidth={1.5} aria-hidden="true" />
-        <p className="font-medium">Notes</p>
+        <p className="font-medium">{t('result.notes')}</p>
       </div>
       <ul className="payment-verify-list">
         {warnings.map((item, idx) => (

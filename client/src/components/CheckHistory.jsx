@@ -2,13 +2,7 @@ import { useMemo, useState } from 'react'
 import { CheckCircle2, Clock, Search } from 'lucide-react'
 import EmptyState from './EmptyState'
 import CheckHistoryDetailModal from './CheckHistoryDetailModal'
-
-const METHOD_LABELS = {
-  telebirr: 'Telebirr',
-  cbe: 'CBE',
-  boa: 'Bank of Abyssinia',
-  dashen: 'Dashen Bank',
-}
+import { useLocale } from '../i18n/LocaleContext'
 
 const BANK_BADGE_CLASS = {
   telebirr: 'bank-badge-telebirr',
@@ -17,22 +11,29 @@ const BANK_BADGE_CLASS = {
   dashen: 'bank-badge-dashen',
 }
 
-const TIER_LABELS = {
-  verified: 'Verified',
-  likely_valid: 'Likely Valid',
-  suspicious: 'Suspicious',
-}
-
-function BankBadge({ method }) {
-  const label = METHOD_LABELS[method] || method
+function BankBadge({ method, label }) {
   const badgeClass = BANK_BADGE_CLASS[method] || 'bank-badge-cbe'
-  return <span className={`bank-badge ${badgeClass}`}>{label}</span>
+  return <span className={`bank-badge ${badgeClass}`}>{label || method}</span>
 }
 
 export default function CheckHistory({ checks = [], loading = false }) {
+  const { t } = useLocale()
   const [search, setSearch] = useState('')
   const [methodFilter, setMethodFilter] = useState('all')
   const [selected, setSelected] = useState(null)
+
+  const methodLabels = useMemo(() => ({
+    telebirr: t('method.telebirr'),
+    cbe: 'CBE',
+    boa: t('method.boa'),
+    dashen: t('method.dashen'),
+  }), [t])
+
+  const tierLabels = useMemo(() => ({
+    verified: t('common.verified'),
+    likely_valid: t('history.likelyValid'),
+    suspicious: t('history.suspicious'),
+  }), [t])
 
   const filtered = useMemo(() => {
     return checks.filter((check) => {
@@ -57,8 +58,8 @@ export default function CheckHistory({ checks = [], loading = false }) {
     return (
       <EmptyState
         icon={Clock}
-        title="No verifications yet"
-        description="Verify receipt scans to see them appear here. Cost varies: 2-20 Birr per check based on amount."
+        title={t('history.empty')}
+        description={t('history.emptyHint')}
       />
     )
   }
@@ -71,13 +72,13 @@ export default function CheckHistory({ checks = [], loading = false }) {
           <input
             type="search"
             className="input w-full pl-9"
-            placeholder="Search payment ID..."
+            placeholder={t('history.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <select className="input" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
-          <option value="all">All banks</option>
+          <option value="all">{t('history.allBanks')}</option>
           <option value="telebirr">Telebirr</option>
           <option value="cbe">CBE</option>
           <option value="boa">BOA</option>
@@ -86,19 +87,19 @@ export default function CheckHistory({ checks = [], loading = false }) {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-[var(--color-text-secondary)] py-4 text-center">No verifications match your filters.</p>
+        <p className="text-sm text-[var(--color-text-secondary)] py-4 text-center">{t('history.noMatch')}</p>
       ) : (
         <>
           <div className="hidden md:block overflow-x-auto rounded-lg border" style={{ borderColor: 'rgba(14, 36, 32, 0.12)' }}>
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Method</th>
-                  <th>Payment ID</th>
-                  <th>Amount</th>
-                  <th>Confidence</th>
-                  <th>Cost</th>
+                  <th>{t('history.date')}</th>
+                  <th>{t('history.method')}</th>
+                  <th>{t('history.paymentId')}</th>
+                  <th>{t('history.amount')}</th>
+                  <th>{t('history.confidence')}</th>
+                  <th>{t('history.cost')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -116,18 +117,18 @@ export default function CheckHistory({ checks = [], loading = false }) {
                       })}
                     </td>
                     <td>
-                      <BankBadge method={check.paymentMethod} />
+                      <BankBadge method={check.paymentMethod} label={methodLabels[check.paymentMethod]} />
                     </td>
                     <td className="tx-mono">{check.transactionCode}</td>
                     <td className="amount-mono">{check.amount} ETB</td>
                     <td>
                       <span className={`confidence-badge confidence-badge--${check.confidenceTier || 'verified'}`}>
                         <CheckCircle2 size={11} />
-                        {TIER_LABELS[check.confidenceTier] || 'Verified'}
+                        {tierLabels[check.confidenceTier] || t('common.verified')}
                       </span>
                     </td>
                     <td className="font-mono font-medium text-[var(--color-text-secondary)]">
-                      {check.isRecheck ? 'Free' : `−${check.balanceDeducted}`}
+                      {check.isRecheck ? t('history.free') : `−${check.balanceDeducted}`}
                     </td>
                   </tr>
                 ))}
@@ -145,17 +146,17 @@ export default function CheckHistory({ checks = [], loading = false }) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="receipt-label mb-1">#{check.id} · {METHOD_LABELS[check.paymentMethod]}</p>
+                    <p className="receipt-label mb-1">#{check.id} · {methodLabels[check.paymentMethod]}</p>
                     <p className="font-mono text-[13px] text-[var(--color-ink)] truncate">{check.transactionCode}</p>
                   </div>
                   <span className={`confidence-badge confidence-badge--${check.confidenceTier || 'verified'} flex-shrink-0`}>
-                    {TIER_LABELS[check.confidenceTier] || 'Verified'}
+                    {tierLabels[check.confidenceTier] || t('common.verified')}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3 mt-2 pt-2 border-t" style={{ borderColor: 'rgba(14, 36, 32, 0.08)' }}>
                   <p className="amount-mono text-[14px]">{check.amount} ETB</p>
                   <p className="font-mono text-[13px] text-[var(--color-text-secondary)]">
-                    {check.isRecheck ? 'Free recheck' : `−${check.balanceDeducted} Birr`}
+                    {check.isRecheck ? t('history.freeRecheck') : `−${check.balanceDeducted} ${t('common.birr')}`}
                   </p>
                 </div>
               </button>

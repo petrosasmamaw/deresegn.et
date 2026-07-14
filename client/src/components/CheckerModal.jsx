@@ -1,42 +1,12 @@
-import { useState } from 'react'
-import { X, Smartphone, Building2, CheckCircle2, RotateCcw, ArrowRight, Upload, ListChecks, Hash, Camera, MessageSquare } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Smartphone, Building2, RotateCcw, ArrowRight, Upload, ListChecks, Hash, Camera, MessageSquare } from 'lucide-react'
 import Modal from './Modal'
 import { VerificationFailureList, VerificationSuccessNote, VerificationWarningList } from './VerificationResult'
 import VerificationCertificate from './VerificationCertificate'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 import ReceiptDetailFields from './ReceiptDetailFields'
 import VerificationFormatGuide from './VerificationFormatGuide'
-
-const METHODS = [
-  { id: 'telebirr', label: 'Telebirr', icon: Smartphone, desc: 'Mobile wallet receipt with Invoice No.' },
-  { id: 'cbe', label: 'Commercial Bank of Ethiopia (CBE)', icon: Building2, desc: 'CBE success screen or VAT/web receipt with FT reference & QR' },
-  { id: 'boa', label: 'Bank of Abyssinia', icon: Building2, desc: 'BOA transfer receipt with FT reference' },
-  { id: 'dashen', label: 'Dashen Bank', icon: Building2, desc: 'Dashen VAT receipt with IPSS reference' },
-]
-
-const REFERENCE_DETAIL_BY_METHOD = {
-  telebirr: 'Invoice No. only',
-  dashen: 'IPSS reference only (VAT receipts)',
-  cbe: 'FT reference + last 8 digits of sender account',
-  boa: 'FT reference + last 5 digits of sender account',
-}
-
-const REFERENCE_FIELDS = {
-  telebirr: [
-    { key: 'transactionCode', label: 'Invoice No.', placeholder: 'DG65L5I9M5', hint: '10-character invoice number' },
-  ],
-  dashen: [
-    { key: 'transactionCode', label: 'IPSS Reference', placeholder: '110IPSS2616900WO', hint: 'VAT receipt reference only — not Super App QR' },
-  ],
-  cbe: [
-    { key: 'transactionCode', label: 'FT Reference', placeholder: 'FT26169D8C5M', hint: 'Transaction reference starting with FT' },
-    { key: 'accountSuffix', label: 'Last 8 digits of sender account', placeholder: '12345678', hint: 'Last 8 digits of the account that sent the money (your CBE account)' },
-  ],
-  boa: [
-    { key: 'transactionCode', label: 'FT Reference', placeholder: 'FT26169X4SRS', hint: 'Transaction reference starting with FT' },
-    { key: 'accountSuffix', label: 'Last 5 digits of sender account', placeholder: '12345', hint: 'Last 5 digits of the account that sent the money (your BOA account)' },
-  ],
-}
+import { useLocale } from '../i18n/LocaleContext'
 
 const TX_PLACEHOLDERS = {
   telebirr: 'e.g. DG65L5I9M5',
@@ -54,12 +24,6 @@ https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
   cbe: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
 }
 
-const UPLOAD_HINTS = {
-  telebirr: 'Full Telebirr receipt with Invoice No. visible (QR optional — we verify by payment ID)',
-  cbe: 'CBE mobile success screen or VAT/web receipt with QR code at the bottom',
-  boa: 'Bank of Abyssinia receipt with "Scan the QR to Verify"',
-  dashen: 'Dashen receipt or "Successfully paid!" screen with QR code',
-}
 function getCheckCostByAmount(amount) {
   const numAmount = parseFloat(amount) || 0
   if (numAmount < 100) return 2
@@ -94,6 +58,7 @@ export default function CheckerModal({
   lastResult,
   lastResolvedDetails,
 }) {
+  const { t } = useLocale()
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState('')
   const [verifyMode, setVerifyMode] = useState('')
@@ -107,6 +72,44 @@ export default function CheckerModal({
   const [form, setForm] = useState(EMPTY_FORM)
   const [referenceForm, setReferenceForm] = useState(EMPTY_REFERENCE)
   const [smsText, setSmsText] = useState('')
+
+  const methods = useMemo(() => [
+    { id: 'telebirr', label: t('method.telebirr'), icon: Smartphone, desc: t('method.telebirrCheckDesc') },
+    { id: 'cbe', label: t('method.cbe'), icon: Building2, desc: t('method.cbeCheckDesc') },
+    { id: 'boa', label: t('method.boa'), icon: Building2, desc: t('method.boaCheckDesc') },
+    { id: 'dashen', label: t('method.dashen'), icon: Building2, desc: t('method.dashenCheckDesc') },
+  ], [t])
+
+  const referenceDetailByMethod = useMemo(() => ({
+    telebirr: t('ref.telebirrDetail'),
+    dashen: t('ref.dashenDetail'),
+    cbe: t('ref.cbeDetail'),
+    boa: t('ref.boaDetail'),
+  }), [t])
+
+  const referenceFieldsByMethod = useMemo(() => ({
+    telebirr: [
+      { key: 'transactionCode', label: t('ref.invoice'), placeholder: 'DG65L5I9M5', hint: t('ref.invoiceHint') },
+    ],
+    dashen: [
+      { key: 'transactionCode', label: t('ref.ipss'), placeholder: '110IPSS2616900WO', hint: t('ref.ipssHint') },
+    ],
+    cbe: [
+      { key: 'transactionCode', label: t('ref.ft'), placeholder: 'FT26169D8C5M', hint: t('ref.ftHint') },
+      { key: 'accountSuffix', label: t('ref.cbeSuffix'), placeholder: '12345678', hint: t('ref.cbeSuffixHint') },
+    ],
+    boa: [
+      { key: 'transactionCode', label: t('ref.ft'), placeholder: 'FT26169X4SRS', hint: t('ref.ftHint') },
+      { key: 'accountSuffix', label: t('ref.boaSuffix'), placeholder: '12345', hint: t('ref.boaSuffixHint') },
+    ],
+  }), [t])
+
+  const uploadHints = useMemo(() => ({
+    telebirr: t('upload.telebirr'),
+    cbe: t('upload.cbe'),
+    boa: t('upload.boa'),
+    dashen: t('upload.dashen'),
+  }), [t])
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -150,7 +153,7 @@ export default function CheckerModal({
 
   const runVerify = async (useDetails) => {
     if (!screenshot) {
-      setFailureIssues([{ code: 'SCREENSHOT_REQUIRED', field: 'screenshot', message: 'Please upload your receipt screenshot.' }])
+      setFailureIssues([{ code: 'SCREENSHOT_REQUIRED', field: 'screenshot', message: t('check.screenshotRequired') }])
       setRejected(true)
       return
     }
@@ -232,7 +235,7 @@ export default function CheckerModal({
     await runVerify(true)
   }
 
-  const referenceFields = REFERENCE_FIELDS[method] || []
+  const referenceFields = referenceFieldsByMethod[method] || []
   const referenceReady = referenceFields.every((f) => String(referenceForm[f.key] || '').trim())
 
   if (!isOpen) return null
@@ -247,26 +250,16 @@ export default function CheckerModal({
   } : null)
 
   const successMessage = verifyMode === 'sms'
-    ? '✓ SMS verified successfully'
+    ? t('check.successSms')
     : verifyMode === 'reference'
-      ? '✓ Payment ID verified successfully'
-      : '✓ Receipt verified successfully'
-
-  const successSubtext = verifyMode === 'sms'
-    ? 'SMS details matched the official bank receipt'
-    : verifyMode === 'reference'
-      ? 'Verified from official bank record (no screenshot)'
-      : withDetails
-        ? 'Verified with your entered details'
-        : method === 'telebirr'
-          ? 'Verified from screenshot via official Telebirr record'
-          : 'Verified from screenshot & QR code'
+      ? t('check.successReference')
+      : t('check.successReceipt')
 
   const previousVerification = (successCheck || lastResult)?.previousVerification || null
   const previousVerificationLabel = previousVerification?.verifiedBy === 'self'
-    ? 'Already verified by you'
+    ? t('check.prevSelf')
     : previousVerification?.verifiedBy === 'other'
-      ? 'Already verified by another user'
+      ? t('check.prevOther')
       : null
 
   const previousVerificationMeta = previousVerification?.checkedAt
@@ -289,8 +282,8 @@ export default function CheckerModal({
       }
 
   const previousVerificationHint = previousVerification?.verifiedBy === 'self'
-    ? 'Free re-verification within 24 hours.'
-    : 'You can view the existing verification result.'
+    ? t('check.prevSelfHint')
+    : t('check.prevOtherHint')
 
   const showFormatGuide = step === 3 && method && ['screenshot', 'reference', 'sms'].includes(verifyMode)
 
@@ -298,7 +291,7 @@ export default function CheckerModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Verify Receipt"
+      title={t('check.title')}
       wide={showFormatGuide}
     >
         {rejected ? (
@@ -315,10 +308,10 @@ export default function CheckerModal({
                 className="btn-secondary flex-1 flex items-center justify-center gap-2"
               >
                 <RotateCcw size={16} strokeWidth={2} />
-                Try Again
+                {t('common.tryAgain')}
               </button>
               <button type="button" onClick={handleClose} className="btn-primary flex-1">
-                Close
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -337,7 +330,7 @@ export default function CheckerModal({
                 </p>
                 <p className="text-[var(--text-xs)] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
                   {previousVerificationHint}
-                  {previousVerificationMeta ? ` Verified on ${previousVerificationMeta}.` : ''}
+                  {previousVerificationMeta ? ` ${t('check.verifiedOn', { when: previousVerificationMeta })}` : ''}
                 </p>
               </div>
             )}
@@ -348,31 +341,31 @@ export default function CheckerModal({
             {summaryDetails && <ReceiptSummaryCard details={summaryDetails} />}
             <VerificationWarningList issues={lastResult?.validationResult?.issues || successCheck?.validationResult?.issues || []} />
             <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
-              <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Balance Update</p>
+              <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">{t('check.balanceUpdate')}</p>
               <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">
                 {(successCheck || lastResult)?.isRecheck
-                  ? 'No charge — free re-verification within 24 hours'
-                  : `${(successCheck || lastResult)?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount)} Birr deducted from your account`}
+                  ? t('check.noCharge')
+                  : t('check.deducted', { amount: (successCheck || lastResult)?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount) })}
               </p>
             </div>
-            <button onClick={handleClose} className="btn-primary w-full">Complete</button>
+            <button onClick={handleClose} className="btn-primary w-full">{t('check.complete')}</button>
           </div>
         ) : (
           <div className="modal-body space-y-5">
             {error && !rejected && (
               <div className="alert alert-error">
-                <p className="font-semibold text-sm">{typeof error === 'string' ? error : error.message || 'Verification failed'}</p>
+                <p className="font-semibold text-sm">{typeof error === 'string' ? error : error.message || t('result.failed')}</p>
               </div>
             )}
 
             {step === 1 && (
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Step 1: Select Payment Method</p>
-                  <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">Choose the bank from your receipt</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">{t('check.stepMethod')}</p>
+                  <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">{t('check.stepMethodHint')}</p>
                 </div>
                 <div className="space-y-2">
-                  {METHODS.map((m) => (
+                  {methods.map((m) => (
                     <button
                       key={m.id}
                       type="button"
@@ -398,11 +391,11 @@ export default function CheckerModal({
               <div className="space-y-4">
                 <div>
                   <button type="button" onClick={() => setStep(1)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
-                    ← Back to Method
+                    {t('check.backMethod')}
                   </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 2: Choose Verification Type</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t('check.stepMode')}</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    Screenshot reads Invoice No. and verifies officially. Payment ID or SMS also works without an image.
+                    {t('check.stepModeHint')}
                   </p>
                 </div>
 
@@ -415,8 +408,8 @@ export default function CheckerModal({
                   <div className="flex items-center gap-3">
                     <Camera size={20} style={{ color: 'var(--color-primary)' }} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-[var(--text-sm)]">Screenshot</p>
-                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">Upload receipt — we read Invoice No. and verify officially</p>
+                      <p className="font-semibold text-[var(--text-sm)]">{t('check.modeScreenshot')}</p>
+                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">{t('check.modeScreenshotDesc')}</p>
                     </div>
                     <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-primary)' }} />
                   </div>
@@ -431,8 +424,8 @@ export default function CheckerModal({
                   <div className="flex items-center gap-3">
                     <Hash size={20} style={{ color: 'var(--color-accent)' }} />
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-[var(--text-sm)]">Payment ID only</p>
-                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">No screenshot — official bank lookup by reference</p>
+                      <p className="font-semibold text-[var(--text-sm)]">{t('check.modeReference')}</p>
+                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">{t('check.modeReferenceDesc')}</p>
                     </div>
                     <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-accent)' }} />
                   </div>
@@ -448,8 +441,8 @@ export default function CheckerModal({
                     <div className="flex items-center gap-3">
                       <MessageSquare size={20} style={{ color: 'var(--color-info)' }} />
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-[var(--text-sm)]">Bank SMS</p>
-                        <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">Paste the transaction SMS — we fetch the official receipt and compare</p>
+                        <p className="font-semibold text-[var(--text-sm)]">{t('check.modeSms')}</p>
+                        <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)]">{t('check.modeSmsDesc')}</p>
                       </div>
                       <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--color-info)' }} />
                     </div>
@@ -457,13 +450,13 @@ export default function CheckerModal({
                 )}
 
                 <div className="rounded-lg p-4 border text-[var(--text-xs)] font-mono leading-relaxed" style={{ background: 'var(--color-bg-subtle)', borderColor: 'var(--color-border)' }}>
-                  <p className="font-semibold text-[var(--text-sm)] font-sans mb-2">Payment ID guide</p>
-                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">Telebirr</span> → Invoice No. only</p>
-                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">Dashen</span> → IPSS reference only (VAT receipts)</p>
-                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">CBE</span> → FT reference + last 8 digits of sender account</p>
-                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">BOA</span> → FT reference + last 5 digits of sender account</p>
+                  <p className="font-semibold text-[var(--text-sm)] font-sans mb-2">{t('check.paymentIdGuide')}</p>
+                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">Telebirr</span> → {t('ref.telebirrDetail')}</p>
+                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">Dashen</span> → {t('ref.dashenDetail')}</p>
+                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">CBE</span> → {t('ref.cbeDetail')}</p>
+                  <p className="text-[var(--color-text-secondary)]"><span className="text-[var(--color-text-primary)]">BOA</span> → {t('ref.boaDetail')}</p>
                   {SMS_SUPPORTED.has(method) && (
-                    <p className="text-[var(--color-text-secondary)] mt-2 font-sans"><span className="text-[var(--color-text-primary)]">SMS</span> → paste full Telebirr or CBE transaction SMS with receipt link</p>
+                    <p className="text-[var(--color-text-secondary)] mt-2 font-sans"><span className="text-[var(--color-text-primary)]">SMS</span> → {t('check.smsGuide')}</p>
                   )}
                 </div>
               </div>
@@ -474,27 +467,27 @@ export default function CheckerModal({
                 <form onSubmit={handleQuickVerify} className="modal-split-main modal-split-main-pad space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
-                    ← Back to Type
+                    {t('check.backType')}
                   </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Upload Receipt Screenshot</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t('check.stepUpload')}</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
                     {method === 'telebirr'
-                      ? 'We read the Invoice No. from your screenshot and verify it on the official Telebirr site. QR code is optional if the invoice number is visible.'
-                      : 'We check the official bank QR code (must not be fake). Full screenshot: text + QR are compared. Cropped screenshot: QR code only.'}
+                      ? t('check.stepUploadHintTelebirr')
+                      : t('check.stepUploadHintOther')}
                   </p>
                 </div>
 
                 <div>
-                  <label className="label mb-3">Receipt Screenshot</label>
+                  <label className="label mb-3">{t('check.screenshotLabel')}</label>
                   <div className="drop-zone p-8 text-center cursor-pointer">
                     <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} className="absolute inset-0 opacity-0 cursor-pointer" required />
                     {preview ? (
-                      <p className="text-sm font-semibold">✓ Screenshot uploaded</p>
+                      <p className="text-sm font-semibold">{t('check.screenshotUploaded')}</p>
                     ) : (
                       <div className="space-y-2">
                         <Upload size={24} className="mx-auto" style={{ color: 'var(--color-primary)' }} />
-                        <p className="text-sm font-semibold">Upload receipt screenshot</p>
-                        <p className="text-xs text-[var(--color-text-secondary)]">{UPLOAD_HINTS[method]}</p>
+                        <p className="text-sm font-semibold">{t('check.uploadReceipt')}</p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">{uploadHints[method]}</p>
                       </div>
                     )}
                   </div>
@@ -511,10 +504,10 @@ export default function CheckerModal({
                     className="btn-secondary flex-1 flex items-center justify-center gap-2"
                   >
                     <ListChecks size={16} />
-                    With Detail
+                    {t('check.withDetails')}
                   </button>
                   <button type="submit" disabled={loading || !screenshot} className="btn-primary flex-1">
-                    {loading && !withDetails ? 'Verifying...' : 'Verify'}
+                    {loading && !withDetails ? t('check.verifying') : t('check.verifyBtn')}
                   </button>
                 </div>
               </form>
@@ -527,20 +520,20 @@ export default function CheckerModal({
               <form onSubmit={runReferenceVerify} className="modal-split-main modal-split-main-pad space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
-                    ← Back to Type
+                    {t('check.backType')}
                   </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Enter Payment ID</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t('check.stepPaymentId')}</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    We verify directly against the official bank record. Each payment ID can only be verified once.
+                    {t('check.stepPaymentIdHint')}
                   </p>
                 </div>
 
                 <div className="rounded-lg p-3 border text-[var(--text-xs)]" style={{ background: 'var(--color-accent-muted)', borderColor: 'var(--color-accent-border)' }}>
                   <p className="font-semibold text-[var(--text-sm)] mb-1">
-                    {METHODS.find((m) => m.id === method)?.label}
+                    {methods.find((m) => m.id === method)?.label}
                   </p>
                   <p className="text-[var(--color-text-secondary)]">
-                    {REFERENCE_DETAIL_BY_METHOD[method]}
+                    {referenceDetailByMethod[method]}
                   </p>
                 </div>
 
@@ -562,10 +555,10 @@ export default function CheckerModal({
                 ))}
 
                 <button type="submit" disabled={loading || !referenceReady} className="btn-primary w-full">
-                  {loading ? 'Verifying...' : 'Verify Payment ID'}
+                  {loading ? t('check.verifying') : t('check.verifyPaymentId')}
                 </button>
                 <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] text-center">
-                  Cost: 2–20 Birr based on verified amount
+                  {t('check.costRange')}
                 </p>
               </form>
               <VerificationFormatGuide method={method} mode="reference" />
@@ -577,16 +570,16 @@ export default function CheckerModal({
               <form onSubmit={runSmsVerify} className="modal-split-main modal-split-main-pad space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(2)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
-                    ← Back to Type
+                    {t('check.backType')}
                   </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 3: Paste Transaction SMS</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t('check.stepSms')}</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    We parse the SMS, fetch the official receipt from the link inside it, and verify amount, account, and payment ID match.
+                    {t('check.stepSmsHint')}
                   </p>
                 </div>
 
                 <div>
-                  <label className="label">Transaction SMS</label>
+                  <label className="label">{t('check.smsLabel')}</label>
                   <textarea
                     className="input w-full min-h-[180px] font-mono text-[var(--text-xs)]"
                     placeholder={SMS_PLACEHOLDERS[method]}
@@ -596,16 +589,16 @@ export default function CheckerModal({
                   />
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-2">
                     {method === 'telebirr'
-                      ? 'Include the full message with transaction number and ethiotelecom.et/receipt link.'
-                      : 'Include the full message with amount and mbreciept.cbe.com.et or BranchReceipt link.'}
+                      ? t('check.stepSmsHintTelebirr')
+                      : t('check.stepSmsHintCbe')}
                   </p>
                 </div>
 
                 <button type="submit" disabled={loading || smsText.trim().length < 40} className="btn-primary w-full">
-                  {loading ? 'Verifying...' : 'Verify SMS'}
+                  {loading ? t('check.verifying') : t('check.verifySms')}
                 </button>
                 <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] text-center">
-                  Cost: 2–20 Birr based on verified amount
+                  {t('check.costRange')}
                 </p>
               </form>
               <VerificationFormatGuide method={method} mode="sms" />
@@ -616,11 +609,11 @@ export default function CheckerModal({
               <form onSubmit={handleDetailVerify} className="space-y-5">
                 <div>
                   <button type="button" onClick={() => setStep(3)} className="text-[var(--text-sm)] font-semibold mb-3" style={{ color: 'var(--color-primary)' }}>
-                    ← Back to Screenshot
+                    {t('check.backScreenshot')}
                   </button>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Step 4: Enter Transaction Details</p>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t('check.stepDetails')}</p>
                   <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    We will match your details against screenshot + QR when visible, or QR only if the image is cropped.
+                    {t('check.stepDetailsHint')}
                   </p>
                 </div>
 
@@ -628,13 +621,13 @@ export default function CheckerModal({
 
                 {form.amount && (
                   <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
-                    <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">Verification Cost</p>
-                    <p className="text-[var(--text-sm)]">This verification will cost {getCheckCostByAmount(form.amount)} Birr</p>
+                    <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">{t('check.verificationCost')}</p>
+                    <p className="text-[var(--text-sm)]">{t('check.verificationCostValue', { cost: getCheckCostByAmount(form.amount) })}</p>
                   </div>
                 )}
 
                 <button type="submit" disabled={loading} className="btn-primary w-full">
-                  {loading ? 'Verifying...' : 'Verify with Details'}
+                  {loading ? t('check.verifying') : t('check.verifyWithDetails')}
                 </button>
               </form>
             )}

@@ -11,9 +11,11 @@ import CheckHistory from '../components/CheckHistory'
 import BirrVerifyHero from '../components/BirrVerifyHero'
 import OnboardingModal from '../components/OnboardingModal'
 import { useDashboardUi } from '../context/DashboardUiContext'
+import { useLocale } from '../i18n/LocaleContext'
 
 export default function DashboardPage() {
   const dispatch = useDispatch()
+  const { t } = useLocale()
   const { current: balance, submitting: topupLoading, error: balanceError } = useSelector(s => s.balance)
   const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, lastCheck, lastResolvedDetails } = useSelector(s => s.checks)
   const { topupOpen, setTopupOpen, checkerOpen, setCheckerOpen, openVerify } = useDashboardUi()
@@ -167,10 +169,10 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Zap size={18} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-                <p className="font-display font-bold text-sm" style={{ color: 'var(--color-foil-gold)' }}>Quick Action</p>
+                <p className="font-display font-bold text-sm" style={{ color: 'var(--color-foil-gold)' }}>{t('dash.quickAction')}</p>
               </div>
               <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mb-4 leading-relaxed">
-                Verify with a receipt screenshot + QR, or enter the payment ID only (Invoice / FT / IPSS).
+                {t('dash.quickActionDesc')}
               </p>
             </div>
             <button
@@ -178,7 +180,7 @@ export default function DashboardPage() {
               className="btn-primary w-full flex items-center justify-center gap-2"
             >
               <CheckCircle2 size={18} strokeWidth={2} />
-              Verify Receipt
+              {t('dash.verifyReceipt')}
             </button>
           </div>
         </div>
@@ -189,15 +191,15 @@ export default function DashboardPage() {
             <div>
               <h2 className="section-title flex items-center gap-2">
                 <TrendingUp size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
-                Verification History
+                {t('dash.historyTitle')}
               </h2>
-              <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-2">Your recent receipt verifications</p>
+              <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-2">{t('dash.historySubtitle')}</p>
             </div>
             <button
               onClick={() => dispatch(fetchCheckHistory())}
               className="btn-secondary text-sm"
             >
-              Refresh
+              {t('common.refresh')}
             </button>
           </div>
 
@@ -212,8 +214,8 @@ export default function DashboardPage() {
         <div className="mobile-shell">
         {mobileTab === 'history' && (
         <header className="mobile-page-header">
-          <h1 className="mobile-page-title">History</h1>
-          <p className="mobile-page-subtitle">Your recent verifications</p>
+          <h1 className="mobile-page-title">{t('dash.mobileHistory')}</h1>
+          <p className="mobile-page-subtitle">{t('dash.mobileHistorySub')}</p>
         </header>
         )}
 
@@ -224,30 +226,30 @@ export default function DashboardPage() {
             <div className="action-card flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <Zap size={15} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-                <p className="font-display font-semibold text-[13px]" style={{ color: 'var(--color-foil-gold)' }}>Quick Verify</p>
+                <p className="font-display font-semibold text-[13px]" style={{ color: 'var(--color-foil-gold)' }}>{t('dash.quickVerify')}</p>
               </div>
               <p className="text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
-                Tap the + button below to verify. Use screenshot + QR or payment ID only (no image).
+                {t('dash.quickVerifyDesc')}
               </p>
             </div>
 
             {lastCheck && (
               <div className="stat-card">
-                <p className="receipt-label mb-3">Last Verification</p>
+                <p className="receipt-label mb-3">{t('dash.lastVerification')}</p>
                 <div className="space-y-2.5">
                   <div className="flex justify-between items-center gap-3">
-                    <span className="text-[13px] text-[var(--color-text-secondary)]">Amount</span>
+                    <span className="text-[13px] text-[var(--color-text-secondary)]">{t('common.amount')}</span>
                     <span className="amount-mono text-[15px]">{lastCheck.amount} ETB</span>
                   </div>
                   <div className="flex justify-between items-center gap-3">
-                    <span className="text-[13px] text-[var(--color-text-secondary)]">Status</span>
+                    <span className="text-[13px] text-[var(--color-text-secondary)]">{t('common.status')}</span>
                     <span className="badge badge-success inline-flex items-center gap-1">
                       <CheckCircle2 size={11} />
-                      Verified
+                      {t('common.verified')}
                     </span>
                   </div>
                   <div className="flex justify-between items-center gap-3">
-                    <span className="text-[13px] text-[var(--color-text-secondary)]">Cost</span>
+                    <span className="text-[13px] text-[var(--color-text-secondary)]">{t('common.cost')}</span>
                     <span className="font-mono text-[14px] font-medium" style={{ color: 'var(--color-maroon)' }}>−{lastCheck.balanceDeducted}</span>
                   </div>
                 </div>

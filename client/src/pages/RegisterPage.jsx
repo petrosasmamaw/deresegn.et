@@ -1,29 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { signup } from '../features/auth/authSlice'
 import { ArrowRight, Gift } from 'lucide-react'
 import AuthSeoBlurb from '../components/AuthSeoBlurb'
-
-function RegisterSkeleton() {
-  return (
-    <div className="min-h-screen page-parchment flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="skeleton w-14 h-14 rounded-xl mx-auto mb-4"></div>
-          <div className="skeleton h-8 w-40 rounded mx-auto mb-2"></div>
-          <div className="skeleton h-4 w-48 rounded mx-auto"></div>
-        </div>
-        <div className="card space-y-4">
-          <div className="skeleton h-10 rounded"></div>
-          <div className="skeleton h-10 rounded"></div>
-          <div className="skeleton h-10 rounded"></div>
-          <div className="skeleton h-12 rounded"></div>
-        </div>
-      </div>
-    </div>
-  )
-}
+import LangToggle from '../components/LangToggle'
+import { useLocale } from '../i18n/LocaleContext'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -31,125 +13,124 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { user, initializing, submitting, error } = useSelector(s => s.auth)
+  const { user, submitting, error } = useSelector(s => s.auth)
+  const { t } = useLocale()
 
-  // Redirect to dashboard if already logged in
   if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
-
-  // Show skeleton while session is initializing
-  if (initializing) return <RegisterSkeleton />
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     const result = await dispatch(signup({ name, email, password }))
     if (signup.fulfilled.match(result)) {
-      const role = result.payload?.role;
-      navigate(role === 'admin' ? '/admin' : '/dashboard');
+      const role = result.payload?.role
+      navigate(role === 'admin' ? '/admin' : '/dashboard')
     }
   }
 
   return (
     <main className="auth-hero">
+      <div className="absolute top-4 right-4 z-20">
+        <LangToggle />
+      </div>
+
       <div className="hero-section auth-hero-top">
         <img
           src="/deresegn-logo.svg"
-          alt="Check Deresegn"
+          alt={t('auth.brand')}
           width={56}
           height={56}
           className="mx-auto mb-4 rounded-xl"
         />
-        <h1 className="page-title mb-2">Deresegn Check — Join Free</h1>
-        <p className="page-subtitle">Ethiopia deresegn &amp; deresegn ethiopia receipt checker — 20 Birr bonus</p>
+        <h1 className="page-title mb-2">{t('auth.registerTitle')}</h1>
+        <p className="page-subtitle">{t('auth.registerSubtitle')}</p>
         <div className="bonus-banner mt-4 max-w-sm mx-auto text-left">
           <Gift size={16} style={{ color: 'var(--color-foil-gold)' }} className="inline mr-2" />
-          <span className="text-[13px]">New users receive <strong>20 Birr</strong> to try verification (registration bonus).</span>
+          <span className="text-[13px]">{t('auth.bonusBanner', { amount: 20 })}</span>
         </div>
       </div>
 
       <div className="auth-hero-body">
         <div className="w-full max-w-sm mx-auto">
-          {/* Form Card */}
           <div className="card space-y-5" style={{ boxShadow: 'var(--shadow-md)' }}>
-          {error && (
-            <div className="alert alert-error">
-              <div className="flex-1">
-                <p className="font-semibold text-sm">{error}</p>
+            {error && (
+              <div className="alert alert-error">
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">{error}</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="label">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="input"
-                placeholder="John Doe"
-                autoComplete="name"
-                required
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="label">{t('auth.fullName')}</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="input"
+                  placeholder={t('auth.namePlaceholder')}
+                  autoComplete="name"
+                  required
+                />
+              </div>
 
-            <div>
-              <label className="label">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input"
-                placeholder="your@email.com"
-                autoComplete="email"
-                required
-              />
-            </div>
+              <div>
+                <label className="label">{t('auth.email')}</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input"
+                  placeholder="your@email.com"
+                  autoComplete="email"
+                  required
+                />
+              </div>
 
-            <div>
-              <label className="label">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="••••••••"
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
-              <p className="helper-text">Minimum 8 characters</p>
-            </div>
+              <div>
+                <label className="label">{t('auth.password')}</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input"
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+                <p className="helper-text">{t('auth.minPassword')}</p>
+              </div>
 
-            <button 
-              type="submit" 
-              disabled={submitting} 
-              className="btn-primary w-full flex items-center justify-center gap-2 mt-6"
-            >
-              {submitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin" />
-                  Registering...
-                </>
-              ) : (
-                <>
-                  Create Account
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
-        </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn-primary w-full flex items-center justify-center gap-2 mt-6"
+              >
+                {submitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin" />
+                    {t('auth.registering')}
+                  </>
+                ) : (
+                  <>
+                    {t('auth.createAccount')}
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
 
-        {/* Sign In Link */}
-        <p className="text-center text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-6">
-          <a href="/" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>← Home</a>
-          {' · '}
-          Already have an account?{' '}
-          <a href="/login" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>
-            Sign in
-          </a>
-        </p>
-        <AuthSeoBlurb />
+          <p className="text-center text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-6">
+            <a href="/" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>{t('auth.backHome')}</a>
+            {' · '}
+            {t('auth.haveAccount')}{' '}
+            <a href="/login" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>
+              {t('auth.signIn')}
+            </a>
+          </p>
+          <AuthSeoBlurb />
         </div>
       </div>
     </main>

@@ -1,6 +1,9 @@
 import { Home, History, Plus } from 'lucide-react'
+import { useLocale } from '../i18n/LocaleContext'
 
 export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick }) {
+  const { t } = useLocale()
+
   return (
     <>
       <nav
@@ -16,7 +19,7 @@ export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick 
               aria-current={activeTab === 'home' ? 'page' : undefined}
             >
               <Home size={22} strokeWidth={2} />
-              <span>Home</span>
+              <span>{t('bottom.home')}</span>
             </button>
 
             <div className="bottom-nav-fab-slot" aria-hidden="true" />
@@ -28,7 +31,7 @@ export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick 
               aria-current={activeTab === 'history' ? 'page' : undefined}
             >
               <History size={22} strokeWidth={2} />
-              <span>History</span>
+              <span>{t('bottom.history')}</span>
             </button>
           </div>
 
@@ -36,7 +39,7 @@ export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick 
             type="button"
             onClick={onFabClick}
             className="bottom-nav-fab"
-            aria-label="Verify Receipt"
+            aria-label={t('bottom.verifyAria')}
           >
             <Plus size={26} strokeWidth={2.5} />
           </button>

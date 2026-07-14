@@ -1,50 +1,53 @@
 import { Gift, CheckCircle2, History } from 'lucide-react'
 import Modal from './Modal'
+import { useLocale } from '../i18n/LocaleContext'
 
 export default function OnboardingModal({ isOpen, onClose, onTopUp, onVerify }) {
+  const { t } = useLocale()
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Welcome to Deresegn"
-      subtitle="Get started in 3 quick steps"
+      title={t('onboard.title')}
+      subtitle={t('onboard.subtitle')}
       contentClassName="max-w-lg"
     >
       <div className="modal-body space-y-4">
         <div className="bonus-banner">
           <Gift size={18} style={{ color: 'var(--color-foil-gold)' }} />
-          <span>You received <strong>20 Birr</strong> registration bonus to try your first verifications.</span>
+          <span>{t('onboard.bonus', { amount: 20 })}</span>
         </div>
 
         <div className="onboarding-steps">
           <div className="onboarding-step">
             <span className="onboarding-step-num">1</span>
             <div>
-              <p className="font-semibold text-sm">Top up when you need more</p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-1">Send Birr via Telebirr or CBE to add balance anytime.</p>
-              <button type="button" className="btn-secondary text-xs mt-2" onClick={onTopUp}>View top-up</button>
+              <p className="font-semibold text-sm">{t('onboard.step1Title')}</p>
+              <p className="text-xs text-[var(--color-text-secondary)] mt-1">{t('onboard.step1Desc')}</p>
+              <button type="button" className="btn-secondary text-xs mt-2" onClick={onTopUp}>{t('onboard.step1Btn')}</button>
             </div>
           </div>
           <div className="onboarding-step">
             <span className="onboarding-step-num">2</span>
             <div>
-              <p className="font-semibold text-sm">Verify a payment</p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-1">Fastest: paste bank SMS. Most secure: screenshot + QR.</p>
-              <button type="button" className="btn-primary text-xs mt-2" onClick={onVerify}>Verify now</button>
+              <p className="font-semibold text-sm">{t('onboard.step2Title')}</p>
+              <p className="text-xs text-[var(--color-text-secondary)] mt-1">{t('onboard.step2Desc')}</p>
+              <button type="button" className="btn-primary text-xs mt-2" onClick={onVerify}>{t('onboard.step2Btn')}</button>
             </div>
           </div>
           <div className="onboarding-step">
             <span className="onboarding-step-num">3</span>
             <div>
-              <p className="font-semibold text-sm flex items-center gap-1"><History size={14} /> Check history & certificate</p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-1">Every success gets a shareable certificate with payment ID and timestamp.</p>
+              <p className="font-semibold text-sm flex items-center gap-1"><History size={14} /> {t('onboard.step3Title')}</p>
+              <p className="text-xs text-[var(--color-text-secondary)] mt-1">{t('onboard.step3Desc')}</p>
             </div>
           </div>
         </div>
 
         <button type="button" className="btn-primary w-full" onClick={onClose}>
           <CheckCircle2 size={16} className="inline mr-1" />
-          Got it — let&apos;s go
+          {t('onboard.gotIt')}
         </button>
       </div>
     </Modal>

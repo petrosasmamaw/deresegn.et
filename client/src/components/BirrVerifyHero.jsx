@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { CheckCircle2, ShieldCheck } from 'lucide-react'
+import { useLocale } from '../i18n/LocaleContext'
 import './BirrVerifyHero.css'
 
 const NOTE_W = 96
@@ -15,6 +16,7 @@ function easeInOut(t) {
 }
 
 export default function BirrVerifyHero({ onVerifyClick }) {
+  const { t } = useLocale()
   const sceneRef = useRef(null)
   const dhRef = useRef(null)
   const hexRef = useRef(null)
@@ -474,9 +476,9 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       <div className="birr-verify-hero-inner">
         <div className="birr-verify-hero-copy">
           <div className="birr-verify-hero-copy-text">
-            <p className="eyebrow">Dashboard</p>
-            <h1 className="page-title">Receipt Verification</h1>
-            <p className="page-subtitle">Manage your balance and verify transaction receipts</p>
+            <p className="eyebrow">{t('hero.eyebrow')}</p>
+            <h1 className="page-title">{t('hero.title')}</h1>
+            <p className="page-subtitle">{t('hero.subtitle')}</p>
           </div>
           {onVerifyClick && (
             <div className="hero-verify-cta">
@@ -484,12 +486,12 @@ export default function BirrVerifyHero({ onVerifyClick }) {
                 <ShieldCheck size={18} strokeWidth={2} />
               </div>
               <div className="hero-verify-cta-copy">
-                <p className="hero-verify-cta-title">Verify Receipt</p>
-                <p className="hero-verify-cta-desc">Confirm Telebirr, CBE &amp; bank payments in seconds</p>
+                <p className="hero-verify-cta-title">{t('hero.ctaTitle')}</p>
+                <p className="hero-verify-cta-desc">{t('hero.ctaDesc')}</p>
               </div>
               <button type="button" onClick={onVerifyClick} className="hero-verify-btn">
                 <CheckCircle2 size={14} strokeWidth={2.25} />
-                <span>Verify now</span>
+                <span>{t('hero.ctaBtn')}</span>
               </button>
             </div>
           )}
