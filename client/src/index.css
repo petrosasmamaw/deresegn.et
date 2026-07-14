@@ -692,45 +692,43 @@ body {
   font-size: var(--text-sm);
 }
 
-/* Language toggle — own solid surfaces so inactive label never matches page background */
+/* Language toggle — selected = gold fill; unselected = empty track (not the reverse) */
 .lang-toggle {
   display: inline-flex;
   align-items: stretch;
   border-radius: 8px;
   overflow: hidden;
-  background: #F4EEDC;
+  background: #16302b;
   border: 1px solid rgba(198, 162, 78, 0.55);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .lang-toggle-btn {
   margin: 0;
   border: 0;
-  padding: 0.35rem 0.6rem;
+  padding: 0.35rem 0.65rem;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.2;
   cursor: pointer;
   background: transparent;
-  color: #0E2420;
-  opacity: 0.72;
-  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  color: rgba(244, 238, 220, 0.78);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .lang-toggle-btn + .lang-toggle-btn {
-  border-left: 1px solid rgba(14, 36, 32, 0.14);
+  border-left: 1px solid rgba(244, 238, 220, 0.14);
 }
 
-.lang-toggle-btn:hover {
-  opacity: 1;
-  background: rgba(14, 36, 32, 0.06);
+.lang-toggle-btn:hover:not(.is-active) {
+  color: #F4EEDC;
+  background: rgba(244, 238, 220, 0.08);
 }
 
 .lang-toggle-btn.is-active {
-  background: #0E2420;
-  color: #F4EEDC;
-  opacity: 1;
+  background: #C6A24E;
+  color: #0E2420;
 }
 
 .nav-link {
