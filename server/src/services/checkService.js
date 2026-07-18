@@ -652,6 +652,7 @@ export async function submitReferenceCheck({
   method,
   transactionCode,
   accountSuffix = '',
+  billing = { type: 'wallet' },
 }) {
   try {
     validateReferenceInput(method, { transactionCode, accountSuffix });
@@ -699,8 +700,22 @@ export async function submitReferenceCheck({
   }
 
   const details = result.resolvedDetails;
-  const checkCost = getCheckCostByAmount(details.amount);
-  const newBalance = await deductBalance(userId, checkCost);
+  const useApiKey = billing?.type === 'api_key' && billing.apiKeyId;
+
+  let checkCost = 0;
+  let newBalance = null;
+  let apiKeyState = null;
+
+  if (useApiKey) {
+    const { assertApiKeyHasCapacity, consumeApiKeyCapacity, refundApiKeyCapacity } = await import('./apiKeyService.js');
+    await assertApiKeyHasCapacity(billing.apiKeyRow, details.amount);
+    apiKeyState = await consumeApiKeyCapacity(billing.apiKeyId, details.amount);
+    checkCost = 0;
+    newBalance = await getUserBalance(userId);
+  } else {
+    checkCost = getCheckCostByAmount(details.amount);
+    newBalance = await deductBalance(userId, checkCost);
+  }
 
   const validation = {
     passed: true,
@@ -711,6 +726,7 @@ export async function submitReferenceCheck({
     issues: [],
     warnings: [],
     errors: [],
+    billedVia: useApiKey ? 'api_key' : 'wallet',
   };
 
   try {
@@ -725,6 +741,8 @@ export async function submitReferenceCheck({
           verifyMode: 'reference',
           transactionCode: result.validated.transactionCode,
           accountSuffix: result.validated.accountSuffix || null,
+          billedVia: useApiKey ? 'api_key' : 'wallet',
+          apiKeyId: useApiKey ? billing.apiKeyId : null,
         },
         extractedDetails: { official: result.official },
         qrData: null,
@@ -735,26 +753,34 @@ export async function submitReferenceCheck({
     ).returning();
 
     const check = parseCheckRow(saved);
-    await recordBalanceTransaction({
-      userId,
-      type: 'verification',
-      amount: -checkCost,
-      balanceAfter: newBalance,
-      referenceType: 'check',
-      referenceId: check.id,
-      description: `Payment ID verification — ${result.txCode}`,
-    }).catch(() => {});
+    if (!useApiKey && checkCost > 0) {
+      await recordBalanceTransaction({
+        userId,
+        type: 'verification',
+        amount: -checkCost,
+        balanceAfter: newBalance,
+        referenceType: 'check',
+        referenceId: check.id,
+        description: `Payment ID verification — ${result.txCode}`,
+      }).catch(() => {});
+    }
 
     return {
       check,
       newBalance,
+      apiKey: apiKeyState,
       message: 'Payment ID verified successfully',
       validation,
       issues: [],
       resolvedDetails: details,
     };
   } catch (err) {
-    await addBalance(userId, checkCost);
+    if (!useApiKey) {
+      await addBalance(userId, checkCost);
+    } else {
+      const { refundApiKeyCapacity } = await import('./apiKeyService.js');
+      await refundApiKeyCapacity(billing.apiKeyId, details.amount).catch(() => {});
+    }
 
     if (err.code === '23505') {
       const dupIssue = buildDuplicateTxIssue(result.txCode);
@@ -768,6 +794,7 @@ export async function submitSmsCheck({
   userId,
   method,
   smsText,
+  billing = { type: 'wallet' },
 }) {
   if (!['telebirr', 'cbe'].includes(method)) {
     throw new CheckError('SMS verification is only supported for Telebirr and CBE', 400, {
@@ -830,8 +857,22 @@ export async function submitSmsCheck({
   }
 
   const details = result.resolvedDetails;
-  const checkCost = getCheckCostByAmount(details.amount);
-  const newBalance = await deductBalance(userId, checkCost);
+  const useApiKey = billing?.type === 'api_key' && billing.apiKeyId;
+
+  let checkCost = 0;
+  let newBalance = null;
+  let apiKeyState = null;
+
+  if (useApiKey) {
+    const { assertApiKeyHasCapacity, consumeApiKeyCapacity } = await import('./apiKeyService.js');
+    await assertApiKeyHasCapacity(billing.apiKeyRow, details.amount);
+    apiKeyState = await consumeApiKeyCapacity(billing.apiKeyId, details.amount);
+    checkCost = 0;
+    newBalance = await getUserBalance(userId);
+  } else {
+    checkCost = getCheckCostByAmount(details.amount);
+    newBalance = await deductBalance(userId, checkCost);
+  }
 
   const validation = {
     passed: true,
@@ -843,6 +884,7 @@ export async function submitSmsCheck({
     issues: result.issues,
     warnings: result.issues.filter((i) => i.type === 'warning'),
     errors: [],
+    billedVia: useApiKey ? 'api_key' : 'wallet',
   };
 
   try {
@@ -856,6 +898,8 @@ export async function submitSmsCheck({
         enteredDetails: {
           verifyMode: 'sms',
           smsTextPreview: trimmed.slice(0, 500),
+          billedVia: useApiKey ? 'api_key' : 'wallet',
+          apiKeyId: useApiKey ? billing.apiKeyId : null,
         },
         extractedDetails: { sms: result.parsed, official: result.official },
         qrData: null,
@@ -866,26 +910,34 @@ export async function submitSmsCheck({
     ).returning();
 
     const check = parseCheckRow(saved);
-    await recordBalanceTransaction({
-      userId,
-      type: 'verification',
-      amount: -checkCost,
-      balanceAfter: newBalance,
-      referenceType: 'check',
-      referenceId: check.id,
-      description: `SMS verification — ${result.txCode}`,
-    }).catch(() => {});
+    if (!useApiKey && checkCost > 0) {
+      await recordBalanceTransaction({
+        userId,
+        type: 'verification',
+        amount: -checkCost,
+        balanceAfter: newBalance,
+        referenceType: 'check',
+        referenceId: check.id,
+        description: `SMS verification — ${result.txCode}`,
+      }).catch(() => {});
+    }
 
     return {
-      check: parseCheckRow(saved),
+      check,
       newBalance,
+      apiKey: apiKeyState,
       message: 'SMS verified successfully',
       validation,
       issues: result.issues,
       resolvedDetails: details,
     };
   } catch (err) {
-    await addBalance(userId, checkCost);
+    if (!useApiKey) {
+      await addBalance(userId, checkCost);
+    } else {
+      const { refundApiKeyCapacity } = await import('./apiKeyService.js');
+      await refundApiKeyCapacity(billing.apiKeyId, details.amount).catch(() => {});
+    }
 
     if (err.code === '23505') {
       const dupIssue = buildDuplicateTxIssue(result.txCode);

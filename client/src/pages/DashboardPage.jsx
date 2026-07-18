@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { CheckCircle2, Zap, TrendingUp, ChevronLeft } from 'lucide-react'
+import { CheckCircle2, Zap, TrendingUp, ChevronLeft, KeyRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { fetchBalance, submitTopUp, submitTopUpReference, submitTopUpSms } from '../features/balance/balanceSlice'
 import { fetchCheckHistory, performCheck, performReferenceCheck, performSmsCheck } from '../features/checks/checksSlice'
 import BalanceCard from '../components/BalanceCard'
@@ -182,6 +183,13 @@ export default function DashboardPage() {
               <CheckCircle2 size={18} strokeWidth={2} />
               {t('dash.verifyReceipt')}
             </button>
+            <Link
+              to="/developer"
+              className="btn-secondary w-full mt-3 flex items-center justify-center gap-2 text-sm"
+            >
+              <KeyRound size={16} strokeWidth={2} />
+              Paid API
+            </Link>
           </div>
         </div>
 
@@ -231,6 +239,9 @@ export default function DashboardPage() {
               <p className="text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
                 {t('dash.quickVerifyDesc')}
               </p>
+              <Link to="/developer" className="btn-secondary w-full text-sm flex items-center justify-center gap-2">
+                <KeyRound size={15} /> Paid API
+              </Link>
             </div>
 
             {lastCheck && (

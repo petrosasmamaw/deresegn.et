@@ -8,9 +8,12 @@ import balanceRoutes from './routes/balanceRoutes.js'
 import checkRoutes from './routes/checkRoutes.js'
 import appAuthRoutes from './routes/appAuthRoutes.js'
 import adminRoutes from './routes/adminRoutes.js'
+import developerRoutes from './routes/developerRoutes.js'
+import v1ApiRoutes from './routes/v1ApiRoutes.js'
 import errorHandler from './middleware/errorHandler.js'
 import { testConnection } from './db/index.js'
 import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
+import { ensureApiKeysTable } from './services/apiKeyService.js'
 import { isTrustedOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
 import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
@@ -74,6 +77,8 @@ app.use('/api/balance', balanceRoutes)
 app.use('/api/check', checkRoutes)
 app.use('/api/users', appAuthRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/developer', developerRoutes)
+app.use('/api/v1', v1ApiRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -120,6 +125,7 @@ async function start() {
   } else {
     try {
       await ensureTopUpReceiverDefaults()
+      await ensureApiKeysTable()
     } catch (err) {
       console.error('⚠️  Warning: Could not seed top-up receiver accounts:', err.message)
     }

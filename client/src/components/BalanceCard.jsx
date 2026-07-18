@@ -1,19 +1,13 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Shield, TrendingUp } from 'lucide-react'
 import Modal from './Modal'
+import PricingTables from './PricingTables'
 import { useLocale } from '../i18n/LocaleContext'
 
 export default function BalanceCard({ balance = 0, onTopUpClick }) {
   const [pricingOpen, setPricingOpen] = useState(false)
   const { t } = useLocale()
-
-  const tiers = [
-    { rangeKey: 'balance.tierUnder100', cost: 2 },
-    { rangeKey: 'balance.tier100', cost: 5 },
-    { rangeKey: 'balance.tier1000', cost: 10 },
-    { rangeKey: 'balance.tier5000', cost: 15 },
-    { rangeKey: 'balance.tier10000', cost: 20 },
-  ]
 
   return (
     <>
@@ -60,33 +54,13 @@ export default function BalanceCard({ balance = 0, onTopUpClick }) {
         isOpen={pricingOpen}
         onClose={() => setPricingOpen(false)}
         title={t('balance.pricingTitle')}
-        contentClassName="max-w-md"
+        contentClassName="max-w-2xl"
       >
-        <div className="modal-body space-y-3">
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            {t('balance.pricingIntro')}
-          </p>
-          <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'rgba(14, 36, 32, 0.12)' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t('balance.amountCol')}</th>
-                  <th>{t('balance.costCol')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tiers.map((tier) => (
-                  <tr key={tier.rangeKey}>
-                    <td>{t(tier.rangeKey)}</td>
-                    <td className="font-mono font-semibold">{t('balance.costBirr', { cost: tier.cost })}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-[var(--color-text-tertiary)]">
-            {t('balance.bonusNote')}
-          </p>
+        <div className="modal-body space-y-4">
+          <PricingTables compact />
+          <Link to="/developer" className="btn-primary w-full text-center text-sm" onClick={() => setPricingOpen(false)}>
+            Open Paid API
+          </Link>
         </div>
       </Modal>
     </>

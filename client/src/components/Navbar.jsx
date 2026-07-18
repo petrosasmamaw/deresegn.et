@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../features/auth/authSlice'
-import { LogOut, Plus } from 'lucide-react'
+import { LogOut, Plus, KeyRound } from 'lucide-react'
 import { useDashboardUi } from '../context/DashboardUiContext'
 import { useLocale } from '../i18n/LocaleContext'
 import LangToggle from './LangToggle'
@@ -30,7 +30,7 @@ export default function Navbar() {
             height={28}
             className="rounded-md flex-shrink-0"
           />
-          <a href="/" className="navbar-brand truncate">
+          <a href="/dashboard" className="navbar-brand truncate">
             {t('nav.brand')}
           </a>
         </div>
@@ -40,6 +40,17 @@ export default function Navbar() {
 
           {user ? (
             <>
+              <button
+                type="button"
+                onClick={() => navigate('/developer')}
+                className="btn-ghost px-2 md:px-3 flex items-center gap-1.5"
+                title="Paid API"
+                aria-label="Paid API"
+              >
+                <KeyRound size={17} strokeWidth={2} />
+                <span className="hidden md:inline text-sm">API</span>
+              </button>
+
               <button
                 type="button"
                 onClick={openTopUp}

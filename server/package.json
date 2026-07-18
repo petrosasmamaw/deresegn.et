@@ -13,7 +13,8 @@
     "seed:users": "node scripts/seedUsers.mjs",
     "generate:secret": "node scripts/generateSecret.mjs",
     "train:dashen": "node scripts/trainDashen.mjs",
-    "test:boa-fraud": "node scripts/testBoaFraudMock.mjs"
+    "test:boa-fraud": "node scripts/testBoaFraudMock.mjs",
+    "test:paid-api": "node scripts/testPaidApi.mjs"
   },
   "keywords": [],
   "author": "",

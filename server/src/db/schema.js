@@ -156,3 +156,23 @@ export const topUpReceiverAccounts = pgTable('top_up_receiver_accounts', {
   receiverAccount: text('receiver_account').notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+/** Prepaid developer API keys — capacity is sum of verified receipt amounts (Birr). */
+export const apiKeys = pgTable('api_keys', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  name: text('name').notNull().default('API Key'),
+  keyPrefix: varchar('key_prefix', { length: 16 }).notNull(),
+  keyHash: text('key_hash').notNull().unique(),
+  packagePrice: decimal('package_price', { precision: 10, scale: 2 }).notNull(),
+  capacityAmount: decimal('capacity_amount', { precision: 12, scale: 2 }).notNull(),
+  usedAmount: decimal('used_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  lastUsedAt: timestamp('last_used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('api_keys_user_id_idx').on(table.userId),
+  statusIdx: index('api_keys_status_idx').on(table.status),
+  keyHashIdx: index('api_keys_key_hash_idx').on(table.keyHash),
+}));
