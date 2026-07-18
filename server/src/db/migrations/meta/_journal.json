@@ -36,6 +36,13 @@
       "when": 1781608495822,
       "tag": "0005_api_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781608495823,
+      "tag": "0006_api_key_encrypted",
+      "breakpoints": true
     }
   ]
 }

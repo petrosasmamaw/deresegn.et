@@ -59,14 +59,44 @@ function hashKey(rawKey) {
   return crypto.createHash('sha256').update(String(rawKey)).digest('hex');
 }
 
+function encryptionKeyBytes() {
+  const secret = process.env.API_KEY_ENCRYPTION_SECRET
+    || process.env.BETTER_AUTH_SECRET
+    || 'deresegn-dev-api-key-encryption';
+  return crypto.createHash('sha256').update(String(secret)).digest();
+}
+
+/** Encrypt raw API key for owner recovery (AES-256-GCM). */
+function encryptRawKey(rawKey) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKeyBytes(), iv);
+  const enc = Buffer.concat([cipher.update(String(rawKey), 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString('base64url');
+}
+
+function decryptRawKey(blob) {
+  if (!blob) return null;
+  const buf = Buffer.from(String(blob), 'base64url');
+  if (buf.length < 29) return null;
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const data = buf.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKeyBytes(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+}
+
 function publicKeyView(row, { includeSecret = null } = {}) {
   const capacity = money(row.capacityAmount);
   const used = money(row.usedAmount);
   const remaining = Math.max(0, capacity - used);
+  const encrypted = row.keyEncrypted ?? row.key_encrypted;
   return {
     id: row.id,
     name: row.name,
     keyPrefix: row.keyPrefix,
+    canReveal: Boolean(encrypted),
     packagePrice: money(row.packagePrice),
     capacityAmount: capacity,
     usedAmount: used,
@@ -101,6 +131,7 @@ export async function ensureApiKeysTable() {
   `);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS api_keys_user_id_idx ON api_keys (user_id)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS api_keys_status_idx ON api_keys (status)`);
+  await db.execute(sql`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS key_encrypted text`);
   tableReady = true;
 }
 
@@ -170,6 +201,7 @@ export async function purchaseApiKey(userId, { packageId, name } = {}) {
     name: String(name || `${pkg.label} API`).slice(0, 80),
     keyPrefix,
     keyHash,
+    keyEncrypted: encryptRawKey(rawKey),
     packagePrice: toMoney(pkg.price),
     capacityAmount: toMoney(pkg.capacity),
     usedAmount: '0.00',
@@ -264,6 +296,38 @@ export async function revokeApiKey(userId, keyId) {
     .where(eq(apiKeys.id, row.id))
     .returning();
   return publicKeyView(updated);
+}
+
+/** Owner-only: decrypt and return the full API key (lost-key recovery). */
+export async function revealApiKey(userId, keyId) {
+  await ensureApiKeysTable();
+  const row = await db.query.apiKeys.findFirst({
+    where: eq(apiKeys.id, Number(keyId)),
+  });
+  if (!row || row.userId !== userId) {
+    throw new CheckError('API key not found.', 404);
+  }
+  if (row.status === 'revoked') {
+    throw new CheckError('This key was revoked and cannot be revealed.', 403);
+  }
+  const encrypted = row.keyEncrypted;
+  if (!encrypted) {
+    throw new CheckError(
+      'This key was created before recover was available. Buy a new API key to get a recoverable secret.',
+      404,
+      { code: 'KEY_NOT_RECOVERABLE' },
+    );
+  }
+  let apiKey;
+  try {
+    apiKey = decryptRawKey(encrypted);
+  } catch {
+    throw new CheckError('Could not decrypt API key. Contact support.', 500);
+  }
+  if (!apiKey || !apiKey.startsWith('dk_live_')) {
+    throw new CheckError('Stored API key is invalid.', 500);
+  }
+  return { id: row.id, apiKey, keyPrefix: row.keyPrefix };
 }
 
 export async function findApiKeyByRaw(rawKey) {

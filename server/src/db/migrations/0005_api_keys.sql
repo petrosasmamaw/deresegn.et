@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS "api_keys" (
   "name" text DEFAULT 'API Key' NOT NULL,
   "key_prefix" varchar(16) NOT NULL,
   "key_hash" text NOT NULL,
+  "key_encrypted" text,
   "package_price" numeric(10, 2) NOT NULL,
   "capacity_amount" numeric(12, 2) NOT NULL,
   "used_amount" numeric(12, 2) DEFAULT '0' NOT NULL,

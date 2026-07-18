@@ -8,6 +8,7 @@ import {
   purchaseApiKey,
   renewApiKey,
   revokeApiKey,
+  revealApiKey,
   ensureApiKeysTable,
 } from '../services/apiKeyService.js';
 
@@ -36,7 +37,7 @@ router.post('/keys', authenticateUser, async (req, res) => {
     const packageId = req.body.packageId?.trim();
     const name = req.body.name?.trim();
     const result = await purchaseApiKey(req.userId, { packageId, name });
-    return success(res, result, 'API key created. Copy it now — it will not be shown again.', 201);
+    return success(res, result, 'API key created. You can reveal it anytime with the eye icon.', 201);
   } catch (err) {
     if (err instanceof CheckError) {
       return res.status(err.status).json({
@@ -46,6 +47,22 @@ router.post('/keys', authenticateUser, async (req, res) => {
       });
     }
     return error(res, 'Failed to create API key', 500, err.message);
+  }
+});
+
+router.get('/keys/:id/reveal', authenticateUser, async (req, res) => {
+  try {
+    const data = await revealApiKey(req.userId, req.params.id);
+    return success(res, data, 'API key revealed');
+  } catch (err) {
+    if (err instanceof CheckError) {
+      return res.status(err.status).json({
+        success: false,
+        message: err.message,
+        data: err.details,
+      });
+    }
+    return error(res, 'Failed to reveal API key', 500, err.message);
   }
 });
 

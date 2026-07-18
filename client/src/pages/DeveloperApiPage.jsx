@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Navigate, Link } from 'react-router-dom'
 import {
   KeyRound, Copy, Check, RefreshCw, Ban, AlertTriangle, Terminal, Shield,
-  ArrowLeft, Sparkles, Wallet,
+  ArrowLeft, Sparkles, Wallet, Eye, EyeOff,
 } from 'lucide-react'
 import axios from '../api/axiosInstance'
 import { unwrap } from '../api/unwrap'
@@ -35,6 +35,9 @@ export default function DeveloperApiPage() {
   const [freshSecret, setFreshSecret] = useState(null)
   const [copied, setCopied] = useState('')
   const [renewForId, setRenewForId] = useState(null)
+  const [revealedKeys, setRevealedKeys] = useState({})
+  const [visibleKeyIds, setVisibleKeyIds] = useState({})
+  const [revealBusyId, setRevealBusyId] = useState(null)
 
   const apiBase = useMemo(() => getApiBaseUrl(), [])
   const verifyUrl = `${apiBase}/v1/verify/reference`
@@ -81,7 +84,12 @@ export default function DeveloperApiPage() {
         ? await axios.post(`/developer/keys/${renewKeyId}/renew`, { packageId: selectedPackage })
         : await axios.post('/developer/keys', { packageId: selectedPackage })
       const data = unwrap(res)
-      if (data.key?.apiKey) setFreshSecret(data.key.apiKey)
+      if (data.key?.apiKey) {
+        setFreshSecret(data.key.apiKey)
+        if (data.key.id) {
+          setRevealedKeys((prev) => ({ ...prev, [data.key.id]: data.key.apiKey }))
+        }
+      }
       if (typeof data.newBalance === 'number') dispatch(fetchBalance())
       setRenewForId(null)
       await load()
@@ -102,12 +110,65 @@ export default function DeveloperApiPage() {
     setBusy(true)
     try {
       await axios.post(`/developer/keys/${id}/revoke`)
+      setRevealedKeys((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      setVisibleKeyIds((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       await load()
     } catch (err) {
       setError(err.response?.data?.message || err.message)
     } finally {
       setBusy(false)
     }
+  }
+
+  const toggleRevealKey = async (k) => {
+    const id = k.id
+    if (visibleKeyIds[id]) {
+      setVisibleKeyIds((prev) => ({ ...prev, [id]: false }))
+      return
+    }
+
+    if (revealedKeys[id]) {
+      setVisibleKeyIds((prev) => ({ ...prev, [id]: true }))
+      return
+    }
+
+    if (freshSecret && k.keyPrefix && freshSecret.startsWith(k.keyPrefix)) {
+      setRevealedKeys((prev) => ({ ...prev, [id]: freshSecret }))
+      setVisibleKeyIds((prev) => ({ ...prev, [id]: true }))
+      return
+    }
+
+    if (!k.canReveal) {
+      setError('This older key cannot be recovered. Buy a new API key — you can reveal it anytime with the eye icon.')
+      return
+    }
+
+    setRevealBusyId(id)
+    setError(null)
+    try {
+      const res = await axios.get(`/developer/keys/${id}/reveal`)
+      const data = unwrap(res)
+      if (!data?.apiKey) throw new Error('No key returned')
+      setRevealedKeys((prev) => ({ ...prev, [id]: data.apiKey }))
+      setVisibleKeyIds((prev) => ({ ...prev, [id]: true }))
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Could not reveal API key')
+    } finally {
+      setRevealBusyId(null)
+    }
+  }
+
+  const maskKey = (prefix) => {
+    const base = prefix || 'dk_live_'
+    return `${base}${'•'.repeat(Math.max(8, 28 - base.length))}`
   }
 
   const packages = pricing?.apiPackages || []
@@ -157,18 +218,27 @@ export default function DeveloperApiPage() {
             <div className="flex items-start gap-3">
               <Sparkles size={20} style={{ color: 'var(--color-foil-gold)' }} />
               <div className="flex-1 min-w-0">
-                <p className="font-display font-bold text-sm mb-1">Copy your secret key now</p>
-                <p className="text-xs text-[var(--color-text-secondary)] mb-3">It will not be shown again. Store it in your app env.</p>
-                <code className="block text-xs break-all font-mono p-3 rounded-lg" style={{ background: 'var(--color-ink)', color: '#F4EEDC' }}>
-                  {freshSecret}
-                </code>
-                <button
-                  type="button"
-                  className="btn-primary mt-3 text-sm"
-                  onClick={() => copyText(freshSecret, 'secret')}
+                <p className="font-display font-bold text-sm mb-1">Your new API key</p>
+                <p className="text-xs text-[var(--color-text-secondary)] mb-3">
+                  Store it in your app. You can also reveal it later from Your keys with the eye icon.
+                </p>
+                <div
+                  className="flex items-center gap-2 rounded-lg px-3 py-2"
+                  style={{ background: 'var(--color-ink)' }}
                 >
-                  {copied === 'secret' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy API key</>}
-                </button>
+                  <code className="flex-1 text-xs break-all font-mono" style={{ color: '#F4EEDC' }}>
+                    {freshSecret}
+                  </code>
+                  <button
+                    type="button"
+                    className="shrink-0 p-1.5 rounded-md hover:bg-white/10"
+                    style={{ color: '#F4EEDC' }}
+                    onClick={() => copyText(freshSecret, 'secret')}
+                    aria-label="Copy API key"
+                  >
+                    {copied === 'secret' ? <Check size={16} /> : <Copy size={16} />}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -322,15 +392,61 @@ export default function DeveloperApiPage() {
               <ul className="space-y-3">
                 {keys.map((k) => {
                   const pct = k.capacityAmount > 0 ? Math.min(100, (k.usedAmount / k.capacityAmount) * 100) : 0
+                  const isVisible = Boolean(visibleKeyIds[k.id])
+                  const fullKey = revealedKeys[k.id]
+                  const displayKey = isVisible && fullKey ? fullKey : maskKey(k.keyPrefix)
                   return (
                     <li key={k.id} className="rounded-xl p-3 border" style={{ borderColor: 'rgba(14,36,32,0.1)' }}>
-                      <div className="flex justify-between gap-2 mb-1">
+                      <div className="flex justify-between gap-2 mb-2">
                         <p className="font-semibold text-sm truncate">{k.name}</p>
                         <span className={`badge text-[10px] ${k.status === 'active' ? 'badge-success' : ''}`}>
                           {k.status}
                         </span>
                       </div>
-                      <p className="font-mono text-xs text-[var(--color-text-secondary)] mb-2">{k.keyPrefix}…</p>
+
+                      <label className="label text-[10px] mb-1">API key</label>
+                      <div
+                        className="flex items-center gap-1.5 rounded-lg border px-2.5 py-2 mb-2"
+                        style={{
+                          borderColor: 'rgba(14,36,32,0.14)',
+                          background: 'rgba(14,36,32,0.04)',
+                        }}
+                      >
+                        <code
+                          className="flex-1 min-w-0 text-xs font-mono truncate"
+                          style={{ color: 'var(--color-ink)', letterSpacing: isVisible ? 'normal' : '0.04em' }}
+                          title={isVisible && fullKey ? fullKey : undefined}
+                        >
+                          {displayKey}
+                        </code>
+                        <button
+                          type="button"
+                          className="shrink-0 p-1.5 rounded-md hover:bg-black/5 disabled:opacity-50"
+                          style={{ color: 'var(--color-text-secondary)' }}
+                          disabled={revealBusyId === k.id || k.status === 'revoked'}
+                          onClick={() => toggleRevealKey(k)}
+                          aria-label={isVisible ? 'Hide API key' : 'Show API key'}
+                          title={k.canReveal || freshSecret ? (isVisible ? 'Hide' : 'Show') : 'Not recoverable — buy a new key'}
+                        >
+                          {revealBusyId === k.id
+                            ? <RefreshCw size={15} className="animate-spin" />
+                            : isVisible
+                              ? <EyeOff size={15} />
+                              : <Eye size={15} />}
+                        </button>
+                        <button
+                          type="button"
+                          className="shrink-0 p-1.5 rounded-md hover:bg-black/5 disabled:opacity-50"
+                          style={{ color: 'var(--color-text-secondary)' }}
+                          disabled={!fullKey || !isVisible}
+                          onClick={() => copyText(fullKey, `key-${k.id}`)}
+                          aria-label="Copy API key"
+                          title={isVisible ? 'Copy' : 'Reveal first, then copy'}
+                        >
+                          {copied === `key-${k.id}` ? <Check size={15} /> : <Copy size={15} />}
+                        </button>
+                      </div>
+
                       <div className="h-2 rounded-full overflow-hidden mb-1" style={{ background: 'rgba(14,36,32,0.08)' }}>
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--color-maroon)' : 'var(--color-foil-gold)' }} />
                       </div>

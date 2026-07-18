@@ -164,6 +164,8 @@ export const apiKeys = pgTable('api_keys', {
   name: text('name').notNull().default('API Key'),
   keyPrefix: varchar('key_prefix', { length: 16 }).notNull(),
   keyHash: text('key_hash').notNull().unique(),
+  /** AES-GCM ciphertext so the owner can reveal the key later (lost-key recovery). */
+  keyEncrypted: text('key_encrypted'),
   packagePrice: decimal('package_price', { precision: 10, scale: 2 }).notNull(),
   capacityAmount: decimal('capacity_amount', { precision: 12, scale: 2 }).notNull(),
   usedAmount: decimal('used_amount', { precision: 12, scale: 2 }).notNull().default('0'),
