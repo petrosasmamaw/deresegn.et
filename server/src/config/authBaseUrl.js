@@ -33,16 +33,34 @@ export function resolveAuthBaseUrl() {
   return 'http://localhost:5000/api/auth';
 }
 
-/** Vercel frontend + Render API = cross-origin cookies (SameSite=None). */
+/** Frontend(s) + Render API = cross-origin cookies (SameSite=None). */
 export function isCrossOriginAuth() {
-  const clientUrl = (process.env.CLIENT_URL || '').trim();
   const authUrl = resolveAuthBaseUrl();
-  if (!clientUrl || !authUrl) return false;
+  if (!authUrl) return false;
+
+  let authOrigin;
   try {
-    return new URL(clientUrl).origin !== new URL(authUrl).origin;
+    authOrigin = new URL(authUrl).origin;
   } catch {
     return false;
   }
+
+  const candidates = [
+    ...(process.env.CLIENT_URL || '').split(','),
+    ...(process.env.CLIENT_URLS || '').split(','),
+  ]
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (const entry of candidates) {
+    try {
+      if (new URL(entry).origin !== authOrigin) return true;
+    } catch {
+      // ignore invalid entry
+    }
+  }
+
+  return false;
 }
 
 export function getAuthCookieAttributes(isProduction) {

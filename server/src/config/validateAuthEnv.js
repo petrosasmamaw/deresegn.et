@@ -1,4 +1,5 @@
 import { resolveAuthBaseUrl } from './authBaseUrl.js';
+import { getTrustedOrigins } from './clientOrigins.js';
 
 /** Warn when production auth env is misconfigured. */
 export function validateAuthEnv() {
@@ -14,13 +15,15 @@ export function validateAuthEnv() {
   }
 
   if (!clientUrl) {
-    console.warn('⚠️  CLIENT_URL is missing — set your Vercel app URL for CORS and cookies.');
+    console.warn('⚠️  CLIENT_URL is missing — set your frontend URL(s) for CORS and cookies.');
   }
 
   const authHost = hostFromUrl(authUrl);
-  const clientHost = hostFromUrl(clientUrl);
   const resolved = resolveAuthBaseUrl();
   const resolvedHost = hostFromUrl(resolved);
+  const trusted = getTrustedOrigins();
+  const primaryClient = trusted.find((o) => !o.includes('localhost')) || '';
+  const clientHost = hostFromUrl(primaryClient);
 
   if (authHost.includes('vercel.app') && resolvedHost.includes('onrender.com')) {
     console.error(
@@ -28,10 +31,10 @@ export function validateAuthEnv() {
       '\n   Change Render env to:',
       `\n   BETTER_AUTH_URL=${resolved}`,
     );
-  } else if (clientUrl && resolvedHost && clientHost && resolvedHost !== clientHost) {
+  } else if (primaryClient && resolvedHost && clientHost && resolvedHost !== clientHost) {
     console.log(
-      '✅ Direct API mode: frontend on',
-      clientHost,
+      '✅ Direct API mode: frontends',
+      trusted.filter((o) => !o.includes('localhost')).join(', '),
       '→ API on',
       resolvedHost,
       '(cross-origin cookies: SameSite=None).',

@@ -36,7 +36,9 @@ app.use(cors({
       callback(null, origin);
       return;
     }
-    callback(new Error(`CORS blocked for origin: ${origin}`));
+    // Do not throw — throwing yields HTTP 500 without CORS headers in the browser.
+    console.warn(`CORS blocked for origin: ${origin}`);
+    callback(null, false);
   },
   credentials: true,
 }))
