@@ -1,28 +1,38 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, useLocation } from 'react-router-dom'
 import { login } from '../features/auth/authSlice'
 import { ArrowRight } from 'lucide-react'
 import AuthSeoBlurb from '../components/AuthSeoBlurb'
 import LangToggle from '../components/LangToggle'
 import { useLocale } from '../i18n/LocaleContext'
 
+function postLoginPath(role, from) {
+  if (role === 'admin') return '/admin'
+  if (from && from !== '/login' && from !== '/register') return from
+  return '/dashboard'
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, submitting, error } = useSelector(s => s.auth)
   const { t } = useLocale()
+  const from = location.state?.from
 
-  if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
+  if (user) {
+    return <Navigate to={postLoginPath(user.role, from)} replace />
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     const result = await dispatch(login({ email, password }))
     if (login.fulfilled.match(result)) {
       const role = result.payload?.role
-      navigate(role === 'admin' ? '/admin' : '/dashboard')
+      navigate(postLoginPath(role, from))
     }
   }
 
@@ -106,7 +116,17 @@ export default function LoginPage() {
             <a href="/" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>{t('auth.backHome')}</a>
             {' · '}
             {t('auth.noAccount')}{' '}
-            <a href="/register" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>
+            <a
+              href="/register"
+              className="font-semibold"
+              style={{ color: 'var(--color-foil-gold)' }}
+              onClick={(e) => {
+                if (from) {
+                  e.preventDefault()
+                  navigate('/register', { state: { from } })
+                }
+              }}
+            >
               {t('auth.createOne')}
             </a>
           </p>

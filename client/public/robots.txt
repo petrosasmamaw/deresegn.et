@@ -1,7 +1,11 @@
 User-agent: *
 Allow: /
+Allow: /login
+Allow: /register
+Allow: /developer
+
 Disallow: /dashboard
 Disallow: /admin
-Disallow: /api
+Disallow: /certificate/
 
-Sitemap: https://check-deresegn-et.vercel.app/sitemap.xml
+Sitemap: https://tamagncheck.online/sitemap.xml

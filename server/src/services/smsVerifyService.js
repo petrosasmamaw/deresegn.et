@@ -46,8 +46,22 @@ function accountsMatch(a, b) {
   const ab = normalizeAccount(b);
   if (!aa || !ab) return false;
   if (aa === ab) return true;
-  if (aa.endsWith(ab) || ab.endsWith(aa)) return true;
-  if (aa.length >= 4 && ab.length >= 4 && aa.slice(-4) === ab.slice(-4)) return true;
+
+  const rawA = String(a || '');
+  const rawB = String(b || '');
+  const masked = /\*/.test(rawA) || /\*/.test(rawB);
+
+  if (masked) {
+    if (aa.length < 4 || ab.length < 4) return false;
+    if (aa.slice(-4) !== ab.slice(-4)) return false;
+    if (aa[0] !== ab[0]) return false;
+    return true;
+  }
+
+  const shorter = aa.length <= ab.length ? aa : ab;
+  const longer = aa.length > ab.length ? aa : ab;
+  if (shorter.length >= 8 && longer.endsWith(shorter)) return true;
+
   return false;
 }
 

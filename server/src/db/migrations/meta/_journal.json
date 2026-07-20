@@ -43,6 +43,13 @@
       "when": 1781608495823,
       "tag": "0006_api_key_encrypted",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781608495824,
+      "tag": "0007_registration_bonus_unique",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,7 @@ const PLACEHOLDER_SECRETS = new Set([
   'your-cloudinary-api-key',
   'your-cloudinary-api-secret',
   'your-cloud-name',
+  'deresegn-dev-api-key-encryption',
 ]);
 
 export function assertRequiredEnv() {
@@ -23,9 +24,23 @@ export function assertRequiredEnv() {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 
-  const weak = REQUIRED.filter((key) => PLACEHOLDER_SECRETS.has(process.env[key]?.trim()));
-  if (weak.length) {
-    console.warn(`⚠️  Placeholder values detected (set real values when you can): ${weak.join(', ')}`);
+  const authSecret = process.env.BETTER_AUTH_SECRET?.trim() || '';
+  if (authSecret.length < 32 || PLACEHOLDER_SECRETS.has(authSecret)) {
+    throw new Error('BETTER_AUTH_SECRET must be a real random value (32+ characters) in production.');
+  }
+
+  const enc = process.env.API_KEY_ENCRYPTION_SECRET?.trim() || authSecret;
+  if (enc.length < 32 || PLACEHOLDER_SECRETS.has(enc)) {
+    throw new Error(
+      'Set API_KEY_ENCRYPTION_SECRET (32+ chars recommended) for encrypting recoverable API keys.',
+    );
+  }
+
+  const softWeak = REQUIRED.filter(
+    (key) => key !== 'BETTER_AUTH_SECRET' && PLACEHOLDER_SECRETS.has(process.env[key]?.trim()),
+  );
+  if (softWeak.length) {
+    console.warn(`⚠️  Placeholder values detected: ${softWeak.join(', ')}`);
   }
 }
 

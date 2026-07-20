@@ -11,9 +11,19 @@ import adminRoutes from './routes/adminRoutes.js'
 import developerRoutes from './routes/developerRoutes.js'
 import v1ApiRoutes from './routes/v1ApiRoutes.js'
 import errorHandler from './middleware/errorHandler.js'
+import { csrfOriginGuard } from './middleware/csrfOriginGuard.js'
+import {
+  globalApiRateLimiter,
+  authRateLimiter,
+  signupRateLimiter,
+  verifyRateLimiter,
+  topUpRateLimiter,
+  apiV1RateLimiter,
+} from './middleware/rateLimiters.js'
 import { testConnection } from './db/index.js'
 import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
 import { ensureApiKeysTable } from './services/apiKeyService.js'
+import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerService.js'
 import { isTrustedOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
 import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
@@ -22,10 +32,8 @@ dotenv.config()
 
 const app = express()
 
-// Required on Render when behind a reverse proxy (X-Forwarded-* headers)
 app.set('trust proxy', 1)
 
-// CORS configuration for better-auth
 app.use(cors({
   origin(origin, callback) {
     if (!origin) {
@@ -36,7 +44,6 @@ app.use(cors({
       callback(null, origin);
       return;
     }
-    // Do not throw — throwing yields HTTP 500 without CORS headers in the browser.
     console.warn(`CORS blocked for origin: ${origin}`);
     callback(null, false);
   },
@@ -45,8 +52,9 @@ app.use(cors({
 
 app.use(express.json({ limit: '2mb' }))
 app.use(cookieParser())
+app.use('/api', globalApiRateLimiter)
+app.use('/api', csrfOriginGuard)
 
-// Mount Better Auth handler (dynamic import)
 async function mountAuthHandler() {
   try {
     const authModuleUrl = pathToFileURL(path.join(process.cwd(), './auth.mjs')).href
@@ -64,7 +72,7 @@ async function mountAuthHandler() {
     })
 
     if (mod?.nodeHandler) {
-      app.use('/api/auth', mod.nodeHandler)
+      app.use('/api/auth', signupRateLimiter, authRateLimiter, mod.nodeHandler)
       console.log('✅ Mounted Better Auth handler at /api/auth')
     }
   } catch (err) {
@@ -74,13 +82,13 @@ async function mountAuthHandler() {
 
 mountAuthHandler()
 
-// Mount API routes
+app.use('/api/balance/topup', topUpRateLimiter)
 app.use('/api/balance', balanceRoutes)
-app.use('/api/check', checkRoutes)
+app.use('/api/check', verifyRateLimiter, checkRoutes)
 app.use('/api/users', appAuthRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/developer', developerRoutes)
-app.use('/api/v1', v1ApiRoutes)
+app.use('/api/v1', apiV1RateLimiter, v1ApiRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -110,12 +118,10 @@ app.get('/api/health/banks', async (req, res) => {
   }
 })
 
-// Error handler must be last
 app.use(errorHandler)
 
 const PORT = process.env.PORT || 5000
 
-// Test DB connection and start server
 async function start() {
   if (process.env.NODE_ENV === 'production') {
     assertRequiredEnv()
@@ -128,6 +134,7 @@ async function start() {
     try {
       await ensureTopUpReceiverDefaults()
       await ensureApiKeysTable()
+      await ensureRegistrationBonusUniqueIndex()
     } catch (err) {
       console.error('⚠️  Warning: Could not seed top-up receiver accounts:', err.message)
     }

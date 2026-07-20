@@ -29,6 +29,12 @@ export const auth = betterAuth({
   baseURL: authBaseURL,
   trustedOrigins: getTrustedOrigins(),
   useSecureCookies: isProduction,
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 40,
+    storage: "memory",
+  },
   advanced: {
     defaultCookieAttributes: cookieAttributes,
   },
@@ -62,7 +68,6 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          // Defer until after Better Auth commits the new user row.
           setImmediate(async () => {
             try {
               await ensureRegistrationBonus(user.id);

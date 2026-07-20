@@ -5,6 +5,10 @@ export const authClient = createAuthClient({
   baseURL: getAuthBaseUrl(),
   fetchOptions: {
     credentials: 'include',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-Tamagn-Client': '1',
+    },
   },
 })
 

@@ -1,11 +1,17 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, useLocation } from 'react-router-dom'
 import { signup } from '../features/auth/authSlice'
 import { ArrowRight, Gift } from 'lucide-react'
 import AuthSeoBlurb from '../components/AuthSeoBlurb'
 import LangToggle from '../components/LangToggle'
 import { useLocale } from '../i18n/LocaleContext'
+
+function postAuthPath(role, from) {
+  if (role === 'admin') return '/admin'
+  if (from && from !== '/login' && from !== '/register') return from
+  return '/dashboard'
+}
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -13,17 +19,21 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, submitting, error } = useSelector(s => s.auth)
   const { t } = useLocale()
+  const from = location.state?.from
 
-  if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
+  if (user) {
+    return <Navigate to={postAuthPath(user.role, from)} replace />
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     const result = await dispatch(signup({ name, email, password }))
     if (signup.fulfilled.match(result)) {
       const role = result.payload?.role
-      navigate(role === 'admin' ? '/admin' : '/dashboard')
+      navigate(postAuthPath(role, from))
     }
   }
 

@@ -6,25 +6,55 @@ function cleanUrl(raw) {
   return String(raw || '').replace(/[).,;]+$/g, '').trim();
 }
 
+/** Only rejoin SMS line-breaks inside a URL path — never glue following words like "for feedback:". */
+function isUrlPathContinuation(token) {
+  const t = String(token || '');
+  if (!t) return false;
+  if (/^(for|feedback|thanks?|you|visit|click|see|more|http|https|and|with|your|current|balance)$/i.test(t)) {
+    return false;
+  }
+  if (/^https?:\/\//i.test(t)) return false;
+  if (/^[A-Za-z]{2,}:/i.test(t)) return false; // "feedback:" etc.
+  // Path/query fragment only
+  return /^[A-Za-z0-9\-._~%&=?+/]+$/.test(t);
+}
+
+function repairBrokenHostUrl(blob, hostPathRegex) {
+  return blob.replace(hostPathRegex, (full, base, first, rest) => {
+    let url = `${base}${first}`;
+    const leftover = [];
+    const parts = String(rest || '').trim().split(/\s+/).filter(Boolean);
+    let joined = true;
+    for (const part of parts) {
+      if (joined && isUrlPathContinuation(part)) {
+        url += part;
+      } else {
+        joined = false;
+        leftover.push(part);
+      }
+    }
+    return leftover.length ? `${url} ${leftover.join(' ')}` : url;
+  });
+}
+
 function repairSmsUrls(blob) {
   let out = blob;
 
-  // Mobile SMS apps sometimes break long URLs across lines — rejoin them.
-  out = out.replace(
-    /(https?:\/\/mbreciept\.cbe\.com\.et\/[^\s]+(?:\s+[^\s]+)*)/gi,
-    (url) => url.replace(/\s+/g, ''),
+  out = repairBrokenHostUrl(
+    out,
+    /(https?:\/\/mbreciept\.cbe\.com\.et\/)([^\s]+)((?:\s+[^\s]+)*)/gi,
   );
-  out = out.replace(
-    /(https?:\/\/apps\.cbe\.com\.et(?::\d+)?\/BranchReceipt\/[^\s]+(?:\s+[^\s]+)*)/gi,
-    (url) => url.replace(/\s+/g, ''),
+  out = repairBrokenHostUrl(
+    out,
+    /(https?:\/\/apps\.cbe\.com\.et(?::\d+)?\/BranchReceipt\/)([^\s]+)((?:\s+[^\s]+)*)/gi,
   );
-  out = out.replace(
-    /(https?:\/\/transactioninfo\.ethiotelecom\.et\/receipt\/[^\s]+(?:\s+[^\s]+)*)/gi,
-    (url) => url.replace(/\s+/g, ''),
+  out = repairBrokenHostUrl(
+    out,
+    /(https?:\/\/transactioninfo\.ethiotelecom\.et\/receipt\/)([^\s]+)((?:\s+[^\s]+)*)/gi,
   );
-  out = out.replace(
-    /\b(mbreciept\.cbe\.com\.et\/[^\s]+(?:\s+[^\s]+)*)/gi,
-    (url) => url.replace(/\s+/g, ''),
+  out = repairBrokenHostUrl(
+    out,
+    /\b(mbreciept\.cbe\.com\.et\/)([^\s]+)((?:\s+[^\s]+)*)/gi,
   );
 
   return out;
@@ -48,12 +78,25 @@ function parseAmount(raw) {
   return Number.isNaN(n) || n <= 0 ? null : n;
 }
 
+/** CBE mb receipt tokens: v2-… or opaque id — stop before trailing SMS junk. */
+function extractMbReceiptTokenFromText(text) {
+  const blob = String(text || '');
+  const match = blob.match(/mbreciept\.cbe\.com\.et\/(v2-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{8,80})/i);
+  return match?.[1] || null;
+}
+
 function findCbeMbReceiptUrl(blob) {
+  const token = extractMbReceiptTokenFromText(blob);
+  if (token) return `https://mbreciept.cbe.com.et/${token}`;
+
   const match = blob.match(/https?:\/\/mbreciept\.cbe\.com\.et\/[^\s]+/i)
     || blob.match(/\bmbreciept\.cbe\.com\.et\/[^\s]+/i);
   if (!match?.[0]) return '';
   let url = cleanUrl(match[0]);
   if (!url.startsWith('http')) url = `https://${url}`;
+  // Strip accidental glue after token (e.g. forfeedback:)
+  const cleanedToken = extractMbReceiptTokenFromText(url);
+  if (cleanedToken) return `https://mbreciept.cbe.com.et/${cleanedToken}`;
   return url.replace(/&amp;/gi, '&');
 }
 
@@ -68,6 +111,10 @@ function findCbeReceiptUrl(blob) {
 
 function findCbeAmount(blob) {
   const patterns = [
+    /\ba\s+debit\s+transaction\s+of\s+ETB\s*([\d,]+\.?\d*)/i,
+    /\ba\s+credit\s+transaction\s+of\s+ETB\s*([\d,]+\.?\d*)/i,
+    /\bdebit\s+transaction\s+of\s+ETB\s*([\d,]+\.?\d*)/i,
+    /\bcredit\s+transaction\s+of\s+ETB\s*([\d,]+\.?\d*)/i,
     /\b(?:has been\s+)?credited with\s+ETB\s*([\d,]+\.?\d*)/i,
     /\b(?:has been\s+)?debited with\s+ETB\s*([\d,]+\.?\d*)/i,
     /\btransferred\s+ETB\s*([\d,]+\.?\d*)/i,
@@ -82,7 +129,7 @@ function findCbeAmount(blob) {
     const hit = blob.match(pattern);
     const amount = parseAmount(hit?.[1]);
     if (amount != null) {
-      if (/debited|withdrawn/i.test(hit[0])) {
+      if (/debit|withdrawn/i.test(hit[0]) && !/credit/i.test(hit[0])) {
         return { direction: 'debit', amount };
       }
       if (/transferred/i.test(hit[0])) {
@@ -128,7 +175,8 @@ export function parseCbeSms(text) {
 
   let direction = null;
   let amount = null;
-  let account = blob.match(/\bto your account\s+([\d*]+)/i)?.[1]?.trim()
+  let account = blob.match(/\bon your account\s+([\d*]+)/i)?.[1]?.trim()
+    || blob.match(/\bto your account\s+([\d*]+)/i)?.[1]?.trim()
     || blob.match(/\bAccount\s+([\d*]+)/i)?.[1]?.trim()
     || null;
   let senderAccount = null;
@@ -152,10 +200,19 @@ export function parseCbeSms(text) {
   }
 
   const customerName = blob.match(
-    /Dear\s+(?:Mr|Mrs|Ms)\.?\s+([A-Za-z][A-Za-z\s]{0,30}?)(?:\s+your\b|,|\.|$)/i,
+    /Dear\s+(?:Mr|Mrs|Ms)\.?\s+([A-Za-z][A-Za-z\s]{0,40}?)(?:\s+your\b|,|\.|$)/i,
   )?.[1]?.trim()
+    || blob.match(/Dear\s+([A-Za-z][A-Za-z\s]{2,60}?)(?:\s+A\s+(?:debit|credit)\s+transaction)/i)?.[1]?.trim()
     || blob.match(/Dear\s+([A-Za-z][A-Za-z\s]{2,50}?)(?:\s+You have)/i)?.[1]?.trim()
     || null;
+
+  // Debit SMS "Dear X" = payer; credit SMS "Dear X" = receiver.
+  if (!senderName && customerName && (direction === 'debit' || direction === 'transfer')) {
+    senderName = customerName;
+  }
+  if (!receiverName && customerName && direction === 'credit') {
+    receiverName = customerName;
+  }
 
   return {
     method: 'cbe',
@@ -165,7 +222,7 @@ export function parseCbeSms(text) {
     account,
     senderAccount,
     senderName,
-    receiverName: receiverName || customerName,
+    receiverName: receiverName || (direction === 'credit' ? customerName : null),
     customerName,
     receiptUrl,
     verificationToken,

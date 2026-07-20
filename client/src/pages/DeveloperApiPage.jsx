@@ -154,7 +154,7 @@ export default function DeveloperApiPage() {
     setRevealBusyId(id)
     setError(null)
     try {
-      const res = await axios.get(`/developer/keys/${id}/reveal`)
+      const res = await axios.post(`/developer/keys/${id}/reveal`)
       const data = unwrap(res)
       if (!data?.apiKey) throw new Error('No key returned')
       setRevealedKeys((prev) => ({ ...prev, [id]: data.apiKey }))

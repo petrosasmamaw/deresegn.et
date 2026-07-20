@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import cloudinary from '../config/cloudinary.js';
 import { db } from '../db/index.js';
 import { balances, receiptChecks, topUpTransactions } from '../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { extractPaymentFromScreenshot, extractPaymentFromBuffer } from './geminiService.js';
 import { decodeQrFromImage, decodeQrFromBuffer, prepareQrScanImage } from './qrService.js';
 import { validateReceiptSubmission, buildDuplicateTxIssue, validateOfficialTopUpReceiver } from './receiptValidationService.js';
@@ -131,18 +131,26 @@ export async function getUserBalance(userId) {
 }
 
 async function deductBalance(userId, amount, ledgerMeta = null) {
-  const row = await ensureUserBalance(userId);
-  const current = parseFloat(toMoney(row.amount));
-  const debit = parseFloat(amount) || 0;
-  if (current < debit) {
+  await ensureUserBalance(userId);
+  const debit = parseFloat(toMoney(amount)) || 0;
+  if (debit <= 0) {
+    return getUserBalance(userId);
+  }
+
+  const result = await db.execute(sql`
+    UPDATE balances
+    SET amount = amount - ${debit}::numeric,
+        updated_at = NOW()
+    WHERE user_id = ${userId}
+      AND amount::numeric >= ${debit}::numeric
+    RETURNING amount
+  `);
+  const row = result?.rows?.[0] || result?.[0];
+  if (!row) {
     throw new CheckError('Insufficient balance. Top up to continue verifying receipts.', 402);
   }
-  const [updated] = await db
-    .update(balances)
-    .set({ amount: toMoney(current - debit), updatedAt: new Date() })
-    .where(eq(balances.userId, userId))
-    .returning();
-  const newBalance = parseFloat(toMoney(updated.amount));
+
+  const newBalance = parseFloat(toMoney(row.amount));
   if (ledgerMeta && debit > 0) {
     await recordBalanceTransaction({
       userId,
@@ -158,15 +166,21 @@ async function deductBalance(userId, amount, ledgerMeta = null) {
 }
 
 async function addBalance(userId, amount) {
-  const row = await ensureUserBalance(userId);
-  const current = parseFloat(toMoney(row.amount));
-  const credit = parseFloat(amount) || 0;
-  const [updated] = await db
-    .update(balances)
-    .set({ amount: toMoney(current + credit), updatedAt: new Date() })
-    .where(eq(balances.userId, userId))
-    .returning();
-  return parseFloat(toMoney(updated.amount));
+  await ensureUserBalance(userId);
+  const credit = parseFloat(toMoney(amount)) || 0;
+  if (credit <= 0) {
+    return getUserBalance(userId);
+  }
+
+  const result = await db.execute(sql`
+    UPDATE balances
+    SET amount = amount + ${credit}::numeric,
+        updated_at = NOW()
+    WHERE user_id = ${userId}
+    RETURNING amount
+  `);
+  const row = result?.rows?.[0] || result?.[0];
+  return parseFloat(toMoney(row?.amount));
 }
 
 export async function findCheckByTxCode(txCode) {

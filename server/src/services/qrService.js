@@ -151,9 +151,15 @@ export function parseTransactionFromQr(qrText) {
 /** Token from CBE mbreciept QR — mobile success uses v2-…, VAT/web receipt uses opaque id. */
 export function extractCbeMbReceiptToken(text) {
   const trimmed = String(text || '').trim();
-  const match = trimmed.match(/^https?:\/\/mbreciept\.cbe\.com\.et\/([^/?#]+)/i);
+  const fromPath = trimmed.match(/mbreciept\.cbe\.com\.et\/(v2-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{8,80})/i)?.[1];
+  if (fromPath) return fromPath;
+
+  const match = trimmed.match(/^https?:\/\/mbreciept\.cbe\.com\.et\/([^/?#\s]+)/i);
   if (!match?.[1]) return null;
-  const token = decodeURIComponent(match[1]).trim();
+  let token = decodeURIComponent(match[1]).trim();
+  // Guard against glued SMS junk after token
+  const cleaned = token.match(/^(v2-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{8,80})/i)?.[1];
+  token = cleaned || token;
   if (!token || token.length < 8) return null;
   return token;
 }

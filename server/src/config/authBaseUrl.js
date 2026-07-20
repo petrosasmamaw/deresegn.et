@@ -67,8 +67,10 @@ export function getAuthCookieAttributes(isProduction) {
   const crossOrigin = isProduction && isCrossOriginAuth();
   return {
     httpOnly: true,
-    secure: isProduction,
+    secure: isProduction || crossOrigin,
+    // Cross-origin SPA↔API needs None; same-site can use Lax (stronger CSRF default).
     sameSite: crossOrigin ? 'none' : 'lax',
     ...(crossOrigin ? { partitioned: true } : {}),
+    path: '/',
   };
 }

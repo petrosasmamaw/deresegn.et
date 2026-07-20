@@ -1,10 +1,22 @@
 import crypto from 'crypto';
 import { db } from '../db/index.js';
 import { balances, balanceTransactions, systemSettings } from '../db/schema.js';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 function toMoney(value) {
   return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
+}
+
+let bonusIndexReady = false;
+
+export async function ensureRegistrationBonusUniqueIndex() {
+  if (bonusIndexReady) return;
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS balance_transactions_registration_bonus_uidx
+    ON balance_transactions (user_id)
+    WHERE type = 'registration_bonus'
+  `);
+  bonusIndexReady = true;
 }
 
 export async function getSetting(key, fallback = null) {
@@ -66,7 +78,12 @@ export async function hasRegistrationBonus(userId) {
   return Boolean(row);
 }
 
+/**
+ * Grant welcome bonus at most once per user (unique index + atomic wallet credit).
+ */
 export async function ensureRegistrationBonus(userId) {
+  await ensureRegistrationBonusUniqueIndex();
+
   const settings = await getRegistrationBonusSettings();
   if (!settings.enabled || settings.amount <= 0) {
     return { granted: false, reason: 'disabled' };
@@ -82,28 +99,46 @@ export async function ensureRegistrationBonus(userId) {
     row = created;
   }
 
-  const current = parseFloat(toMoney(row.amount));
   const credit = settings.amount;
-  const next = parseFloat(toMoney(current + credit));
 
-  const [updated] = await db
-    .update(balances)
-    .set({ amount: toMoney(next), updatedAt: new Date() })
-    .where(eq(balances.userId, userId))
-    .returning();
+  // Claim row first — unique index blocks double-grant races.
+  try {
+    await db.insert(balanceTransactions).values({
+      userId,
+      type: 'registration_bonus',
+      amount: toMoney(credit),
+      balanceAfter: toMoney(row.amount),
+      description: `Welcome bonus — ${credit} Birr`,
+    });
+  } catch (err) {
+    if (err?.code === '23505' || /unique/i.test(String(err?.message || ''))) {
+      return { granted: false, reason: 'already_claimed', amount: settings.amount };
+    }
+    throw err;
+  }
 
-  await recordBalanceTransaction({
-    userId,
-    type: 'registration_bonus',
-    amount: credit,
-    balanceAfter: updated.amount,
-    description: `Welcome bonus — ${credit} Birr`,
-  });
+  const result = await db.execute(sql`
+    UPDATE balances
+    SET amount = amount + ${credit}::numeric,
+        updated_at = NOW()
+    WHERE user_id = ${userId}
+    RETURNING amount
+  `);
+  const updated = result?.rows?.[0] || result?.[0];
+  const newBalance = parseFloat(toMoney(updated?.amount));
+
+  // Fix ledger balanceAfter to post-credit value
+  await db.execute(sql`
+    UPDATE balance_transactions
+    SET balance_after = ${toMoney(newBalance)}::numeric
+    WHERE user_id = ${userId}
+      AND type = 'registration_bonus'
+  `);
 
   return {
     granted: true,
     amount: credit,
-    newBalance: parseFloat(toMoney(updated.amount)),
+    newBalance,
   };
 }
 

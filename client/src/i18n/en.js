@@ -21,12 +21,13 @@ export const en = {
   'lang.switchToAm': 'ወደ አማርኛ ቀይር',
 
   // Nav
-  'nav.brand': 'Deresegn',
-  'nav.logoAlt': 'Deresegn logo',
+  'nav.brand': 'Tamagn Tech',
+  'nav.logoAlt': 'Tamagn Tech logo',
   'nav.topUpTitle': 'Top up balance',
   'nav.balanceAria': 'Balance {balance} Birr. Click to top up',
   'nav.logout': 'Logout',
   'nav.signIn': 'Sign In',
+  'nav.getApi': 'Get API',
 
   // Bottom nav
   'bottom.home': 'Home',
@@ -34,23 +35,25 @@ export const en = {
   'bottom.verifyAria': 'Verify Receipt',
 
   // Home
-  'home.logoAlt': 'Check Deresegn logo — Ethiopia receipt verification',
-  'home.title': 'Check Deresegn',
-  'home.subtitle': 'Ethiopia deresegn & deresegn ethiopia receipt checker — verify Telebirr, CBE, Dashen & Bank of Abyssinia payments online.',
+  'home.logoAlt': 'Tamagn Tech logo — ታማኝ ቸክ Ethiopian receipt verification',
+  'home.title': 'Tamagn Tech',
+  'home.titleAm': 'ታማኝ ቸክ',
+  'home.subtitle': 'Trusted Ethiopian receipt checker — verify Telebirr, CBE, Dashen & Bank of Abyssinia payments online with screenshot, QR, payment ID, or SMS.',
   'home.quickLinks': 'Quick links',
-  'home.verify': 'Verify Deresegn',
+  'home.verify': 'Verify Receipt',
   'home.topup': 'Topup',
   'home.register': 'Register',
   'home.login': 'Login',
+  'home.getApi': 'Get API',
   'home.mainNav': 'Main navigation',
-  'home.whyTitle': 'Why Check Deresegn?',
-  'home.why1': 'Deresegn check with screenshot, QR, payment ID, or SMS',
+  'home.whyTitle': 'Why ታማኝ ቸክ?',
+  'home.why1': 'Verify receipts with screenshot, QR, payment ID, or bank SMS',
   'home.why2': 'Shareable verification certificate for every valid receipt',
   'home.why3': 'New users get 20 Birr registration bonus to try free',
 
   // Auth
-  'auth.brand': 'Check Deresegn',
-  'auth.loginSubtitle': 'Ethiopia deresegn verification — Telebirr, CBE, Dashen & BOA',
+  'auth.brand': 'Tamagn Tech',
+  'auth.loginSubtitle': 'ታማኝ ቸክ — verify Telebirr, CBE, Dashen & BOA receipts',
   'auth.email': 'Email Address',
   'auth.password': 'Password',
   'auth.signIn': 'Sign In',
@@ -58,8 +61,8 @@ export const en = {
   'auth.backHome': '← Home',
   'auth.noAccount': "Don't have an account?",
   'auth.createOne': 'Create one',
-  'auth.registerTitle': 'Deresegn Check — Join Free',
-  'auth.registerSubtitle': 'Ethiopia deresegn & deresegn ethiopia receipt checker — 20 Birr bonus',
+  'auth.registerTitle': 'Join ታማኝ ቸክ — Free',
+  'auth.registerSubtitle': 'Tamagn Tech receipt checker — 20 Birr welcome bonus',
   'auth.bonusBanner': 'New users receive {amount} Birr to try verification (registration bonus).',
   'auth.fullName': 'Full Name',
   'auth.namePlaceholder': 'Your full name',
@@ -67,7 +70,7 @@ export const en = {
   'auth.createAccount': 'Create Account',
   'auth.registering': 'Registering...',
   'auth.haveAccount': 'Already have an account?',
-  'auth.seo': 'Check Deresegn — Ethiopia deresegn and deresegn Ethiopia receipt verification online. Verify Telebirr, CBE, Dashen, and Bank of Abyssinia payments (ደረሰኝ) in seconds.',
+  'auth.seo': 'Tamagn Tech (ታማኝ ቸክ) — Ethiopian payment receipt verification online. Verify Telebirr, CBE, Dashen, and Bank of Abyssinia payments in seconds. Register free, login, or get the Paid Verify API.',
 
   // Dashboard
   'dash.quickAction': 'Quick Action',
@@ -109,7 +112,7 @@ export const en = {
   'balance.costBirr': '{cost} Birr',
 
   // Onboarding
-  'onboard.title': 'Welcome to Deresegn',
+  'onboard.title': 'Welcome to ታማኝ ቸክ',
   'onboard.subtitle': 'Get started in 3 quick steps',
   'onboard.bonus': 'You received {amount} Birr registration bonus to try your first verifications.',
   'onboard.step1Title': 'Top up when you need more',
@@ -294,20 +297,20 @@ export const en = {
   'cert.signIn': 'Sign in',
   'cert.notFound': 'Certificate not found or link expired.',
   'cert.valid': 'Valid',
-  'cert.verifiedBy': 'Verified by Check Deresegn',
+  'cert.verifiedBy': 'Verified by Tamagn Tech (ታማኝ ቸክ)',
   'cert.copy': 'Copy link',
   'cert.copied': 'Link copied',
   'cert.download': 'Download',
   'cert.downloadPng': 'Download PNG',
   'cert.publicTitle': 'Receipt verification certificate',
-  'cert.publicSubtitle': 'Official Check Deresegn verification result',
+  'cert.publicSubtitle': 'Official ታማኝ ቸክ verification result',
   'cert.certificateId': 'Certificate #{id}',
   'cert.paymentTitle': 'Payment Verification Certificate',
   'cert.verifiedPayment': 'VERIFIED PAYMENT',
   'cert.bankMethod': 'Bank / Method',
   'cert.confidence': 'Confidence',
   'cert.verifiedAt': 'Verified at',
-  'cert.brand': 'Deresegn',
+  'cert.brand': 'ታማኝ ቸክ',
 
   // Result
   'result.failed': 'Verification failed',

@@ -1,16 +1,16 @@
 import { Link, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { Shield, LogIn, UserPlus, CheckCircle2 } from 'lucide-react'
+import { Shield, LogIn, UserPlus, CheckCircle2, KeyRound } from 'lucide-react'
 import AuthSeoBlurb from '../components/AuthSeoBlurb'
 import LangToggle from '../components/LangToggle'
 import { useLocale } from '../i18n/LocaleContext'
 import { AuthPageSkeleton } from '../components/PageSkeletons'
 
-const SITE_URL = 'https://check-deresegn-et.vercel.app'
+const SITE_URL = 'https://tamagncheck.online'
 
 export default function HomePage() {
   const { user, initializing } = useSelector((s) => s.auth)
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
 
   if (user) {
     return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
@@ -19,6 +19,8 @@ export default function HomePage() {
   if (initializing) {
     return <AuthPageSkeleton />
   }
+
+  const brandTitle = locale === 'am' ? t('home.titleAm') : t('home.title')
 
   return (
     <main className="auth-hero min-h-screen">
@@ -34,7 +36,17 @@ export default function HomePage() {
           height={96}
           className="mx-auto mb-5 rounded-2xl shadow-md"
         />
-        <h1 className="page-title mb-3">{t('home.title')}</h1>
+        <h1 className="page-title mb-1">{brandTitle}</h1>
+        {locale !== 'am' && (
+          <p className="text-lg font-semibold mb-2" style={{ color: 'var(--color-foil-gold)' }}>
+            {t('home.titleAm')}
+          </p>
+        )}
+        {locale === 'am' && (
+          <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-foil-gold)' }}>
+            Tamagn Tech
+          </p>
+        )}
         <p className="page-subtitle max-w-lg mx-auto">
           {t('home.subtitle')}
         </p>
@@ -43,21 +55,27 @@ export default function HomePage() {
       <div className="auth-hero-body px-4 pb-10">
         <div className="w-full max-w-md mx-auto space-y-4">
           <nav className="card flex flex-wrap gap-2 p-3 justify-center" aria-label={t('home.quickLinks')}>
-            <a href="#verify-deresegn" className="btn-secondary">{t('home.verify')}</a>
-            <a href="#topup" className="btn-secondary">{t('home.topup')}</a>
-            <a href="#register" className="btn-secondary">{t('home.register')}</a>
-            <a href="#login" className="btn-secondary">{t('home.login')}</a>
+            <Link to="/developer" className="btn-secondary">{t('home.getApi')}</Link>
+            <Link to="/login" className="btn-secondary">{t('home.login')}</Link>
+            <Link to="/register" className="btn-secondary">{t('home.register')}</Link>
+            <a href="#verify-receipt" className="btn-secondary">{t('home.verify')}</a>
           </nav>
 
-          <nav className="card flex flex-col sm:flex-row gap-3 p-4" aria-label={t('home.mainNav')}>
-            <Link to="/login" className="btn-primary flex-1 flex items-center justify-center gap-2">
-              <LogIn size={18} />
-              {t('home.login')}
+          <nav className="card flex flex-col gap-3 p-4" aria-label={t('home.mainNav')}>
+            <Link to="/developer" className="btn-primary flex items-center justify-center gap-2">
+              <KeyRound size={18} />
+              {t('home.getApi')}
             </Link>
-            <Link to="/register" className="btn-secondary flex-1 flex items-center justify-center gap-2">
-              <UserPlus size={18} />
-              {t('home.register')}
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/login" className="btn-secondary flex-1 flex items-center justify-center gap-2">
+                <LogIn size={18} />
+                {t('home.login')}
+              </Link>
+              <Link to="/register" className="btn-secondary flex-1 flex items-center justify-center gap-2">
+                <UserPlus size={18} />
+                {t('home.register')}
+              </Link>
+            </div>
           </nav>
 
           <div className="card space-y-3">
@@ -83,13 +101,13 @@ export default function HomePage() {
 
           <AuthSeoBlurb />
 
-          <section id="verify-deresegn" className="sr-only">
+          <section id="verify-receipt" className="sr-only">
             <h2>{t('home.verify')}</h2>
             <a href={`${SITE_URL}/login`}>{t('home.verify')}</a>
           </section>
-          <section id="topup" className="sr-only">
-            <h2>{t('home.topup')}</h2>
-            <a href={`${SITE_URL}/login`}>{t('home.topup')}</a>
+          <section id="get-api" className="sr-only">
+            <h2>{t('home.getApi')}</h2>
+            <a href={`${SITE_URL}/developer`}>{t('home.getApi')}</a>
           </section>
           <section id="register" className="sr-only">
             <h2>{t('home.register')}</h2>

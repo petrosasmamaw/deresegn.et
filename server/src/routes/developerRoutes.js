@@ -50,6 +50,23 @@ router.post('/keys', authenticateUser, async (req, res) => {
   }
 });
 
+router.post('/keys/:id/reveal', authenticateUser, async (req, res) => {
+  try {
+    const data = await revealApiKey(req.userId, req.params.id);
+    return success(res, data, 'API key revealed');
+  } catch (err) {
+    if (err instanceof CheckError) {
+      return res.status(err.status).json({
+        success: false,
+        message: err.message,
+        data: err.details,
+      });
+    }
+    return error(res, 'Failed to reveal API key', 500, err.message);
+  }
+});
+
+/** @deprecated Prefer POST /keys/:id/reveal */
 router.get('/keys/:id/reveal', authenticateUser, async (req, res) => {
   try {
     const data = await revealApiKey(req.userId, req.params.id);

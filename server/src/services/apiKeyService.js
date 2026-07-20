@@ -60,9 +60,29 @@ function hashKey(rawKey) {
 }
 
 function encryptionKeyBytes() {
-  const secret = process.env.API_KEY_ENCRYPTION_SECRET
-    || process.env.BETTER_AUTH_SECRET
-    || 'deresegn-dev-api-key-encryption';
+  const dedicated = process.env.API_KEY_ENCRYPTION_SECRET?.trim();
+  const fallback = process.env.BETTER_AUTH_SECRET?.trim();
+  const secret = dedicated || fallback;
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (!secret || secret.length < 32) {
+    if (isProduction) {
+      throw new Error(
+        'Set API_KEY_ENCRYPTION_SECRET (or BETTER_AUTH_SECRET) to a random string of at least 32 characters.',
+      );
+    }
+    console.warn('⚠️  Weak API key encryption secret — use 32+ char secret in production.');
+    return crypto.createHash('sha256').update(String(secret || 'deresegn-dev-only-not-for-prod')).digest();
+  }
+
+  if (secret === 'deresegn-dev-api-key-encryption'
+    || secret === 'change-me-to-a-long-random-secret'
+    || secret === 'generate-a-long-random-secret-here') {
+    if (isProduction) {
+      throw new Error('API key encryption secret is still a placeholder. Set a real random value.');
+    }
+  }
+
   return crypto.createHash('sha256').update(String(secret)).digest();
 }
 

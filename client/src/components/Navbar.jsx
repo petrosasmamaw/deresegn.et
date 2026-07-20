@@ -44,11 +44,11 @@ export default function Navbar() {
                 type="button"
                 onClick={() => navigate('/developer')}
                 className="btn-ghost px-2 md:px-3 flex items-center gap-1.5"
-                title="Paid API"
-                aria-label="Paid API"
+                title={t('nav.getApi')}
+                aria-label={t('nav.getApi')}
               >
                 <KeyRound size={17} strokeWidth={2} />
-                <span className="hidden md:inline text-sm">API</span>
+                <span className="hidden md:inline text-sm">{t('nav.getApi')}</span>
               </button>
 
               <button
