@@ -64,7 +64,7 @@ export const am = {
   'auth.createAccount': 'መለያ ፍጠር',
   'auth.registering': 'በመመዝገብ ላይ...',
   'auth.haveAccount': 'አስቀድመው መለያ አለዎት?',
-  'auth.seo': 'ታማኝ ቸክ (Tamagn Tech) — የኢትዮጵያ የደረሰኝ ማረጋገጫ በመስመር ላይ። Telebirr፣ CBE፣ Dashen እና የአቢሲኒያ ባንክ ክፍያዎችን በሰከንዶች ውስጥ ያረጋግጡ። በነፃ ይመዝገቡ፣ ይግቡ ወይም Paid Verify API ያግኙ።',
+  'auth.seo': 'Tamagn Tech (ታማኝ ቸክ) — የኢትዮጵያ የደረሰኝ ማረጋገጫ በመስመር ላይ። Telebirr፣ CBE፣ Dashen እና የአቢሲኒያ ባንክ ክፍያዎችን በሰከንዶች ውስጥ ያረጋግጡ። በነፃ ይመዝገቡ፣ ይግቡ ወይም Paid Verify API ያግኙ።',
 
   'dash.quickAction': 'ፈጣን እርምጃ',
   'dash.quickActionDesc': 'በደረሰኝ ስክሪንሹት + QR ያረጋግጡ፣ ወይም የክፍያ መለያ ብቻ ያስገቡ (Invoice / FT / IPSS)።',

@@ -1,6 +1,6 @@
 {
   "name": "Tamagn Tech — ታማኝ ቸክ",
-  "short_name": "ታማኝ ቸክ",
+  "short_name": "Tamagn Tech",
   "description": "Verify Ethiopian payment receipts — Telebirr, CBE, Dashen, Bank of Abyssinia.",
   "start_url": "/",
   "display": "standalone",

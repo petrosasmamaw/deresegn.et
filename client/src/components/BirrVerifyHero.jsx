@@ -509,7 +509,7 @@ export default function BirrVerifyHero({ onVerifyClick }) {
 
             <div className="dh-machine" ref={machRef}>
               <div className="dh-m-label">
-                <span className="dh-m-name">ታማኝ ቸክ</span>
+                <span className="dh-m-name">Tamagn Tech</span>
                 <span className="dh-m-sub">AI VERIFY MACHINE</span>
               </div>
               <div className="dh-m-body">

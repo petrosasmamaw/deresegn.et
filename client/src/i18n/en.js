@@ -46,14 +46,14 @@ export const en = {
   'home.login': 'Login',
   'home.getApi': 'Get API',
   'home.mainNav': 'Main navigation',
-  'home.whyTitle': 'Why ታማኝ ቸክ?',
+  'home.whyTitle': 'Why Tamagn Tech (ታማኝ ቸክ)?',
   'home.why1': 'Verify receipts with screenshot, QR, payment ID, or bank SMS',
   'home.why2': 'Shareable verification certificate for every valid receipt',
   'home.why3': 'New users get 20 Birr registration bonus to try free',
 
   // Auth
   'auth.brand': 'Tamagn Tech',
-  'auth.loginSubtitle': 'ታማኝ ቸክ — verify Telebirr, CBE, Dashen & BOA receipts',
+  'auth.loginSubtitle': 'Tamagn Tech (ታማኝ ቸክ) — verify Telebirr, CBE, Dashen & BOA receipts',
   'auth.email': 'Email Address',
   'auth.password': 'Password',
   'auth.signIn': 'Sign In',
@@ -61,7 +61,7 @@ export const en = {
   'auth.backHome': '← Home',
   'auth.noAccount': "Don't have an account?",
   'auth.createOne': 'Create one',
-  'auth.registerTitle': 'Join ታማኝ ቸክ — Free',
+  'auth.registerTitle': 'Join Tamagn Tech (ታማኝ ቸክ) — Free',
   'auth.registerSubtitle': 'Tamagn Tech receipt checker — 20 Birr welcome bonus',
   'auth.bonusBanner': 'New users receive {amount} Birr to try verification (registration bonus).',
   'auth.fullName': 'Full Name',
@@ -112,7 +112,7 @@ export const en = {
   'balance.costBirr': '{cost} Birr',
 
   // Onboarding
-  'onboard.title': 'Welcome to ታማኝ ቸክ',
+  'onboard.title': 'Welcome to Tamagn Tech (ታማኝ ቸክ)',
   'onboard.subtitle': 'Get started in 3 quick steps',
   'onboard.bonus': 'You received {amount} Birr registration bonus to try your first verifications.',
   'onboard.step1Title': 'Top up when you need more',
@@ -303,14 +303,14 @@ export const en = {
   'cert.download': 'Download',
   'cert.downloadPng': 'Download PNG',
   'cert.publicTitle': 'Receipt verification certificate',
-  'cert.publicSubtitle': 'Official ታማኝ ቸክ verification result',
+  'cert.publicSubtitle': 'Official Tamagn Tech (ታማኝ ቸክ) verification result',
   'cert.certificateId': 'Certificate #{id}',
   'cert.paymentTitle': 'Payment Verification Certificate',
   'cert.verifiedPayment': 'VERIFIED PAYMENT',
   'cert.bankMethod': 'Bank / Method',
   'cert.confidence': 'Confidence',
   'cert.verifiedAt': 'Verified at',
-  'cert.brand': 'ታማኝ ቸክ',
+  'cert.brand': 'Tamagn Tech',
 
   // Result
   'result.failed': 'Verification failed',
