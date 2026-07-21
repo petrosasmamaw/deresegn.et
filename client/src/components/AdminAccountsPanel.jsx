@@ -91,7 +91,7 @@ export default function AdminAccountsPanel() {
       {error && <div className="alert alert-error"><p>{error}</p></div>}
       {success && <div className="alert alert-success"><p>{success}</p></div>}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {accounts.map((account) => {
           const meta = METHOD_META[account.method] || { label: account.method, icon: Smartphone }
           const Icon = meta.icon

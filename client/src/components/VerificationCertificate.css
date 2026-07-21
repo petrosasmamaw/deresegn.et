@@ -227,6 +227,15 @@
 }
 
 @media (max-width: 640px) {
+  .verify-certificate-header {
+    flex-wrap: wrap;
+  }
+
+  .verify-certificate-brand {
+    font-size: 11px;
+    max-width: calc(100% - 64px);
+  }
+
   .verify-certificate-grid {
     grid-template-columns: 1fr;
   }
@@ -258,5 +267,18 @@
     grid-column: 2;
     grid-row: 2;
     align-self: center;
+  }
+
+  .history-filters {
+    flex-direction: column;
+  }
+
+  .history-filters .input,
+  .history-filters select {
+    width: 100%;
+  }
+
+  .bonus-banner {
+    align-items: flex-start;
   }
 }

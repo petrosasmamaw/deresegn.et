@@ -38,34 +38,34 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="auth-hero">
-      <div className="absolute top-4 right-4 z-20">
+    <main className="auth-hero overflow-x-hidden">
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
         <LangToggle />
       </div>
 
-      <div className="hero-section auth-hero-top">
+      <div className="hero-section auth-hero-top px-3 sm:px-4">
         <img
           src="/deresegn-logo.svg"
           alt={t('auth.brand')}
           width={56}
           height={56}
-          className="mx-auto mb-4 rounded-xl"
+          className="mx-auto mb-3 sm:mb-4 rounded-xl w-12 h-12 sm:w-14 sm:h-14"
         />
-        <h1 className="page-title mb-2">{t('auth.registerTitle')}</h1>
-        <p className="page-subtitle">{t('auth.registerSubtitle')}</p>
+        <h1 className="page-title mb-2 break-words">{t('auth.registerTitle')}</h1>
+        <p className="page-subtitle px-1">{t('auth.registerSubtitle')}</p>
         <div className="bonus-banner mt-4 max-w-sm mx-auto text-left">
-          <Gift size={16} style={{ color: 'var(--color-foil-gold)' }} className="inline mr-2" />
-          <span className="text-[13px]">{t('auth.bonusBanner', { amount: 20 })}</span>
+          <Gift size={16} style={{ color: 'var(--color-foil-gold)' }} className="inline mr-2 shrink-0" />
+          <span className="text-[13px] min-w-0">{t('auth.bonusBanner', { amount: 20 })}</span>
         </div>
       </div>
 
-      <div className="auth-hero-body">
+      <div className="auth-hero-body px-3 sm:px-0">
         <div className="w-full max-w-sm mx-auto">
           <div className="card space-y-5" style={{ boxShadow: 'var(--shadow-md)' }}>
             {error && (
               <div className="alert alert-error">
-                <div className="flex-1">
-                  <p className="font-semibold text-sm">{error}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm break-words">{error}</p>
                 </div>
               </div>
             )}
@@ -132,7 +132,7 @@ export default function RegisterPage() {
             </form>
           </div>
 
-          <p className="text-center text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-6">
+          <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6 px-2 leading-relaxed">
             <a href="/" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>{t('auth.backHome')}</a>
             {' · '}
             {t('auth.haveAccount')}{' '}

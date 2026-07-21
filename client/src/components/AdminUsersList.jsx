@@ -81,9 +81,9 @@ export default function AdminUsersList({ users, onSelectUser }) {
               </button>
             </div>
             <div className="grid grid-cols-3 gap-2 text-sm">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-[var(--color-text-secondary)]">Balance</p>
-                <p className="amount-mono text-sm">
+                <p className="amount-mono text-sm break-words">
                   {typeof u.balance === 'string' ? parseFloat(u.balance).toFixed(2) : u.balance.toFixed(2)} Birr
                 </p>
               </div>

@@ -912,6 +912,7 @@
   .birr-verify-hero-copy {
     flex-direction: column;
     gap: 12px;
+    padding: 10px 14px 8px;
   }
 
   .hero-verify-cta {
@@ -919,6 +920,12 @@
     margin-right: 0;
     max-width: none;
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .birr-verify-scene {
+    overflow: hidden;
+    max-width: 100%;
   }
 }
 

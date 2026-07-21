@@ -47,58 +47,62 @@ export default function PricingTables({ pricing: pricingProp = null, compact = f
         </>
       )}
 
-      <div className={`grid ${compact ? 'gap-4' : 'md:grid-cols-2 gap-6'}`}>
-        <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(14,36,32,0.12)' }}>
+      <div className={`grid grid-cols-1 ${compact ? 'gap-4' : 'md:grid-cols-2 gap-6'}`}>
+        <div className="rounded-xl overflow-hidden border min-w-0" style={{ borderColor: 'rgba(14,36,32,0.12)' }}>
           <div className="px-4 py-3" style={{ background: 'var(--color-ink)' }}>
             <p className="font-display font-bold text-sm" style={{ color: 'var(--color-foil-gold)' }}>In-app verify fees</p>
             <p className="text-[11px] mt-0.5" style={{ color: 'rgba(244,238,220,0.65)' }}>Charged from wallet per successful check</p>
           </div>
-          <table className="data-table w-full">
-            <thead>
-              <tr>
-                <th>Receipt amount</th>
-                <th>Fee</th>
-              </tr>
-            </thead>
-            <tbody>
-              {verifyFees.map((row) => (
-                <tr key={row.range}>
-                  <td>{row.range}</td>
-                  <td className="font-mono font-semibold">{row.costBirr} Birr</td>
+          <div className="overflow-x-auto">
+            <table className="data-table w-full">
+              <thead>
+                <tr>
+                  <th>Receipt amount</th>
+                  <th>Fee</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {verifyFees.map((row) => (
+                  <tr key={row.range}>
+                    <td>{row.range}</td>
+                    <td className="font-mono font-semibold">{row.costBirr} Birr</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="text-[11px] text-[var(--color-text-tertiary)] px-4 py-2">
             Re-checks of the same payment ID within 24 hours are free.
           </p>
         </div>
 
-        <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(14,36,32,0.12)' }}>
+        <div className="rounded-xl overflow-hidden border min-w-0" style={{ borderColor: 'rgba(14,36,32,0.12)' }}>
           <div className="px-4 py-3" style={{ background: 'linear-gradient(135deg, #2F5D50, #0E2420)' }}>
             <p className="font-display font-bold text-sm" style={{ color: 'var(--color-foil-gold)' }}>Paid API packages</p>
             <p className="text-[11px] mt-0.5" style={{ color: 'rgba(244,238,220,0.65)' }}>URL + API key for external software</p>
           </div>
-          <table className="data-table w-full">
-            <thead>
-              <tr>
-                <th>Package</th>
-                <th>Price</th>
-                <th>Verify capacity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {apiPackages.map((pkg) => (
-                <tr key={pkg.id || pkg.label}>
-                  <td className="font-semibold">{pkg.label}</td>
-                  <td className="font-mono">{pkg.priceBirr} Birr</td>
-                  <td className="font-mono font-semibold" style={{ color: 'var(--color-birr-green)' }}>
-                    {pkg.capacityBirr} Birr
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="data-table w-full">
+              <thead>
+                <tr>
+                  <th>Package</th>
+                  <th>Price</th>
+                  <th>Verify capacity</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {apiPackages.map((pkg) => (
+                  <tr key={pkg.id || pkg.label}>
+                    <td className="font-semibold">{pkg.label}</td>
+                    <td className="font-mono">{pkg.priceBirr} Birr</td>
+                    <td className="font-mono font-semibold" style={{ color: 'var(--color-birr-green)' }}>
+                      {pkg.capacityBirr} Birr
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="text-[11px] text-[var(--color-text-tertiary)] px-4 py-2">
             Capacity = sum of verified payment amounts. When empty, renew after topping up.
           </p>

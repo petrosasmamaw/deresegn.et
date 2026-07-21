@@ -67,8 +67,8 @@ export default function CheckHistory({ checks = [], loading = false }) {
   return (
     <>
       <div className="history-filters">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
+        <div className="relative flex-1 min-w-0 w-full sm:min-w-[180px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)] pointer-events-none" />
           <input
             type="search"
             className="input w-full pl-9"
@@ -77,7 +77,7 @@ export default function CheckHistory({ checks = [], loading = false }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select className="input" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
+        <select className="input w-full sm:w-auto sm:min-w-[9rem]" value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)}>
           <option value="all">{t('history.allBanks')}</option>
           <option value="telebirr">Telebirr</option>
           <option value="cbe">CBE</option>

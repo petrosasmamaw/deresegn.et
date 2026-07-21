@@ -36,22 +36,22 @@ export default function CertificatePublicPage() {
   }, [token])
 
   return (
-    <div className="min-h-screen page-parchment flex flex-col">
+    <div className="min-h-screen page-parchment overflow-x-hidden flex flex-col">
       <header className="navbar">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold" style={{ color: 'var(--color-foil-gold)' }}>
-            <ShieldCheck size={20} />
-            {t('cert.brand')}
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2 min-w-0">
+          <Link to="/" className="flex items-center gap-2 font-display font-bold min-w-0" style={{ color: 'var(--color-foil-gold)' }}>
+            <ShieldCheck size={20} className="shrink-0" />
+            <span className="truncate">{t('cert.brand')}</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <LangToggle />
-            <Link to="/login" className="btn-secondary text-sm">{t('cert.signIn')}</Link>
+            <Link to="/login" className="btn-secondary text-sm whitespace-nowrap">{t('cert.signIn')}</Link>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-2xl">
-        <h1 className="page-title mb-2">{t('cert.title')}</h1>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-2xl">
+        <h1 className="page-title mb-2 break-words">{t('cert.title')}</h1>
         <p className="page-subtitle mb-6">{t('cert.publicSubtitle')}</p>
 
         {loading && <div className="skeleton-card" style={{ height: 280 }} />}

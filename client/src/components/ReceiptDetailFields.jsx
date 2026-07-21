@@ -21,7 +21,7 @@ export default function ReceiptDetailFields({ form, onChange, txPlaceholder }) {
         <label className="label">{t('field.receiverAccount')}</label>
         <input className="input font-mono" value={form.receiverAccount} onChange={(e) => onChange('receiverAccount', e.target.value)} placeholder={t('field.receiverAccountPh')} required />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="label">{t('field.amount')}</label>
           <input type="number" step="0.01" className="input" value={form.amount} onChange={(e) => onChange('amount', e.target.value)} placeholder="0.00" required />

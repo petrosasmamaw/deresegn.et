@@ -157,16 +157,16 @@ export default function DashboardPage() {
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden md:block container mx-auto py-8 max-w-6xl">
+      <div className="hidden md:block container mx-auto py-8 max-w-6xl px-4">
         {/* Primary Grid: Balance + Verification */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
           {/* Balance Card (Hero - Spans 2 cols) */}
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 min-w-0">
             <BalanceCard balance={balance} onTopUpClick={() => setTopupOpen(true)} />
           </div>
 
           {/* Quick Actions Card */}
-          <div className="action-card flex flex-col justify-between">
+          <div className="action-card flex flex-col justify-between min-w-0">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Zap size={18} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
@@ -194,18 +194,18 @@ export default function DashboardPage() {
         </div>
 
         {/* History Section */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-6">
-            <div>
+        <div className="card overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <div className="min-w-0">
               <h2 className="section-title flex items-center gap-2">
-                <TrendingUp size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} />
+                <TrendingUp size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} className="shrink-0" />
                 {t('dash.historyTitle')}
               </h2>
               <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-2">{t('dash.historySubtitle')}</p>
             </div>
             <button
               onClick={() => dispatch(fetchCheckHistory())}
-              className="btn-secondary text-sm"
+              className="btn-secondary text-sm shrink-0"
             >
               {t('common.refresh')}
             </button>

@@ -16,12 +16,12 @@ export default function AdminUserDetail({ user, onClose }) {
       subtitle={user.user.email}
       contentClassName="max-w-4xl"
     >
-        <div className="modal-body space-y-6">
+        <div className="modal-body space-y-6 overflow-x-hidden">
           {/* Tabs */}
           <div className="modal-tabs-scroll">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`px-3 sm:px-4 py-3 font-semibold border-b-2 transition-colors whitespace-nowrap text-sm ${
                 activeTab === 'overview'
                   ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
                   : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -31,7 +31,7 @@ export default function AdminUserDetail({ user, onClose }) {
             </button>
             <button
               onClick={() => setActiveTab('checks')}
-              className={`px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`px-3 sm:px-4 py-3 font-semibold border-b-2 transition-colors whitespace-nowrap text-sm ${
                 activeTab === 'checks'
                   ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
                   : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -41,7 +41,7 @@ export default function AdminUserDetail({ user, onClose }) {
             </button>
             <button
               onClick={() => setActiveTab('topups')}
-              className={`px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`px-3 sm:px-4 py-3 font-semibold border-b-2 transition-colors whitespace-nowrap text-sm ${
                 activeTab === 'topups'
                   ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
                   : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -51,7 +51,7 @@ export default function AdminUserDetail({ user, onClose }) {
             </button>
             <button
               onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-3 font-semibold border-b-2 transition-colors ${
+              className={`px-3 sm:px-4 py-3 font-semibold border-b-2 transition-colors whitespace-nowrap text-sm ${
                 activeTab === 'ledger'
                   ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
                   : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -64,10 +64,10 @@ export default function AdminUserDetail({ user, onClose }) {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="card p-4" style={{ background: 'var(--color-primary-muted)' }}>
                   <p className="text-sm text-[var(--color-text-secondary)] mb-2">Current Balance</p>
-                  <p className="text-3xl font-bold" style={{ color: 'var(--color-primary)' }}>
+                  <p className="text-2xl sm:text-3xl font-bold break-words" style={{ color: 'var(--color-primary)' }}>
                     {typeof user.balance === 'string' ? parseFloat(user.balance).toFixed(2) : user.balance.toFixed(2)}
                   </p>
                   <p className="text-xs text-[var(--color-text-secondary)] mt-1">Birr</p>
@@ -75,14 +75,14 @@ export default function AdminUserDetail({ user, onClose }) {
 
                 <div className="card p-4" style={{ background: 'var(--color-accent-muted)' }}>
                   <p className="text-sm text-[var(--color-text-secondary)] mb-2">Registration Bonus</p>
-                  <p className="text-2xl font-bold" style={{ color: 'var(--color-accent)' }}>
+                  <p className="text-xl sm:text-2xl font-bold break-words" style={{ color: 'var(--color-accent)' }}>
                     {Number(user.stats.registrationBonusTotal || 0).toFixed(2)} Birr
                   </p>
                   <p className="text-xs text-[var(--color-text-secondary)] mt-1">Tracked separately from top-ups</p>
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="card p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle2 size={16} style={{ color: 'var(--color-success)' }} />

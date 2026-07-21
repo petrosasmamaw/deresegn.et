@@ -100,11 +100,11 @@ export default function AdminDashboard() {
           )}
 
           {/* Tab Navigation */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap overflow-x-auto pb-1 -mx-1 px-1">
             <button
               type="button"
               onClick={() => setActiveTab('users')}
-              className={`btn-secondary flex items-center gap-2 ${activeTab === 'users' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+              className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'users' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Users size={16} />
               Users
@@ -112,7 +112,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setActiveTab('verifications')}
-              className={`btn-secondary flex items-center gap-2 ${activeTab === 'verifications' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+              className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'verifications' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <FileCheck size={16} />
               Verifications
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setActiveTab('topups')}
-              className={`btn-secondary flex items-center gap-2 ${activeTab === 'topups' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+              className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'topups' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <TrendingUp size={16} />
               Top-Ups
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setActiveTab('bonuses')}
-              className={`btn-secondary flex items-center gap-2 ${activeTab === 'bonuses' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+              className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'bonuses' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Gift size={16} />
               Bonuses
@@ -136,7 +136,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setActiveTab('accounts')}
-              className={`btn-secondary flex items-center gap-2 ${activeTab === 'accounts' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+              className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'accounts' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Wallet size={16} />
               Accounts
@@ -144,7 +144,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setActiveTab('settings')}
-              className={`btn-secondary flex items-center gap-2 ${activeTab === 'settings' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+              className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'settings' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Settings size={16} />
               Settings
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
 
           {/* Stats Cards */}
           {activeTab === 'users' && dashboardData?.stats && (
-            <div className="grid md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
                   <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
                 <p className="text-xs text-[var(--color-text-secondary)] mt-2">Completed</p>
               </div>
 
-              <div className="stat-card">
+              <div className="stat-card sm:col-span-2 lg:col-span-1">
                 <div className="flex items-center justify-between mb-4">
                   <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
                     Reg. Bonuses

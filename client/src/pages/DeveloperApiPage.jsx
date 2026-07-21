@@ -174,24 +174,24 @@ export default function DeveloperApiPage() {
   const packages = pricing?.apiPackages || []
 
   return (
-    <div className="page-parchment min-h-screen">
-      <div className="container mx-auto max-w-6xl px-4 py-8 pb-24">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div>
+    <div className="page-parchment min-h-screen overflow-x-hidden">
+      <div className="container mx-auto max-w-6xl px-3 sm:px-4 py-6 sm:py-8 pb-24">
+        <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-start justify-between gap-4 mb-8">
+          <div className="min-w-0 flex-1">
             <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold mb-3" style={{ color: 'var(--color-foil-gold)' }}>
               <ArrowLeft size={16} /> Dashboard
             </Link>
             <p className="eyebrow mb-1">Developer</p>
-            <h1 className="page-title flex items-center gap-2">
-              <KeyRound size={28} style={{ color: 'var(--color-foil-gold)' }} />
-              Paid Verify API
+            <h1 className="page-title flex items-center gap-2 flex-wrap">
+              <KeyRound size={28} className="shrink-0" style={{ color: 'var(--color-foil-gold)' }} />
+              <span className="break-words">Paid Verify API</span>
             </h1>
             <p className="page-subtitle max-w-2xl mt-2">
               Buy capacity with your balance, copy URL + API key into any software.
               Capacity meters the <strong>sum of verified payment amounts</strong> — when it runs out, renew after topping up.
             </p>
           </div>
-          <div className="stat-card min-w-[160px]">
+          <div className="stat-card w-full sm:w-auto sm:min-w-[160px] lg:shrink-0">
             <p className="eyebrow mb-1">Wallet</p>
             <p className="balance-amount text-2xl">{Number(balance || 0).toFixed(2)}</p>
             <p className="text-xs text-[var(--color-text-secondary)] mt-1">Birr available</p>
@@ -251,7 +251,7 @@ export default function DeveloperApiPage() {
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
             Price is charged from your wallet. Capacity is verified receipt amounts (not the in-app per-check fee).
           </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {packages.map((pkg) => {
               const active = selectedPackage === pkg.id
               const accent = PACKAGE_ACCENTS[pkg.id] || '#C6A24E'
@@ -306,11 +306,11 @@ export default function DeveloperApiPage() {
               Change <code className="font-mono text-xs">method</code> and fields as below.
             </p>
             <label className="label">API URL</label>
-            <div className="flex gap-2 mb-3">
-              <code className="flex-1 text-xs font-mono p-2 rounded-lg overflow-x-auto" style={{ background: 'rgba(14,36,32,0.06)' }}>
+            <div className="flex flex-col sm:flex-row gap-2 mb-3 min-w-0">
+              <code className="flex-1 min-w-0 text-xs font-mono p-2 rounded-lg overflow-x-auto break-all" style={{ background: 'rgba(14,36,32,0.06)' }}>
                 {verifyUrl}
               </code>
-              <button type="button" className="btn-secondary btn-compact-icon" onClick={() => copyText(verifyUrl, 'url')} aria-label="Copy URL">
+              <button type="button" className="btn-secondary btn-compact-icon self-end sm:self-auto" onClick={() => copyText(verifyUrl, 'url')} aria-label="Copy URL">
                 {copied === 'url' ? <Check size={14} /> : <Copy size={14} />}
               </button>
             </div>
