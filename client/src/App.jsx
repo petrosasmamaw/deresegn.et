@@ -19,21 +19,21 @@ function postAuthPath(user) {
   return user.role === 'admin' ? '/admin' : '/dashboard'
 }
 
-/** After session resolve on `/`, send guests to login and members to their home. */
+/**
+ * One-shot redirect from `/` after session gate.
+ * Must NOT keep rendering <Navigate> after the user leaves `/` —
+ * that caused login↔dashboard vibration loops.
+ */
 function BootLanding({ user }) {
   const location = useLocation()
-  const [to, setTo] = useState(null)
-  const done = useRef(false)
+  const applied = useRef(false)
 
-  useEffect(() => {
-    if (done.current) return
-    if (location.pathname !== '/') return
-    done.current = true
-    setTo(postAuthPath(user))
-  }, [user, location.pathname])
+  if (applied.current || location.pathname !== '/') {
+    return null
+  }
 
-  if (!to) return null
-  return <Navigate to={to} replace />
+  applied.current = true
+  return <Navigate to={postAuthPath(user)} replace />
 }
 
 export default function App() {

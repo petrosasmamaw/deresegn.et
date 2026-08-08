@@ -17,10 +17,10 @@ const ACTS = [
   { id: 'certify', titleKey: 'sessionOpen.act3Title', bodyKey: 'sessionOpen.act3Body' },
 ]
 
-/** Compressed so Trust → Prove → Certify always lands before exit on a fast session. */
-const ACT_MS = 520
-const SEQUENCE_MS = ACT_MS * ACTS.length
-const EXIT_MS = 380
+/** Act cuts while waiting; exit as soon as session is ready after a short brand beat. */
+const ACT_MS = 420
+const MIN_HOLD_MS = 480
+const EXIT_MS = 280
 
 export default function SessionOpenPage({ ready = false, onFinished }) {
   const { t, locale } = useLocale()
@@ -34,36 +34,21 @@ export default function SessionOpenPage({ ready = false, onFinished }) {
     const started = performance.now()
     let exitTimer
     let finished = false
-    let actTimer
 
-    const advanceAct = () => {
-      setActIndex((i) => {
-        if (i >= ACTS.length - 1) return i
-        return i + 1
-      })
-    }
-
-    actTimer = window.setInterval(() => {
-      const elapsed = performance.now() - started
-      if (elapsed >= SEQUENCE_MS) {
-        window.clearInterval(actTimer)
-        setActIndex(ACTS.length - 1)
-        return
-      }
-      advanceAct()
+    const actTimer = window.setInterval(() => {
+      setActIndex((i) => (i + 1) % ACTS.length)
     }, ACT_MS)
 
     const tryFinish = () => {
       if (finished || !ready) return
-      if (performance.now() - started < SEQUENCE_MS) return
+      if (performance.now() - started < MIN_HOLD_MS) return
       finished = true
       window.clearInterval(actTimer)
-      setActIndex(ACTS.length - 1)
       setExiting(true)
       exitTimer = window.setTimeout(() => onFinished?.(), EXIT_MS)
     }
 
-    const poll = window.setInterval(tryFinish, 60)
+    const poll = window.setInterval(tryFinish, 40)
     tryFinish()
 
     return () => {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate, Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { signup } from '../features/auth/authSlice'
 import { ArrowRight, Gift } from 'lucide-react'
 import AuthSeoBlurb from '../components/AuthSeoBlurb'
@@ -18,7 +18,6 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
-  const navigate = useNavigate()
   const location = useLocation()
   const { user, submitting, error } = useSelector(s => s.auth)
   const { t } = useLocale()
@@ -30,11 +29,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const result = await dispatch(signup({ name, email, password }))
-    if (signup.fulfilled.match(result)) {
-      const role = result.payload?.role
-      navigate(postAuthPath(role, from))
-    }
+    await dispatch(signup({ name, email, password }))
   }
 
   return (

@@ -15,7 +15,7 @@ function mapSessionUser(sessionUser) {
   }
 }
 
-export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWithValue }) => {
+export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWithValue, dispatch }) => {
   try {
     const { data, error } = await authClient.signUp.email({
       email: payload.email,
@@ -29,26 +29,17 @@ export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWi
       return rejectWithValue('Signup failed — no user returned')
     }
 
-    const { data: session } = await authClient.getSession()
-    if (!session?.user) {
-      return rejectWithValue('Account created but session was not saved. Try logging in.')
-    }
-
-    try {
-      const res = await axios.get('/users/me')
-      const profile = unwrap(res)
-      if (profile?.user) return profile.user
-    } catch {
-      // Fall back to session user when profile fetch fails
-    }
-
-    return mapSessionUser(session.user)
+    // Prefer sign-up payload; only probe session if needed.
+    const sessionUser = data.user
+    const user = mapSessionUser(sessionUser)
+    dispatch(hydrateProfile())
+    return user
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message)
   }
 })
 
-export const login = createAsyncThunk('auth/login', async (payload, { rejectWithValue }) => {
+export const login = createAsyncThunk('auth/login', async (payload, { rejectWithValue, dispatch }) => {
   try {
     const { data, error } = await authClient.signIn.email({
       email: payload.email,
@@ -61,20 +52,10 @@ export const login = createAsyncThunk('auth/login', async (payload, { rejectWith
       return rejectWithValue('Login failed — no user returned')
     }
 
-    const { data: session } = await authClient.getSession()
-    if (!session?.user) {
-      return rejectWithValue('Login succeeded but session was not saved. Try again or clear site cookies.')
-    }
-
-    try {
-      const res = await axios.get('/users/me')
-      const profile = unwrap(res)
-      if (profile?.user) return profile.user
-    } catch {
-      // Fall back to session user when profile fetch fails
-    }
-
-    return mapSessionUser(session.user)
+    // Fast path: trust sign-in user immediately; hydrate profile in background.
+    const user = mapSessionUser(data.user)
+    dispatch(hydrateProfile())
+    return user
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message)
   }
@@ -83,7 +64,7 @@ export const login = createAsyncThunk('auth/login', async (payload, { rejectWith
 /** Background profile refresh — does not gate the app shell. */
 export const hydrateProfile = createAsyncThunk('auth/hydrateProfile', async () => {
   try {
-    const res = await axios.get('/users/me')
+    const res = await axios.get('/users/me', { timeout: 6000 })
     const data = unwrap(res)
     return data?.user || null
   } catch {
@@ -131,9 +112,18 @@ const slice = createSlice({
       .addCase(login.fulfilled, (s, a) => { s.submitting = false; s.user = a.payload })
       .addCase(login.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
 
-      .addCase(fetchSession.pending, (s) => { s.initializing = true })
-      .addCase(fetchSession.fulfilled, (s, a) => { s.initializing = false; s.user = a.payload })
-      .addCase(fetchSession.rejected, (s) => { s.initializing = false; s.user = null })
+      // Do not clear an existing user on re-check; only gate cold start.
+      .addCase(fetchSession.pending, (s) => {
+        if (!s.user) s.initializing = true
+      })
+      .addCase(fetchSession.fulfilled, (s, a) => {
+        s.initializing = false
+        s.user = a.payload
+      })
+      .addCase(fetchSession.rejected, (s) => {
+        s.initializing = false
+        s.user = null
+      })
 
       .addCase(hydrateProfile.fulfilled, (s, a) => {
         if (a.payload) s.user = a.payload

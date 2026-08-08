@@ -23,17 +23,14 @@ export default function LoginPage() {
   const { t } = useLocale()
   const from = location.state?.from
 
+  // Logged-in users never stay on /login (single redirect — no navigate() duel).
   if (user) {
     return <Navigate to={postLoginPath(user.role, from)} replace />
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const result = await dispatch(login({ email, password }))
-    if (login.fulfilled.match(result)) {
-      const role = result.payload?.role
-      navigate(postLoginPath(role, from))
-    }
+    await dispatch(login({ email, password }))
   }
 
   return (
