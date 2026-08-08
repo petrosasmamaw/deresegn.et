@@ -125,11 +125,11 @@
 
 .session-open__icon.is-active {
   opacity: 1;
-  animation: so-mark-cut 200ms steps(2, jump-start) both;
+  animation: so-mark-cut 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .session-open__logo.is-active {
-  animation: so-mark-cut 200ms steps(2, jump-start) both;
+  animation: so-mark-cut 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .session-open__brand {
@@ -156,7 +156,7 @@
   min-height: 6.25rem;
   width: 100%;
   clip-path: inset(0 0 0 0);
-  animation: so-act-cut 200ms steps(3, jump-start) both;
+  animation: so-act-cut 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .session-open__title {
@@ -185,7 +185,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.4rem;
   width: min(100%, 18rem);
-  animation: so-act-cut 180ms steps(2, jump-start) both;
+  animation: so-act-cut 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .session-open__methods li {
@@ -256,13 +256,29 @@
 }
 
 @keyframes so-mark-cut {
-  0% { clip-path: inset(0 100% 0 0); transform: scale(1); }
-  100% { clip-path: inset(0 0 0 0); transform: scale(1); }
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.35;
+    transform: translateX(-12px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes so-act-cut {
-  0% { clip-path: inset(0 100% 0 0); }
-  100% { clip-path: inset(0 0 0 0); }
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.2;
+    transform: translateX(-18px);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media (max-width: 420px) {

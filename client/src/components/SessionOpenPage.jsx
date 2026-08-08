@@ -17,10 +17,10 @@ const ACTS = [
   { id: 'certify', titleKey: 'sessionOpen.act3Title', bodyKey: 'sessionOpen.act3Body' },
 ]
 
-/** Act cuts while waiting; exit as soon as session is ready after a short brand beat. */
-const ACT_MS = 420
-const MIN_HOLD_MS = 480
-const EXIT_MS = 280
+/** Act slides while waiting; exit after session is ready and a readable beat. */
+const ACT_MS = 1400
+const MIN_HOLD_MS = 1200
+const EXIT_MS = 400
 
 export default function SessionOpenPage({ ready = false, onFinished }) {
   const { t, locale } = useLocale()
