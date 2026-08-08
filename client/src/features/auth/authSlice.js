@@ -3,6 +3,18 @@ import { authClient } from '../../lib/authClient'
 import axios from '../../api/axiosInstance'
 import { unwrap } from '../../api/unwrap'
 
+function mapSessionUser(sessionUser) {
+  if (!sessionUser) return null
+  return {
+    id: sessionUser.id,
+    email: sessionUser.email,
+    name: sessionUser.name,
+    image: sessionUser.image ?? null,
+    role: sessionUser.role || 'client',
+    emailVerified: sessionUser.emailVerified,
+  }
+}
+
 export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWithValue }) => {
   try {
     const { data, error } = await authClient.signUp.email({
@@ -30,7 +42,7 @@ export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWi
       // Fall back to session user when profile fetch fails
     }
 
-    return session.user
+    return mapSessionUser(session.user)
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message)
   }
@@ -62,20 +74,35 @@ export const login = createAsyncThunk('auth/login', async (payload, { rejectWith
       // Fall back to session user when profile fetch fails
     }
 
-    return session.user
+    return mapSessionUser(session.user)
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message)
   }
 })
 
-export const fetchSession = createAsyncThunk('auth/session', async (_, { rejectWithValue }) => {
+/** Background profile refresh — does not gate the app shell. */
+export const hydrateProfile = createAsyncThunk('auth/hydrateProfile', async () => {
+  try {
+    const res = await axios.get('/users/me')
+    const data = unwrap(res)
+    return data?.user || null
+  } catch {
+    return null
+  }
+})
+
+/**
+ * Fast session gate: one cookie round-trip via better-auth getSession.
+ * Full /users/me profile hydrates in the background so splash never waits on it.
+ */
+export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatch }) => {
   try {
     const { data: session } = await authClient.getSession()
     if (!session?.user) return null
-    const res = await axios.get('/users/me')
-    const data = unwrap(res)
-    if (!data?.user) return null
-    return data.user
+
+    const user = mapSessionUser(session.user)
+    dispatch(hydrateProfile())
+    return user
   } catch {
     return null
   }
@@ -87,7 +114,8 @@ export const logout = createAsyncThunk('auth/logout', async () => {
 
 const slice = createSlice({
   name: 'auth',
-  initialState: { user: null, initializing: false, submitting: false, error: null },
+  // Start true so first paint is the session-open page (no route flash).
+  initialState: { user: null, initializing: true, submitting: false, error: null },
   reducers: {
     clearError(state) {
       state.error = null
@@ -106,6 +134,10 @@ const slice = createSlice({
       .addCase(fetchSession.pending, (s) => { s.initializing = true })
       .addCase(fetchSession.fulfilled, (s, a) => { s.initializing = false; s.user = a.payload })
       .addCase(fetchSession.rejected, (s) => { s.initializing = false; s.user = null })
+
+      .addCase(hydrateProfile.fulfilled, (s, a) => {
+        if (a.payload) s.user = a.payload
+      })
 
       .addCase(logout.fulfilled, (s) => { s.user = null; s.error = null })
   },

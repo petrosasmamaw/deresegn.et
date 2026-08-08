@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { fetchSession } from './features/auth/authSlice'
 import Navbar from './components/Navbar'
+import SessionOpenPage from './components/SessionOpenPage'
 import { DashboardUiProvider } from './context/DashboardUiContext'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
@@ -13,60 +14,48 @@ import CertificatePublicPage from './pages/CertificatePublicPage'
 import DeveloperApiPage from './pages/DeveloperApiPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
-function DashboardSkeleton() {
-  return (
-    <div className="min-h-screen page-parchment">
-      <nav className="navbar">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="skeleton w-10 h-10 rounded-lg"></div>
-            <div className="skeleton w-24 h-6 rounded"></div>
-          </div>
-          <div className="skeleton w-32 h-8 rounded ml-auto"></div>
-        </div>
-      </nav>
+function postAuthPath(user) {
+  if (!user) return '/login'
+  return user.role === 'admin' ? '/admin' : '/dashboard'
+}
 
-      <main className="flex-1 p-4">
-        <div className="container mx-auto">
-          <div className="mb-8">
-            <div className="skeleton h-4 w-24 rounded mb-2"></div>
-            <div className="skeleton h-8 w-48 rounded"></div>
-          </div>
+/** After session resolve on `/`, send guests to login and members to their home. */
+function BootLanding({ user }) {
+  const location = useLocation()
+  const [to, setTo] = useState(null)
+  const done = useRef(false)
 
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <div className="md:col-span-2 skeleton-card"></div>
-            <div className="skeleton-card"></div>
-          </div>
+  useEffect(() => {
+    if (done.current) return
+    if (location.pathname !== '/') return
+    done.current = true
+    setTo(postAuthPath(user))
+  }, [user, location.pathname])
 
-          <div className="card">
-            <div className="skeleton h-6 w-40 rounded mb-4"></div>
-            <div className="space-y-3">
-              <div className="skeleton h-12 rounded"></div>
-              <div className="skeleton h-12 rounded"></div>
-              <div className="skeleton h-12 rounded"></div>
-              <div className="skeleton h-12 rounded"></div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  )
+  if (!to) return null
+  return <Navigate to={to} replace />
 }
 
 export default function App() {
   const dispatch = useDispatch()
-  const { user, initializing } = useSelector(s => s.auth)
+  const { user, initializing } = useSelector((s) => s.auth)
+  const [gateOpen, setGateOpen] = useState(true)
 
   useEffect(() => {
     dispatch(fetchSession())
   }, [dispatch])
 
-  if (initializing) {
-    return <DashboardSkeleton />
+  const finishOpen = useCallback(() => {
+    setGateOpen(false)
+  }, [])
+
+  if (gateOpen) {
+    return <SessionOpenPage ready={!initializing} onFinished={finishOpen} />
   }
 
   return (
     <DashboardUiProvider>
+      <BootLanding user={user} />
       {user && user.role !== 'admin' && <Navbar />}
       <main className="flex-1">
         <Routes>

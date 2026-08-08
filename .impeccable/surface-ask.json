@@ -1,0 +1,56 @@
+{
+  "title": "Session-open surface structure",
+  "question": "While we check your session, which opening structure should Tamagn use? The roll assigned the timed three-act title sequence.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Three-act verification title",
+      "kicker": "THE ROLL",
+      "lineage": "Timed full-bleed acts inside Tamagn’s ink · gold · parchment world",
+      "thesis": "Opening the app plays three short acts — Trust, Prove, Certify — then lands on Dashboard or Login.",
+      "palette": ["#0E2420", "#1B463A", "#C6A24E", "#F4EEDC"],
+      "materials": ["guilloché", "foil seal", "receipt silhouette"],
+      "viewport": "Full-bleed parchment: Act 1 brand seal blooms; Act 2 inputs (screenshot · QR · ID · SMS) stamp in; Act 3 certificate foil settles while session resolves.",
+      "risk": "If acts run longer than a fast session fetch, the exit must cut early — never force the user to wait on choreography.",
+      "hero": "https://impeccable.style/worlds/cards/posters-covers-sleeves-saul-bass-title-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/posters-covers-sleeves-saul-bass-title.webp"
+    },
+    {
+      "id": "challenger-bass",
+      "label": "Cut-paper title cards",
+      "kicker": "CHALLENGER",
+      "lineage": "Saul Bass title sequence grammar fused with Tamagn materials",
+      "thesis": "Staccato full-bleed cards: one silhouette idea per card — receipt, QR beam, gold seal — on swapping ink/parchment fields.",
+      "case": "Stronger motion craft; must keep Tamagn palette or it loses Ethiopian verification trust.",
+      "palette": ["#0E2420", "#C6A24E", "#F4EEDC", "#1B463A"],
+      "materials": ["flat cut silhouettes", "hard card cuts", "single live line"],
+      "viewport": "Card cuts: ink field + receipt cutout → parchment + QR beam → green field + foil seal + brand name.",
+      "risk": "Reads cinematic but can feel less ‘official document’ than seal/certificate language.",
+      "hero": "https://impeccable.style/worlds/cards/posters-covers-sleeves-saul-bass-title-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/posters-covers-sleeves-saul-bass-title.webp"
+    },
+    {
+      "id": "challenger-seal",
+      "label": "Official seal stamp",
+      "kicker": "ALTERNATE",
+      "lineage": "Single ceremony: foil seal stamps while product line holds",
+      "thesis": "One composition — logo as seal, gold ring stamps, one sentence about trusted Ethiopian receipt checking.",
+      "case": "Clearest product clarity and brand continuity; quieter than a title sequence.",
+      "palette": ["#F4EEDC", "#0E2420", "#C6A24E", "#1B463A"],
+      "materials": ["foil ring", "guilloché", "logo seal"],
+      "viewport": "Centered seal on parchment; ring animates closed; brand + subtitle; soft progress arc.",
+      "risk": "Safer; may feel closer to a branded spinner than an ‘opening’ experience.",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-patent-drawing-sheet-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/notation-diagram-systems-patent-drawing-sheet.webp"
+    }
+  ],
+  "reroll": true,
+  "canon": true,
+  "canonCard": {
+    "label": "Category standard splash",
+    "thesis": "Logo, short tagline, indeterminate progress — executed with full Tamagn craft.",
+    "viewport": "Centered logo, subtitle, gold progress bar on parchment.",
+    "sketch": ".impeccable/sketches/canon.webp"
+  },
+  "steer": true
+}

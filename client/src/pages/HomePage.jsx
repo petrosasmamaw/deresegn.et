@@ -16,6 +16,8 @@ export default function HomePage() {
     return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
   }
 
+  // Session boot uses SessionOpenPage in App — keep AuthPageSkeleton only if
+  // this page is somehow reached while auth is still initializing.
   if (initializing) {
     return <AuthPageSkeleton />
   }

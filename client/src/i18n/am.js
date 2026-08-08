@@ -32,6 +32,18 @@ export const am = {
 
   'home.logoAlt': 'ታማኝ ቸክ አርማ — የኢትዮጵያ ደረሰኝ ማረጋገጫ',
   'home.title': 'ታማኝ ቸክ',
+  'sessionOpen.act1Title': 'ደረሰኙን እመኑ',
+  'sessionOpen.act1Body': 'ታማኝ ቸክ እቃ ወይም ገንዘብ ከመስጠትዎ በፊት የኢትዮጵያ ክፍያዎችን ያረጋግጣል።',
+  'sessionOpen.act2Title': 'በአራት መንገድ ያረጋግጡ',
+  'sessionOpen.act2Body': 'Telebirr፣ CBE፣ Dashen እና የአቢሲኒያ ባንክን ባለዎት ማስረጃ ያረጋግጡ።',
+  'sessionOpen.act3Title': 'ሰርተፊኬት ይያዙ',
+  'sessionOpen.act3Body': 'እያንዳንዱ ትክክለኛ ማረጋገጫ ሊጋራ የሚችል ሰርተፊኬት ያስገኛል።',
+  'sessionOpen.methodShot': 'ስክሪንሹት',
+  'sessionOpen.methodQr': 'QR',
+  'sessionOpen.methodId': 'የክፍያ መለያ',
+  'sessionOpen.methodSms': 'SMS',
+  'sessionOpen.checking': 'ክፍለ ጊዜዎን በመክፈት ላይ',
+
   'home.titleAm': 'ታማኝ ቸክ',
   'home.subtitle': 'ታማኝ የኢትዮጵያ ደረሰኝ ማረጋገጫ — Telebirr፣ CBE፣ Dashen እና የአቢሲኒያ ባንክ ክፍያዎችን በስክሪንሹት፣ QR፣ የክፍያ መለያ ወይም SMS ያረጋግጡ።',
   'home.quickLinks': 'ፈጣን አገናኞች',

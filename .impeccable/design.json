@@ -1,0 +1,307 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-08T11:58:00.000Z",
+  "title": "Design System: Tamagn Tech",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tamagn Ink",
+        "canonical": "#0E2420",
+        "tonalRamp": ["#071210", "#0E2420", "#1a3a34", "#2d524a", "#4a6e66", "#7a9490", "#b8c4c0", "#e8eceb"]
+      },
+      "birr-green": {
+        "role": "secondary",
+        "displayName": "Birr Green",
+        "canonical": "#1B463A",
+        "tonalRamp": ["#0a1f19", "#1B463A", "#265a4b", "#3a7260", "#5a8f7c", "#8bb3a4", "#c0d6cd", "#e6f0ec"]
+      },
+      "foil-gold": {
+        "role": "primary",
+        "displayName": "Foil Gold",
+        "canonical": "#C6A24E",
+        "tonalRamp": ["#3d3114", "#6b5424", "#8f702f", "#C6A24E", "#d4b86a", "#E4C977", "#f0e0a8", "#faf4e0"]
+      },
+      "light-gold": {
+        "role": "primary",
+        "displayName": "Light Gold",
+        "canonical": "#E4C977",
+        "tonalRamp": ["#4a3c16", "#7a6428", "#a88a3d", "#C6A24E", "#E4C977", "#edd89a", "#f5e9c0", "#fcf6e8"]
+      },
+      "parchment": {
+        "role": "neutral",
+        "displayName": "Parchment",
+        "canonical": "#F4EEDC",
+        "tonalRamp": ["#8a7e62", "#b0a484", "#d4c9a8", "#e8dcc8", "#efe6d4", "#F4EEDC", "#f8f4e8", "#fcfaf4"]
+      },
+      "verified": {
+        "role": "tertiary",
+        "displayName": "Verified Green",
+        "canonical": "#3E8F62",
+        "tonalRamp": ["#143324", "#1f4d36", "#2e6b4a", "#3E8F62", "#5aa87a", "#86c4a0", "#b8deca", "#e6f4ed"]
+      },
+      "maroon": {
+        "role": "tertiary",
+        "displayName": "Maroon",
+        "canonical": "#7C2A33",
+        "tonalRamp": ["#2e0f13", "#4a1a20", "#7C2A33", "#9a3a45", "#b85c66", "#d49aa0", "#e8c8cc", "#f5e8ea"]
+      },
+      "parchment-subtle": {
+        "role": "neutral",
+        "displayName": "Parchment Subtle",
+        "canonical": "#efe6d4",
+        "tonalRamp": ["#8a7e62", "#b0a484", "#d4c9a8", "#e8dcc8", "#efe6d4", "#F4EEDC", "#f8f4e8", "#fcfaf4"]
+      },
+      "parchment-overlay": {
+        "role": "neutral",
+        "displayName": "Parchment Overlay",
+        "canonical": "#e8dcc8",
+        "tonalRamp": ["#8a7e62", "#b0a484", "#d4c9a8", "#e8dcc8", "#efe6d4", "#F4EEDC", "#f8f4e8", "#fcfaf4"]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Text Secondary",
+        "canonical": "rgba(14, 36, 32, 0.65)",
+        "tonalRamp": ["#0E2420", "#243834", "#3a4e4a", "#5a6e6a", "#7a8e8a", "#a0b0ac", "#c8d4d0", "#e8eceb"]
+      },
+      "text-tertiary": {
+        "role": "neutral",
+        "displayName": "Text Tertiary",
+        "canonical": "#888888",
+        "tonalRamp": ["#2a2a2a", "#444444", "#666666", "#888888", "#aaaaaa", "#c4c4c4", "#e0e0e0", "#f5f5f5"]
+      },
+      "text-on-dark": {
+        "role": "neutral",
+        "displayName": "Text On Dark",
+        "canonical": "#F4EEDC",
+        "tonalRamp": ["#8a7e62", "#b0a484", "#d4c9a8", "#e8dcc8", "#efe6d4", "#F4EEDC", "#f8f4e8", "#fcfaf4"]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "canonical": "rgba(14, 36, 32, 0.12)",
+        "tonalRamp": ["rgba(14,36,32,0.35)", "rgba(14,36,32,0.28)", "rgba(14,36,32,0.2)", "rgba(14,36,32,0.12)", "rgba(14,36,32,0.08)", "rgba(14,36,32,0.05)", "rgba(14,36,32,0.03)", "rgba(14,36,32,0.01)"]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Border Strong",
+        "canonical": "rgba(14, 36, 32, 0.2)",
+        "tonalRamp": ["rgba(14,36,32,0.4)", "rgba(14,36,32,0.32)", "rgba(14,36,32,0.28)", "rgba(14,36,32,0.2)", "rgba(14,36,32,0.14)", "rgba(14,36,32,0.08)", "rgba(14,36,32,0.04)", "rgba(14,36,32,0.02)"]
+      },
+      "bg-elevated": {
+        "role": "neutral",
+        "displayName": "Elevated White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#d8d4cc", "#e4e0d8", "#ece8e0", "#f4f0e8", "#f8f6f0", "#fcfaf6", "#fefdfb", "#ffffff"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Brand lockup on session open and hero-level naming." },
+      "headline": { "displayName": "Headline", "purpose": "Act titles and section drama in birr green or ink." },
+      "title": { "displayName": "Title", "purpose": "Page titles in product chrome (--text-3xl)." },
+      "body": { "displayName": "Body", "purpose": "Act bodies and general reading at 15px / 1.7." },
+      "label": { "displayName": "Label", "purpose": "Uppercase ceremonial hints and method stamps." },
+      "mono": { "displayName": "Mono", "purpose": "Amounts, payment IDs, certificate codes." }
+    },
+    "shadows": [
+      {
+        "name": "seal-presence",
+        "value": "0 10px 28px -8px rgba(14, 36, 32, 0.35)",
+        "purpose": "Soft drop under the centered session seal mark."
+      },
+      {
+        "name": "shadow-sm",
+        "value": "0 1px 2px 0 rgb(14 36 32 / 0.06)",
+        "purpose": "Resting elevation on primary/secondary buttons."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 4px 12px -2px rgb(14 36 32 / 0.08)",
+        "purpose": "Primary button hover lift."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 12px 24px -4px rgb(14 36 32 / 0.1)",
+        "purpose": "Larger elevated panels."
+      },
+      {
+        "name": "input-focus",
+        "value": "0 0 0 3px rgba(198, 162, 78, 0.12)",
+        "purpose": "Foil muted focus ring on inputs."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default control transitions (--transition-fast)."
+      },
+      {
+        "name": "ease-foil-draw",
+        "value": "480ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Foil ring stroke draw on session seal."
+      },
+      {
+        "name": "ease-progress",
+        "value": "280ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Session progress bar width."
+      },
+      {
+        "name": "cut-mark",
+        "value": "200ms steps(2, jump-start)",
+        "purpose": "Hard clip reveal for seal icon/logo swaps."
+      },
+      {
+        "name": "cut-act",
+        "value": "200ms steps(3, jump-start)",
+        "purpose": "Hard clip reveal for act copy blocks."
+      },
+      {
+        "name": "field-drift",
+        "value": "28s linear infinite",
+        "purpose": "Slow guilloché background drift."
+      },
+      {
+        "name": "exit",
+        "value": "380ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Session open fade/exit before app chrome."
+      }
+    ],
+    "breakpoints": [
+      { "name": "session-narrow", "value": "420px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Foil gold CTA with ink type; scarce trust metal for primary actions.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Verify receipt</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; background: #C6A24E; color: #0E2420; border: 1px solid transparent; border-radius: 4px; padding: 10px 20px; cursor: pointer; box-shadow: 0 1px 2px 0 rgb(14 36 32 / 0.06); transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: #E4C977; transform: translateY(-1px); box-shadow: 0 4px 12px -2px rgb(14 36 32 / 0.08); } .ds-btn-primary:focus-visible { outline: 2px solid #C6A24E; outline-offset: 2px; } .ds-btn-primary:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Parchment-subtle secondary control with strong ink border.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 600; background: #efe6d4; color: #0E2420; border: 1px solid rgba(14, 36, 32, 0.2); border-radius: 8px; padding: 10px 20px; cursor: pointer; box-shadow: 0 1px 2px 0 rgb(14 36 32 / 0.06); transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-secondary:hover { background: #e8dcc8; border-color: rgba(198, 162, 78, 0.4); transform: translateY(-1px); } .ds-btn-secondary:focus-visible { outline: 2px solid #C6A24E; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Gold Button",
+      "kind": "button",
+      "refersTo": "button-ghost-gold",
+      "description": "Transparent control for birr-green/dark bands; parchment type, foil hover.",
+      "html": "<button class=\"ds-btn-ghost-gold\" type=\"button\">Learn more</button>",
+      "css": ".ds-btn-ghost-gold { display: inline-flex; align-items: center; justify-content: center; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 600; background: transparent; color: #F4EEDC; border: 1px solid rgba(244, 238, 220, 0.4); border-radius: 4px; padding: 10px 20px; cursor: pointer; transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-ghost-gold:hover { border-color: #C6A24E; background: rgba(198, 162, 78, 0.1); } .ds-btn-ghost-gold:focus-visible { outline: 2px solid #C6A24E; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Elevated white field with ink border; foil focus ring.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Payment ID</span><input class=\"ds-input\" type=\"text\" placeholder=\"Enter payment ID\" /></label>",
+      "css": ".ds-field { display: block; width: 100%; max-width: 320px; text-align: left; } .ds-label { display: block; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 600; color: #0E2420; margin-bottom: 8px; } .ds-input { width: 100%; background: #ffffff; border: 1.5px solid rgba(14, 36, 32, 0.12); border-radius: 8px; padding: 11px 14px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; color: #0E2420; transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-input::placeholder { color: #888888; } .ds-input:hover { border-color: #C6A24E; } .ds-input:focus { outline: none; border-color: #C6A24E; box-shadow: 0 0 0 3px rgba(198, 162, 78, 0.12); }"
+    },
+    {
+      "name": "Card Surface",
+      "kind": "card",
+      "refersTo": "card-surface",
+      "description": "Interactive/record container on parchment — not for hero composition.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Verification</p><p class=\"ds-card-body\">Shareable certificate for valid receipts.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 0.5px solid rgba(14, 36, 32, 0.12); border-radius: 8px; padding: 24px; max-width: 320px; text-align: left; box-shadow: 0 1px 2px 0 rgb(14 36 32 / 0.06); } .ds-card-title { margin: 0 0 8px; font-family: Fraunces, ui-serif, Georgia, serif; font-size: 18px; font-weight: 600; color: #0E2420; } .ds-card-body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; line-height: 1.7; color: rgba(14, 36, 32, 0.65); } .ds-card:hover { box-shadow: 0 4px 12px -2px rgb(14 36 32 / 0.08); }"
+    },
+    {
+      "name": "Method Stamp",
+      "kind": "chip",
+      "refersTo": "method-stamp",
+      "description": "Square ink stamp with foil border for verification methods.",
+      "html": "<ul class=\"ds-methods\" aria-hidden=\"true\"><li>Screenshot</li><li>QR</li><li>Payment ID</li><li>SMS</li></ul>",
+      "css": ".ds-methods { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; width: 18rem; } .ds-methods li { font-family: Fraunces, ui-serif, Georgia, serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #F4EEDC; background: #0E2420; padding: 0.55rem 0.4rem; border: 1px solid #C6A24E; border-radius: 0; text-align: center; }"
+    },
+    {
+      "name": "Session Seal",
+      "kind": "custom",
+      "refersTo": "seal-mark",
+      "description": "Centered foil ring + rounded ink/birr mark for the three-act open title.",
+      "html": "<div class=\"ds-seal\" aria-hidden=\"true\"><svg class=\"ds-seal-ring\" viewBox=\"0 0 120 120\"><circle class=\"ds-seal-track\" cx=\"60\" cy=\"60\" r=\"52\" /><circle class=\"ds-seal-foil\" cx=\"60\" cy=\"60\" r=\"52\" /></svg><div class=\"ds-seal-mark\"><svg viewBox=\"0 0 64 64\" width=\"44\" height=\"44\" fill=\"none\"><path d=\"M12 10h40v36l-8 8H12V10z\" stroke=\"#F4EEDC\" stroke-width=\"2\" /><circle cx=\"32\" cy=\"30\" r=\"10\" stroke=\"#C6A24E\" stroke-width=\"2\" /><path d=\"M27 30l3.2 3.2L38 25.5\" stroke=\"#3E8F62\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" /></svg></div></div>",
+      "css": ".ds-seal { position: relative; width: 7.5rem; height: 7.5rem; display: grid; place-items: center; } .ds-seal-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); } .ds-seal-track { fill: none; stroke: rgba(14, 36, 32, 0.12); stroke-width: 1.5; } .ds-seal-foil { fill: none; stroke: #C6A24E; stroke-width: 2.25; stroke-linecap: round; stroke-dasharray: 327; stroke-dashoffset: 0; } .ds-seal-mark { position: relative; z-index: 1; width: 4.75rem; height: 4.75rem; border-radius: 1rem; background: #1B463A; display: grid; place-items: center; box-shadow: 0 10px 28px -8px rgba(14, 36, 32, 0.35); } .ds-seal:hover .ds-seal-mark { background: #0E2420; }"
+    },
+    {
+      "name": "Foil Progress",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "Soft 2px ink track with foil fill for act progress on session open.",
+      "html": "<div class=\"ds-progress\" aria-hidden=\"true\"><span class=\"ds-progress-bar\"></span></div>",
+      "css": ".ds-progress { width: 14rem; height: 2px; background: rgba(14, 36, 32, 0.12); overflow: hidden; } .ds-progress-bar { display: block; height: 100%; width: 66%; background: #C6A24E; transition: width 280ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-progress:hover .ds-progress-bar { width: 100%; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Guilloché Certificate",
+    "overview": "Tamagn Tech reads as official Ethiopian payment verification — banknote atmosphere, not a SaaS dashboard. Surfaces sit on warm parchment under a faint gold guilloché field; ink and birr green carry authority; foil gold marks trust, progress, and accents. The brand names itself at hero scale (Tamagn Tech / ታማኝ ቸክ) before any secondary message.\n\nDensity stays ceremonial and sparse on promotional and boot surfaces: one composition, one seal, one act of copy, one soft gold progress cue. Product UI (dashboard, forms) reuses the same palette and Fraunces display voice with tighter Inter body copy and restrained white elevated cards — still parchment-rooted, never purple chrome or flat gray app chrome.",
+    "keyCharacteristics": [
+      "Full-bleed parchment + guilloché atmosphere before chrome",
+      "Foil gold as scarce trust metal; birr green for verification voice",
+      "Fraunces for brand and act titles; Inter for reading; IBM Plex Mono for amounts/IDs",
+      "Seal / receipt / certificate silhouettes as the visual grammar",
+      "Hard clip-cuts for act changes; soft foil progress; honor prefers-reduced-motion"
+    ],
+    "rules": [
+      {
+        "name": "The Foil Scarcity Rule",
+        "body": "Foil gold is metal, not fill paint — progress, rings, borders, and primary CTAs. Do not flood large backgrounds with gold.",
+        "section": "colors"
+      },
+      {
+        "name": "The Parchment Field Rule",
+        "body": "Boot and promotional first viewports are full-bleed parchment with guilloché; white cards are for interaction containers, not the hero plane.",
+        "section": "colors"
+      },
+      {
+        "name": "The Brand-First Type Rule",
+        "body": "On branded first viewports, the product name outranks the act headline in size and weight; no supporting line may overpower Tamagn Tech / ታማኝ ቸክ.",
+        "section": "typography"
+      },
+      {
+        "name": "The Bilingual Pair Rule",
+        "body": "Always show the active locale brand with the alternate script as foil-gold secondary line (English ↔ Amharic).",
+        "section": "typography"
+      },
+      {
+        "name": "The Ink-Tinted Shadow Rule",
+        "body": "Shadows take Tamagn ink RGB, never pure black or colored glow stacks.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat Field Rule",
+        "body": "The guilloché parchment plane stays flat; elevation belongs to seals, controls, and interactive cards.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No-Pill Stamp Rule",
+        "body": "Ceremonial method labels are rectangular ink stamps with foil edges, not rounded-full chips.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Seal Geometry Rule",
+        "body": "Trust identity lives in a rounded square mark inside a circular foil ring — preserve that pairing on boot/title surfaces.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do open branded boots on full-bleed parchment with guilloché and a centered foil seal before any dashboard chrome.",
+      "Do keep foil gold scarce and birr green as the verification title color.",
+      "Do pair English and Amharic brand lines on first viewport naming.",
+      "Do use hard clip-cuts for act/icon changes and soft width transitions for progress; disable motion under prefers-reduced-motion.",
+      "Do treat cards and white surfaces as interaction containers on parchment, not as the hero."
+    ],
+    "donts": [
+      "Don't replace the session gate with a dashboard skeleton, spinner-only void, or generic app splash.",
+      "Don't put stats, schedules, promo chips, or floating badges over the open-field hero.",
+      "Don't use rounded-full pills for ceremonial method labels.",
+      "Don't flood screens with purple gradients, cream-and-terracotta defaults, or glow stacks foreign to this banknote world.",
+      "Don't let act copy outsize or outrank the Tamagn brand lockup on title surfaces."
+    ]
+  }
+}

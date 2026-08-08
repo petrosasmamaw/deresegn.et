@@ -34,6 +34,19 @@ export const en = {
   'bottom.history': 'History',
   'bottom.verifyAria': 'Verify Receipt',
 
+  // Session open (boot title)
+  'sessionOpen.act1Title': 'Trust the receipt',
+  'sessionOpen.act1Body': 'Tamagn Tech checks Ethiopian payments before you release goods or cash.',
+  'sessionOpen.act2Title': 'Prove it four ways',
+  'sessionOpen.act2Body': 'Verify Telebirr, CBE, Dashen & Bank of Abyssinia with the proof you already have.',
+  'sessionOpen.act3Title': 'Carry a certificate',
+  'sessionOpen.act3Body': 'Every valid check earns a shareable verification certificate.',
+  'sessionOpen.methodShot': 'Screenshot',
+  'sessionOpen.methodQr': 'QR',
+  'sessionOpen.methodId': 'Payment ID',
+  'sessionOpen.methodSms': 'SMS',
+  'sessionOpen.checking': 'Opening your session',
+
   // Home
   'home.logoAlt': 'Tamagn Tech logo — ታማኝ ቸክ Ethiopian receipt verification',
   'home.title': 'Tamagn Tech',

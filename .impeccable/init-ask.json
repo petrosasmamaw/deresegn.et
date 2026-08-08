@@ -1,0 +1,33 @@
+{
+  "title": "Confirm product truth for Tamagn Check",
+  "question": "Confirm these facts so we can build the session-open loading experience. Pick the option that matches, or steer with a correction.",
+  "options": [
+    {
+      "id": "confirm-inferred",
+      "label": "Yes — build with these facts",
+      "kicker": "CONFIRM",
+      "thesis": "Tamagn Tech (ታማኝ ቸክ) verifies Ethiopian payment receipts (Telebirr, CBE, Dashen, BOA) via screenshot, QR, payment ID, or SMS.",
+      "viewport": "Primary users: people and businesses who must trust a receipt is real before releasing goods or cash. After splash: active session → home/dashboard; no session → login. Keep existing brand (ink, birr green, foil gold, parchment).",
+      "risk": "If any of this is wrong, steer with the correct audience or routing."
+    },
+    {
+      "id": "route-login-always-guest",
+      "label": "Guests always land on Login after splash",
+      "kicker": "ROUTING",
+      "thesis": "Same product facts, but cold open never shows marketing home — splash then Login when logged out, Dashboard/Admin when logged in.",
+      "viewport": "Marketing home at / remains reachable later; first open is splash → session gate.",
+      "risk": "Removes the public home as first paint for new visitors."
+    },
+    {
+      "id": "route-keep-home",
+      "label": "Keep marketing Home for guests",
+      "kicker": "ROUTING",
+      "thesis": "Same product facts. Splash then Home for guests, Dashboard/Admin when logged in — Login only when they choose it.",
+      "viewport": "Splash replaces skeleton only; routing after session matches today’s HomePage redirects.",
+      "risk": "Slightly softer than “open login if no cookie”."
+    }
+  ],
+  "reroll": false,
+  "canon": false,
+  "steer": true
+}
