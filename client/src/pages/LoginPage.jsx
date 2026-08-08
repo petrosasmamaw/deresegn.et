@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate, Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../features/auth/authSlice'
 import { ArrowRight } from 'lucide-react'
 import AuthSeoBlurb from '../components/AuthSeoBlurb'
@@ -19,14 +19,16 @@ export default function LoginPage() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, submitting, error } = useSelector(s => s.auth)
-  const { t } = useLocale()
+  const { user, submitting, error } = useSelector((s) => s.auth)
+  const { t, locale } = useLocale()
   const from = location.state?.from
 
-  // Logged-in users never stay on /login (single redirect — no navigate() duel).
   if (user) {
     return <Navigate to={postLoginPath(user.role, from)} replace />
   }
+
+  const brandTitle = locale === 'am' ? t('home.titleAm') : t('auth.brand')
+  const brandAlt = locale === 'am' ? 'Tamagn Tech' : t('home.titleAm')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -39,21 +41,22 @@ export default function LoginPage() {
         <LangToggle />
       </div>
 
-      <div className="hero-section auth-hero-top px-3 sm:px-4">
+      <header className="hero-section auth-hero-top px-3 sm:px-4">
         <img
           src="/deresegn-logo.svg"
           alt={t('auth.brand')}
-          width={56}
-          height={56}
-          className="mx-auto mb-3 sm:mb-4 rounded-xl w-12 h-12 sm:w-14 sm:h-14"
+          width={64}
+          height={64}
+          className="mx-auto mb-4 rounded-[var(--radius-seal)] w-14 h-14 sm:w-16 sm:h-16"
         />
-        <h1 className="page-title mb-2 break-words">{t('auth.brand')}</h1>
+        <h1 className="page-title mb-0 break-words">{brandTitle}</h1>
+        <p className="brand-alt">{brandAlt}</p>
         <p className="page-subtitle px-1">{t('auth.loginSubtitle')}</p>
-      </div>
+      </header>
 
-      <div className="auth-hero-body px-3 sm:px-0">
+      <div className="auth-hero-body px-3 sm:px-4">
         <div className="w-full max-w-sm mx-auto">
-          <div className="card space-y-5" style={{ boxShadow: 'var(--shadow-md)' }}>
+          <div className="auth-form-card space-y-5">
             {error && (
               <div className="alert alert-error">
                 <div className="flex-1 min-w-0">
@@ -64,8 +67,9 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="label">{t('auth.email')}</label>
+                <label className="label" htmlFor="login-email">{t('auth.email')}</label>
                 <input
+                  id="login-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -77,8 +81,9 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="label">{t('auth.password')}</label>
+                <label className="label" htmlFor="login-password">{t('auth.password')}</label>
                 <input
+                  id="login-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -92,7 +97,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn-primary w-full flex items-center justify-center gap-2 mt-6"
+                className="btn-primary w-full flex items-center justify-center gap-2 mt-2 min-h-11"
               >
                 {submitting ? (
                   <>
@@ -109,14 +114,12 @@ export default function LoginPage() {
             </form>
           </div>
 
-          <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6 px-2 leading-relaxed">
-            <a href="/" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>{t('auth.backHome')}</a>
+          <p className="auth-footer-links px-2">
+            <Link to="/">{t('auth.backHome')}</Link>
             {' · '}
             {t('auth.noAccount')}{' '}
-            <a
-              href="/register"
-              className="font-semibold"
-              style={{ color: 'var(--color-foil-gold)' }}
+            <Link
+              to="/register"
               onClick={(e) => {
                 if (from) {
                   e.preventDefault()
@@ -125,7 +128,7 @@ export default function LoginPage() {
               }}
             >
               {t('auth.createOne')}
-            </a>
+            </Link>
           </p>
           <AuthSeoBlurb />
         </div>

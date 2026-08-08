@@ -4,7 +4,6 @@ import axios from '../api/axiosInstance'
 import { unwrap } from '../api/unwrap'
 import VerificationCertificate from '../components/VerificationCertificate'
 import LangToggle from '../components/LangToggle'
-import { ShieldCheck } from 'lucide-react'
 import { useLocale } from '../i18n/LocaleContext'
 
 export default function CertificatePublicPage() {
@@ -39,9 +38,9 @@ export default function CertificatePublicPage() {
     <div className="min-h-screen page-parchment overflow-x-hidden flex flex-col">
       <header className="navbar">
         <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2 min-w-0">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold min-w-0" style={{ color: 'var(--color-foil-gold)' }}>
-            <ShieldCheck size={20} className="shrink-0" />
-            <span className="truncate">{t('cert.brand')}</span>
+          <Link to="/" className="flex items-center gap-2 min-w-0" style={{ textDecoration: 'none' }}>
+            <img src="/deresegn-logo.svg" alt="" width={28} height={28} className="rounded-md shrink-0 w-7 h-7" />
+            <span className="navbar-brand truncate">{t('cert.brand')}</span>
           </Link>
           <div className="flex items-center gap-2 shrink-0">
             <LangToggle />
@@ -52,7 +51,7 @@ export default function CertificatePublicPage() {
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-2xl">
         <h1 className="page-title mb-2 break-words">{t('cert.title')}</h1>
-        <p className="page-subtitle mb-6">{t('cert.publicSubtitle')}</p>
+        <p className="page-subtitle mb-8 max-w-xl">{t('cert.publicSubtitle')}</p>
 
         {loading && <div className="skeleton-card" style={{ height: 280 }} />}
         {error && <div className="alert alert-error"><p>{t('cert.notFound')}</p></div>}

@@ -4,7 +4,13 @@ import { useLocale } from '../i18n/LocaleContext'
 export default function AuthSeoBlurb() {
   const { t } = useLocale()
   return (
-    <p className="text-center text-xs text-[var(--color-text-secondary)] mt-8 max-w-md mx-auto leading-relaxed px-4">
+    <p
+      className="text-center max-w-md mx-auto leading-relaxed px-3 mt-8"
+      style={{
+        fontSize: 'var(--text-xs)',
+        color: 'var(--color-text-tertiary)',
+      }}
+    >
       {t('auth.seo')}
     </p>
   )

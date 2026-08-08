@@ -1,7 +1,7 @@
 import { useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../features/auth/authSlice'
-import { Shield, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 
 export default function AdminNavbar({ user }) {
   const dispatch = useDispatch()
@@ -16,15 +16,16 @@ export default function AdminNavbar({ user }) {
     <nav className="navbar">
       <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div
-            className="p-2 rounded-lg flex-shrink-0"
-            style={{ background: 'rgba(198, 162, 78, 0.12)' }}
-          >
-            <Shield size={22} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-          </div>
+          <img
+            src="/deresegn-logo.svg"
+            alt="Tamagn Tech"
+            width={28}
+            height={28}
+            className="rounded-md flex-shrink-0 w-7 h-7"
+          />
           <div className="min-w-0">
             <h1 className="navbar-brand leading-tight truncate">Tamagn Tech</h1>
-            <p className="text-xs truncate" style={{ color: 'rgba(244, 238, 220, 0.5)' }}>Admin Console</p>
+            <p className="text-xs truncate" style={{ color: 'rgba(244, 238, 220, 0.62)' }}>Admin</p>
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { signup } from '../features/auth/authSlice'
 import { ArrowRight, Gift } from 'lucide-react'
 import AuthSeoBlurb from '../components/AuthSeoBlurb'
@@ -19,13 +19,16 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
   const location = useLocation()
-  const { user, submitting, error } = useSelector(s => s.auth)
-  const { t } = useLocale()
+  const { user, submitting, error } = useSelector((s) => s.auth)
+  const { t, locale } = useLocale()
   const from = location.state?.from
 
   if (user) {
     return <Navigate to={postAuthPath(user.role, from)} replace />
   }
+
+  const brandTitle = locale === 'am' ? t('home.titleAm') : t('auth.brand')
+  const brandAlt = locale === 'am' ? 'Tamagn Tech' : t('home.titleAm')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -38,25 +41,30 @@ export default function RegisterPage() {
         <LangToggle />
       </div>
 
-      <div className="hero-section auth-hero-top px-3 sm:px-4">
+      <header className="hero-section auth-hero-top px-3 sm:px-4">
         <img
           src="/deresegn-logo.svg"
           alt={t('auth.brand')}
-          width={56}
-          height={56}
-          className="mx-auto mb-3 sm:mb-4 rounded-xl w-12 h-12 sm:w-14 sm:h-14"
+          width={64}
+          height={64}
+          className="mx-auto mb-4 rounded-[var(--radius-seal)] w-14 h-14 sm:w-16 sm:h-16"
         />
-        <h1 className="page-title mb-2 break-words">{t('auth.registerTitle')}</h1>
+        <h1 className="page-title mb-0 break-words">{brandTitle}</h1>
+        <p className="brand-alt">{brandAlt}</p>
         <p className="page-subtitle px-1">{t('auth.registerSubtitle')}</p>
-        <div className="bonus-banner mt-4 max-w-sm mx-auto text-left">
-          <Gift size={16} style={{ color: 'var(--color-foil-gold)' }} className="inline mr-2 shrink-0" />
-          <span className="text-[13px] min-w-0">{t('auth.bonusBanner', { amount: 20 })}</span>
+        <div className="bonus-stamp">
+          <Gift size={18} style={{ color: 'var(--color-foil-gold)' }} className="shrink-0 mt-0.5" />
+          <span className="min-w-0">{t('auth.bonusBanner', { amount: 20 })}</span>
         </div>
-      </div>
+      </header>
 
-      <div className="auth-hero-body px-3 sm:px-0">
+      <div className="auth-hero-body px-3 sm:px-4">
         <div className="w-full max-w-sm mx-auto">
-          <div className="card space-y-5" style={{ boxShadow: 'var(--shadow-md)' }}>
+          <h2 className="section-title text-center mb-4" style={{ color: 'var(--color-birr-green)' }}>
+            {t('auth.registerTitle')}
+          </h2>
+
+          <div className="auth-form-card space-y-5">
             {error && (
               <div className="alert alert-error">
                 <div className="flex-1 min-w-0">
@@ -67,8 +75,9 @@ export default function RegisterPage() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="label">{t('auth.fullName')}</label>
+                <label className="label" htmlFor="reg-name">{t('auth.fullName')}</label>
                 <input
+                  id="reg-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -80,8 +89,9 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="label">{t('auth.email')}</label>
+                <label className="label" htmlFor="reg-email">{t('auth.email')}</label>
                 <input
+                  id="reg-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -93,8 +103,9 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="label">{t('auth.password')}</label>
+                <label className="label" htmlFor="reg-password">{t('auth.password')}</label>
                 <input
+                  id="reg-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -110,7 +121,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn-primary w-full flex items-center justify-center gap-2 mt-6"
+                className="btn-primary w-full flex items-center justify-center gap-2 mt-2 min-h-11"
               >
                 {submitting ? (
                   <>
@@ -127,13 +138,11 @@ export default function RegisterPage() {
             </form>
           </div>
 
-          <p className="text-center text-sm text-[var(--color-text-secondary)] mt-6 px-2 leading-relaxed">
-            <a href="/" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>{t('auth.backHome')}</a>
+          <p className="auth-footer-links px-2">
+            <Link to="/">{t('auth.backHome')}</Link>
             {' · '}
             {t('auth.haveAccount')}{' '}
-            <a href="/login" className="font-semibold" style={{ color: 'var(--color-foil-gold)' }}>
-              {t('auth.signIn')}
-            </a>
+            <Link to="/login">{t('auth.signIn')}</Link>
           </p>
           <AuthSeoBlurb />
         </div>

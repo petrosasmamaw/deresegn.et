@@ -13,10 +13,10 @@ import PricingTables from '../components/PricingTables'
 import { getApiBaseUrl } from '../lib/apiBase'
 
 const PACKAGE_ACCENTS = {
-  starter: '#6B8F71',
+  starter: '#1B463A',
   growth: '#C6A24E',
-  pro: '#8B3A3A',
-  business: '#2F5D50',
+  pro: '#0E2420',
+  business: '#1B463A',
   enterprise: '#0E2420',
 }
 

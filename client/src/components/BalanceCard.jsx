@@ -14,7 +14,7 @@ export default function BalanceCard({ balance = 0, onTopUpClick }) {
       <div className="stat-card balance-card">
         <div className="flex items-start justify-between balance-header">
           <div className="flex-1 min-w-0">
-            <p className="eyebrow mb-2" style={{ color: 'var(--color-text-tertiary)' }}>{t('balance.title')}</p>
+            <p className="meta-label mb-2">{t('balance.title')}</p>
             <div>
               <p className="balance-amount">
                 {Number(balance || 0).toFixed(2)}
@@ -59,7 +59,7 @@ export default function BalanceCard({ balance = 0, onTopUpClick }) {
         <div className="modal-body space-y-4">
           <PricingTables compact />
           <Link to="/developer" className="btn-primary w-full text-center text-sm" onClick={() => setPricingOpen(false)}>
-            Open Paid API
+            {t('nav.getApi')}
           </Link>
         </div>
       </Modal>

@@ -51,7 +51,7 @@ export default function Navbar() {
             height={28}
             className="rounded-md flex-shrink-0 w-7 h-7"
           />
-          <a href="/dashboard" className="navbar-brand truncate max-w-[9rem] sm:max-w-none">
+          <a href="/dashboard" className="navbar-brand truncate max-w-[11rem] sm:max-w-none">
             {t('nav.brand')}
           </a>
         </div>

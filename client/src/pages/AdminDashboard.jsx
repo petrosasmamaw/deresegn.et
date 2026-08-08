@@ -156,7 +156,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
+                  <p className="meta-label">
                     Total Users
                   </p>
                   <Users size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
 
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
+                  <p className="meta-label">
                     Total Balance
                   </p>
                   <Zap size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
 
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
+                  <p className="meta-label">
                     Verifications
                   </p>
                   <Activity size={20} style={{ color: 'var(--color-verified)' }} strokeWidth={2} />
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
 
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
+                  <p className="meta-label">
                     Top-Ups
                   </p>
                   <TrendingUp size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
 
               <div className="stat-card sm:col-span-2 lg:col-span-1">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="eyebrow" style={{ color: 'var(--color-text-tertiary)' }}>
+                  <p className="meta-label">
                     Reg. Bonuses
                   </p>
                   <Gift size={20} style={{ color: 'var(--color-verified)' }} strokeWidth={2} />

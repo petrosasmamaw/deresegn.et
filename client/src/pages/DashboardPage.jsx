@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { CheckCircle2, Zap, TrendingUp, ChevronLeft, KeyRound } from 'lucide-react'
+import { CheckCircle2, TrendingUp, KeyRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { fetchBalance, submitTopUp, submitTopUpReference, submitTopUpSms } from '../features/balance/balanceSlice'
 import { fetchCheckHistory, performCheck, performReferenceCheck, performSmsCheck } from '../features/checks/checksSlice'
@@ -158,50 +158,44 @@ export default function DashboardPage() {
 
       {/* Desktop Layout */}
       <div className="hidden md:block container mx-auto py-8 max-w-6xl px-4">
-        {/* Primary Grid: Balance + Verification */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
-          {/* Balance Card (Hero - Spans 2 cols) */}
           <div className="md:col-span-2 min-w-0">
             <BalanceCard balance={balance} onTopUpClick={() => setTopupOpen(true)} />
           </div>
 
-          {/* Quick Actions Card */}
-          <div className="action-card flex flex-col justify-between min-w-0">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Zap size={18} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-                <p className="font-display font-bold text-sm" style={{ color: 'var(--color-foil-gold)' }}>{t('dash.quickAction')}</p>
-              </div>
-              <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mb-4 leading-relaxed">
-                {t('dash.quickActionDesc')}
-              </p>
-            </div>
+          <aside className="min-w-0 flex flex-col justify-center gap-3 px-1">
+            <h2 className="section-title" style={{ color: 'var(--color-birr-green)' }}>
+              {t('dash.quickAction')}
+            </h2>
+            <p className="section-lead mb-1">
+              {t('dash.quickActionDesc')}
+            </p>
             <button
               onClick={() => setCheckerOpen(true)}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="btn-primary w-full flex items-center justify-center gap-2 min-h-11"
             >
               <CheckCircle2 size={18} strokeWidth={2} />
               {t('dash.verifyReceipt')}
             </button>
             <Link
               to="/developer"
-              className="btn-secondary w-full mt-3 flex items-center justify-center gap-2 text-sm"
+              className="btn-secondary w-full flex items-center justify-center gap-2 text-sm min-h-11"
             >
               <KeyRound size={16} strokeWidth={2} />
-              Paid API
+              {t('nav.getApi')}
             </Link>
-          </div>
+          </aside>
         </div>
 
         {/* History Section */}
-        <div className="card overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <section>
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-5">
             <div className="min-w-0">
               <h2 className="section-title flex items-center gap-2">
-                <TrendingUp size={20} style={{ color: 'var(--color-primary)' }} strokeWidth={2} className="shrink-0" />
+                <TrendingUp size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} className="shrink-0" />
                 {t('dash.historyTitle')}
               </h2>
-              <p className="text-[var(--text-sm)] text-[var(--color-text-secondary)] mt-2">{t('dash.historySubtitle')}</p>
+              <p className="section-lead mb-0">{t('dash.historySubtitle')}</p>
             </div>
             <button
               onClick={() => dispatch(fetchCheckHistory())}
@@ -211,8 +205,10 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <CheckHistory checks={checks} loading={checksLoading} />
-        </div>
+          <div className="card overflow-hidden">
+            <CheckHistory checks={checks} loading={checksLoading} />
+          </div>
+        </section>
       </div>
 
       {/* Mobile Layout */}
@@ -231,22 +227,15 @@ export default function DashboardPage() {
           <div className="flex-1 mobile-stack pb-2">
             <BalanceCard balance={balance} onTopUpClick={() => setTopupOpen(true)} />
 
-            <div className="action-card flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Zap size={15} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
-                <p className="font-display font-semibold text-[13px]" style={{ color: 'var(--color-foil-gold)' }}>{t('dash.quickVerify')}</p>
-              </div>
-              <p className="text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
-                {t('dash.quickVerifyDesc')}
-              </p>
-              <Link to="/developer" className="btn-secondary w-full text-sm flex items-center justify-center gap-2">
-                <KeyRound size={15} /> Paid API
+            <div className="px-0.5">
+              <Link to="/developer" className="btn-secondary w-full text-sm flex items-center justify-center gap-2 min-h-11">
+                <KeyRound size={15} /> {t('nav.getApi')}
               </Link>
             </div>
 
             {lastCheck && (
               <div className="stat-card">
-                <p className="receipt-label mb-3">{t('dash.lastVerification')}</p>
+                <p className="meta-label mb-3">{t('dash.lastVerification')}</p>
                 <div className="space-y-2.5">
                   <div className="flex justify-between items-center gap-3">
                     <span className="text-[13px] text-[var(--color-text-secondary)]">{t('common.amount')}</span>
