@@ -4,6 +4,7 @@ import { isTrustedOrigin } from '../config/clientOrigins.js';
  * CSRF defense for cookie-authenticated browser calls.
  * Cross-site form posts cannot set custom headers; trusted SPA always sends Origin + X-Tamagn-Client.
  * API-key traffic is skipped (no session cookies required).
+ * Native mobile clients send custom headers (browser forms cannot) + session cookie.
  */
 export function csrfOriginGuard(req, res, next) {
   const method = req.method.toUpperCase();
@@ -14,6 +15,14 @@ export function csrfOriginGuard(req, res, next) {
   const apiKey = req.headers['x-api-key'];
   const auth = req.headers.authorization || '';
   if (apiKey || auth.toLowerCase().startsWith('bearer dk_live_')) {
+    return next();
+  }
+
+  // Official mobile app (custom headers cannot be forged by cross-site forms)
+  const isMobileClient =
+    req.headers['x-tamagn-client'] === '1' &&
+    String(req.headers['x-tamagn-platform'] || '').toLowerCase() === 'mobile';
+  if (isMobileClient) {
     return next();
   }
 

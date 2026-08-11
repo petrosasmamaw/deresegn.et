@@ -1,0 +1,132 @@
+import { StyleSheet } from 'react-native'
+import { colors, radius, space, type } from './tokens'
+
+export const ui = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.parchment,
+  },
+  heroBand: {
+    backgroundColor: colors.birrGreen,
+    paddingHorizontal: space[5],
+    paddingTop: space[10],
+    paddingBottom: space[8],
+    alignItems: 'center',
+  },
+  formSheet: {
+    flex: 1,
+    backgroundColor: colors.parchment,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    marginTop: -radius.xl,
+    paddingHorizontal: space[5],
+    paddingTop: space[6],
+    paddingBottom: space[10],
+  },
+  card: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space[5],
+  },
+  brandTitle: {
+    ...type.display,
+    color: colors.textOnDark,
+    textAlign: 'center',
+  },
+  brandAlt: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.foilGold,
+    textAlign: 'center',
+    marginTop: space[1],
+  },
+  subtitle: {
+    ...type.body,
+    color: colors.textOnDarkMuted,
+    textAlign: 'center',
+    marginTop: space[3],
+    maxWidth: 340,
+  },
+  label: {
+    ...type.label,
+    color: colors.textPrimary,
+    marginBottom: space[2],
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgElevated,
+    paddingHorizontal: space[4],
+    paddingVertical: 12,
+    fontSize: 15,
+    color: colors.textPrimary,
+    marginBottom: space[4],
+  },
+  btnPrimary: {
+    backgroundColor: colors.foilGold,
+    borderRadius: radius.sm,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space[5],
+  },
+  btnPrimaryText: {
+    color: colors.ink,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  btnSecondary: {
+    backgroundColor: colors.bgSubtle,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space[5],
+  },
+  btnSecondaryText: {
+    color: colors.ink,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  errorBox: {
+    backgroundColor: colors.errorMuted,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 42, 51, 0.25)',
+    padding: space[3],
+    marginBottom: space[4],
+  },
+  errorText: {
+    color: colors.maroon,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  linkRow: {
+    marginTop: space[6],
+    alignItems: 'center',
+  },
+  linkText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  linkAccent: {
+    color: colors.birrGreen,
+    fontWeight: '700',
+  },
+  helper: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginTop: -space[2],
+    marginBottom: space[4],
+  },
+})
