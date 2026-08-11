@@ -44,6 +44,11 @@ app.use(cors({
       callback(null, origin);
       return;
     }
+    // Expo / React Native may set an Origin that isn't a browser website — allow (not cross-site form CSRF).
+    if (/^exp:\/\//i.test(origin) || /^http:\/\/(10\.0\.2\.2|localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+      callback(null, true);
+      return;
+    }
     console.warn(`CORS blocked for origin: ${origin}`);
     callback(null, false);
   },

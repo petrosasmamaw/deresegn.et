@@ -13,7 +13,7 @@ export default function BrandLockup({ dark = true, compact = false }) {
   if (compact) {
     return (
       <View style={styles.compactWrap}>
-        <Image source={logo} style={styles.compactLogo} accessibilityLabel={t('nav.logoAlt')} />
+        <Image source={logo} style={styles.compactLogo} resizeMode="contain" accessibilityLabel={t('nav.logoAlt')} />
         <View>
           <Text style={styles.compactTitle} numberOfLines={1}>
             {brandTitle}
@@ -28,7 +28,7 @@ export default function BrandLockup({ dark = true, compact = false }) {
 
   return (
     <View style={styles.wrap}>
-      <Image source={logo} style={styles.logo} accessibilityLabel={t('nav.logoAlt')} />
+      <Image source={logo} style={styles.logo} resizeMode="contain" accessibilityLabel={t('nav.logoAlt')} />
       <Text style={[ui.brandTitle, !dark && styles.inkTitle]}>{brandTitle}</Text>
       <Text style={[ui.brandAlt, !dark && styles.foilAlt]}>{brandAlt}</Text>
     </View>
@@ -40,9 +40,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
+    width: 120,
+    height: 120,
     marginBottom: space[4],
   },
   inkTitle: {
@@ -61,7 +60,6 @@ const styles = StyleSheet.create({
   compactLogo: {
     width: 40,
     height: 40,
-    borderRadius: 10,
   },
   compactTitle: {
     fontSize: 15,

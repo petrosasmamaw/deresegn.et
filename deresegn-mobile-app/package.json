@@ -27,10 +27,11 @@
     "react-redux": "^9.3.0"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "prestart": "node scripts/free-port.js 8081",
+    "start": "expo start --port 8081",
+    "android": "node scripts/free-port.js 8081 && expo start --port 8081 --android",
+    "ios": "node scripts/free-port.js 8081 && expo start --port 8081 --ios",
+    "web": "node scripts/free-port.js 8081 && expo start --port 8081 --web",
     "export:android": "expo export --platform android --output-dir dist-android",
     "export:ios": "expo export --platform ios --output-dir dist-ios",
     "export": "expo export --platform all --output-dir dist"

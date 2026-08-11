@@ -83,8 +83,8 @@ Browsers use httpOnly cookies. React Native:
 
 ## Scripts
 
-- `npm start` — Expo dev server
-- `npm run android` / `npm run ios` / `npm run web`
+- `npm start` — frees port **8081**, then starts Expo on **8081** (always)
+- `npm run android` / `npm run ios` / `npm run web` — same free-port + Expo on 8081
 - `npm run export:android` / `npm run export:ios` — production JS bundles (Metro)
 - `npx expo-doctor` — config health check
 

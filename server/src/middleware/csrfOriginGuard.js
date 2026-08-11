@@ -27,6 +27,10 @@ export function csrfOriginGuard(req, res, next) {
   }
 
   const origin = req.headers.origin;
+  // Expo deep-link style origins are not browser SPA sites
+  if (origin && /^exp:\/\//i.test(origin)) {
+    return next();
+  }
   if (origin && isTrustedOrigin(origin)) {
     return next();
   }
