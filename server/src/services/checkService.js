@@ -30,6 +30,7 @@ import {
   generateShareToken,
   isWithinRecheckWindow,
   recordBalanceTransaction,
+  ensureRegistrationBonus,
 } from './balanceLedgerService.js';
 import { computeConfidenceTier } from './confidenceService.js';
 
@@ -126,8 +127,9 @@ export async function ensureUserBalance(userId) {
 }
 
 export async function getUserBalance(userId) {
-  const row = await ensureUserBalance(userId);
-  return parseFloat(toMoney(row.amount));
+  await ensureRegistrationBonus(userId)
+  const row = await ensureUserBalance(userId)
+  return parseFloat(toMoney(row.amount))
 }
 
 async function deductBalance(userId, amount, ledgerMeta = null) {

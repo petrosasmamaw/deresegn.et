@@ -68,13 +68,14 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          setImmediate(async () => {
-            try {
-              await ensureRegistrationBonus(user.id);
-            } catch (err) {
-              console.error("Registration bonus failed for new user:", user.id, err.message);
+          try {
+            const result = await ensureRegistrationBonus(user.id);
+            if (result.granted) {
+              console.log(`Registration bonus granted: user=${user.id} amount=${result.amount}`);
             }
-          });
+          } catch (err) {
+            console.error("Registration bonus failed for new user:", user.id, err.message);
+          }
         },
       },
     },

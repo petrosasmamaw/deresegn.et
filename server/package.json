@@ -14,7 +14,8 @@
     "generate:secret": "node scripts/generateSecret.mjs",
     "train:dashen": "node scripts/trainDashen.mjs",
     "test:boa-fraud": "node scripts/testBoaFraudMock.mjs",
-    "test:paid-api": "node scripts/testPaidApi.mjs"
+    "test:paid-api": "node scripts/testPaidApi.mjs",
+    "test:registration-bonus": "node scripts/testRegistrationBonus.mjs"
   },
   "keywords": [],
   "author": "",
