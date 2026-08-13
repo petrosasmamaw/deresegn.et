@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getApiBaseUrl, getAuthBaseUrl } from './apiBase'
+import { getApiBaseUrl, getAuthBaseUrl, getWebBaseUrl } from './apiBase'
 import {
   cookieFromAuthBody,
   extractSetCookieList,
@@ -9,15 +9,26 @@ import {
   clearSessionCookie,
 } from './sessionStore'
 
+/** Better Auth needs a trusted website Origin; installed APK sends null without this. */
+function clientOriginHeaders() {
+  const web = getWebBaseUrl()
+  if (!web) return {}
+  return {
+    Origin: web,
+    Referer: `${web}/`,
+  }
+}
+
 const COMMON_HEADERS = {
   'Content-Type': 'application/json',
   'X-Requested-With': 'XMLHttpRequest',
   'X-Tamagn-Client': '1',
   'X-Tamagn-Platform': 'mobile',
+  ...clientOriginHeaders(),
 }
 
-async function withSessionHeaders(extra = {}) {
-  const cookie = await getSessionCookie()
+async function withSessionHeaders(extra = {}, { includeCookie = true } = {}) {
+  const cookie = includeCookie ? await getSessionCookie() : ''
   return {
     ...COMMON_HEADERS,
     ...(cookie ? { Cookie: cookie } : {}),
@@ -51,11 +62,12 @@ function authErrorMessage(body, fallback) {
  */
 export const authApi = {
   async signInEmail({ email, password }) {
+    await clearSessionCookie()
     const url = `${getAuthBaseUrl()}/sign-in/email`
     const res = await axios.post(
       url,
       { email, password },
-      { headers: await withSessionHeaders(), validateStatus: () => true },
+      { headers: await withSessionHeaders({}, { includeCookie: false }), validateStatus: () => true },
     )
     await captureCookies(res, res.data)
     if (res.status >= 400) {
@@ -67,11 +79,12 @@ export const authApi = {
   },
 
   async signUpEmail({ email, password, name }) {
+    await clearSessionCookie()
     const url = `${getAuthBaseUrl()}/sign-up/email`
     const res = await axios.post(
       url,
       { email, password, name },
-      { headers: await withSessionHeaders(), validateStatus: () => true },
+      { headers: await withSessionHeaders({}, { includeCookie: false }), validateStatus: () => true },
     )
     await captureCookies(res, res.data)
     if (res.status >= 400) {
@@ -83,24 +96,32 @@ export const authApi = {
   },
 
   async getSession() {
+    const cookie = await getSessionCookie()
+    if (!cookie) return null
+
     const sessionUrl = `${getApiBaseUrl()}/auth/get-session`
     const res = await axios.get(sessionUrl, {
       headers: await withSessionHeaders(),
       validateStatus: () => true,
     })
     await captureCookies(res, res.data)
-    if (res.status >= 400 || !res.data) return null
-    // body: { user, session } | null from server /api/auth/get-session
+    if (res.status >= 400 || !res.data?.user) {
+      await clearSessionCookie()
+      return null
+    }
     return res.data?.user ? res.data : null
   },
 
   async signOut() {
     try {
-      await axios.post(
-        `${getAuthBaseUrl()}/sign-out`,
-        {},
-        { headers: await withSessionHeaders(), validateStatus: () => true },
-      )
+      const cookie = await getSessionCookie()
+      if (cookie) {
+        await axios.post(
+          `${getAuthBaseUrl()}/sign-out`,
+          {},
+          { headers: await withSessionHeaders(), validateStatus: () => true },
+        )
+      }
     } finally {
       await clearSessionCookie()
     }
@@ -122,7 +143,6 @@ export const api = {
     const isFormData =
       typeof FormData !== 'undefined' && data instanceof FormData
 
-    // RN multipart: omit Content-Type so axios/boundary are set correctly
     const sessionHeaders = await withSessionHeaders(config.headers)
     if (isFormData) {
       delete sessionHeaders['Content-Type']

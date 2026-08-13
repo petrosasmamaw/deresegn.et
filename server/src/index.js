@@ -27,6 +27,7 @@ import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerServ
 import { isTrustedOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
 import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
+import { normalizeNativeClientOrigin } from './middleware/normalizeNativeClientOrigin.js'
 
 dotenv.config()
 
@@ -58,6 +59,7 @@ app.use(cors({
 app.use(express.json({ limit: '2mb' }))
 app.use(cookieParser())
 app.use('/api', globalApiRateLimiter)
+app.use('/api', normalizeNativeClientOrigin)
 app.use('/api', csrfOriginGuard)
 
 async function mountAuthHandler() {

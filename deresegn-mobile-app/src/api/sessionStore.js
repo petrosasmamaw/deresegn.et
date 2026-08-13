@@ -27,7 +27,15 @@ export async function setSessionCookie(cookieHeader) {
 }
 
 export async function clearSessionCookie() {
-  return setSessionCookie('')
+  try {
+    await SecureStore.deleteItemAsync(COOKIE_KEY)
+  } catch {
+    try {
+      await SecureStore.setItemAsync(COOKIE_KEY, '')
+    } catch {
+      // last resort on unsupported platforms
+    }
+  }
 }
 
 /**

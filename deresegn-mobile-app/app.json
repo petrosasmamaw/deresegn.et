@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tamagn Check",
     "slug": "deresegn-mobile-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,12 +18,16 @@
     },
     "android": {
       "package": "online.tamagncheck.app",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#F4EEDC",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -55,6 +59,11 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ec8ccc17-7c68-4eb6-a87c-7ca759d109f4"
+      }
+    }
   }
 }

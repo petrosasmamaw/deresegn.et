@@ -127,6 +127,12 @@ const slice = createSlice({
       .addCase(logout.fulfilled, (s) => {
         s.user = null
         s.error = null
+        s.submitting = false
+      })
+      .addCase(logout.rejected, (s) => {
+        s.user = null
+        s.error = null
+        s.submitting = false
       })
   },
 })
