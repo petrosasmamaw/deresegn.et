@@ -176,7 +176,7 @@ export const am = {
   'check.backType': '← ወደ አይነት ተመለስ',
   'check.backScreenshot': '← ወደ ስክሪንሹት ተመለስ',
   'check.paymentIdGuide': 'የክፍያ መለያ መመሪያ',
-  'check.smsGuide': 'ሙሉ የTelebirr ወይም CBE የክፍያ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ',
+  'check.smsGuide': 'ሙሉ የTelebirr፣ CBE ወይም የአቢሲኒያ ባንክ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ',
   'check.costRange': 'ወጪ፡ እንደ የተረጋገጠው መጠን 2–20 ብር',
   'check.verificationCost': 'የማረጋገጫ ወጪ',
   'check.verificationCostValue': 'ይህ ማረጋገጫ {cost} ብር ይከፍላል',
@@ -359,5 +359,6 @@ export const am = {
   'guide.dashenHint': 'ከDashen የVAT ደረሰኝ ላይ ያለውን IPSS ማጣቀሻ ያስገቡ (የSuper App QR አይደለም)።',
   'guide.telebirrSmsHint': 'ሙሉ የTelebirr የክፍያ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ።',
   'guide.cbeSmsHint': 'ሙሉ የCBE SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ።',
+  'guide.boaSmsHint': 'ሙሉ የአቢሲኒያ ባንክ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ (cs.bankofabyssinia.com/slip/?trx=…).',
   'guide.receiptGuide': 'የደረሰኝ መመሪያ',
 }

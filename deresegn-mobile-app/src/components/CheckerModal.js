@@ -33,7 +33,7 @@ const TX_PLACEHOLDERS = {
   dashen: 'e.g. 110IPSS2616900WO',
 }
 
-const SMS_SUPPORTED = new Set(['telebirr', 'cbe'])
+const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa'])
 
 const SMS_PLACEHOLDERS = {
   telebirr: `Dear customer
@@ -41,6 +41,9 @@ You have transferred ETB 60.00 ... transaction number is DFH51OFIED
 https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
   cbe: `Dear ... You have received ETB 2,000.00 ... Thanks for Banking with CBE.
 https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
+  boa: `Dear Petros, your account 2*23 was credited with ETB 100.00 by Mikiyas...
+Receipt: https://cs.bankofabyssinia.com/slip/?trx=FT26223W14ZW94077
+Bank of Abyssinia.`,
 }
 
 const EMPTY_FORM = {

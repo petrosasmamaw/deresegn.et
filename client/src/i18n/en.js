@@ -189,7 +189,7 @@ export const en = {
   'check.backType': '← Back to Type',
   'check.backScreenshot': '← Back to Screenshot',
   'check.paymentIdGuide': 'Payment ID guide',
-  'check.smsGuide': 'paste full Telebirr or CBE transaction SMS with receipt link',
+  'check.smsGuide': 'paste full Telebirr, CBE, or Bank of Abyssinia SMS with receipt link',
   'check.costRange': 'Cost: 2–20 Birr based on verified amount',
   'check.verificationCost': 'Verification Cost',
   'check.verificationCostValue': 'This verification will cost {cost} Birr',
@@ -377,5 +377,6 @@ export const en = {
   'guide.dashenHint': 'Enter the IPSS reference from a Dashen VAT receipt (not Super App QR).',
   'guide.telebirrSmsHint': 'Paste the full Telebirr transaction SMS including the receipt link.',
   'guide.cbeSmsHint': 'Paste the full CBE SMS including the receipt link.',
+  'guide.boaSmsHint': 'Paste the full Bank of Abyssinia SMS including the Receipt link (cs.bankofabyssinia.com/slip/?trx=…).',
   'guide.receiptGuide': 'Receipt guide',
 }

@@ -812,13 +812,13 @@ export async function submitSmsCheck({
   smsText,
   billing = { type: 'wallet' },
 }) {
-  if (!['telebirr', 'cbe'].includes(method)) {
-    throw new CheckError('SMS verification is only supported for Telebirr and CBE', 400, {
+  if (!['telebirr', 'cbe', 'boa'].includes(method)) {
+    throw new CheckError('SMS verification is only supported for Telebirr, CBE, and Bank of Abyssinia', 400, {
       issues: [{
         type: 'error',
         code: 'UNSUPPORTED_METHOD',
         field: 'method',
-        message: 'SMS verification is only supported for Telebirr and CBE',
+        message: 'SMS verification is only supported for Telebirr, CBE, and Bank of Abyssinia',
       }],
     });
   }

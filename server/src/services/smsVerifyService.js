@@ -6,6 +6,10 @@ import {
   fetchCbeTransactionByReference,
   fetchCbeTransactionFromQr,
 } from './cbeReceiptService.js';
+import {
+  fetchBoaTransactionFromSlipUrl,
+  fetchBoaTransactionByReference,
+} from './boaReceiptService.js';
 
 export const SMS_SCREENSHOT_PLACEHOLDER = 'sms://verification';
 
@@ -52,8 +56,9 @@ function accountsMatch(a, b) {
   const masked = /\*/.test(rawA) || /\*/.test(rawB);
 
   if (masked) {
-    if (aa.length < 4 || ab.length < 4) return false;
-    if (aa.slice(-4) !== ab.slice(-4)) return false;
+    if (aa.length < 2 || ab.length < 2) return false;
+    const suffixLen = Math.min(4, aa.length, ab.length);
+    if (aa.slice(-suffixLen) !== ab.slice(-suffixLen)) return false;
     if (aa[0] !== ab[0]) return false;
     return true;
   }
@@ -105,6 +110,27 @@ async function fetchOfficialForSms(parsed) {
     }
   }
 
+  if (parsed.method === 'boa') {
+    if (parsed.receiptUrl) {
+      const fromSlip = await fetchBoaTransactionFromSlipUrl(parsed.receiptUrl, [
+        parsed.account,
+        parsed.accountSuffix,
+        parsed.senderAccount,
+      ]);
+      if (fromSlip) return fromSlip;
+    }
+    if (parsed.transactionCode) {
+      const fromSlipId = await fetchBoaTransactionFromSlipUrl(
+        `https://cs.bankofabyssinia.com/slip/?trx=${parsed.transactionCode}`,
+        [parsed.account, parsed.accountSuffix],
+      );
+      if (fromSlipId) return fromSlipId;
+    }
+    if (parsed.ftReference && parsed.accountSuffix && String(parsed.accountSuffix).replace(/\D/g, '').length >= 5) {
+      return fetchBoaTransactionByReference(parsed.ftReference, parsed.accountSuffix);
+    }
+  }
+
   return null;
 }
 
@@ -113,7 +139,6 @@ function validateParsedSms(parsed) {
     const hasBranch = parsed.receiptUrl && /BranchReceipt/i.test(parsed.receiptUrl);
     const hasMbReceipt = Boolean(parsed.verificationToken)
       || /mbreciept\.cbe\.com\.et/i.test(parsed.receiptUrl || '');
-    const hasReference = parsed.transactionCode && parsed.accountSuffix;
 
     if (!hasBranch && !hasMbReceipt && !parsed.transactionCode) {
       return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
@@ -146,6 +171,22 @@ function validateParsedSms(parsed) {
     return [];
   }
 
+  if (parsed.method === 'boa') {
+    if (!parsed.receiptUrl && !parsed.transactionCode) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Paste the full Bank of Abyssinia SMS including the Receipt link (cs.bankofabyssinia.com/slip/?trx=…).')];
+    }
+    if (!parsed.receiptUrl || !/cs\.bankofabyssinia\.com\/slip/i.test(parsed.receiptUrl)) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'BOA SMS must include the Receipt link: https://cs.bankofabyssinia.com/slip/?trx=…')];
+    }
+    if (!parsed.transactionCode) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Could not read the transaction reference (trx=) from the BOA Receipt link.')];
+    }
+    return [];
+  }
+
   if (!parsed.transactionCode) {
     return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
       'Could not find a transaction reference in the SMS. Paste the full message including the receipt link.')];
@@ -157,11 +198,14 @@ function validateParsedSms(parsed) {
 function crossCheckSmsVsOfficial(parsed, official) {
   const issues = [];
   const txCode = normalizeTxCode(official.transactionCode);
-  const smsTx = normalizeTxCode(parsed.transactionCode);
+  const smsTx = normalizeTxCode(parsed.ftReference || parsed.transactionCode);
   if (smsTx && txCode && smsTx !== txCode) {
-    issues.push(issue('error', 'SMS_TX_MISMATCH', 'transactionCode',
-      `SMS shows transaction "${smsTx}" but the official receipt is "${txCode}".`,
-      { smsValue: smsTx, officialValue: txCode }));
+    const smsCore = normalizeTxCode(String(parsed.transactionCode || '').match(/^(FT[A-Z0-9]{8,14})/i)?.[1] || smsTx);
+    if (smsCore !== txCode && !String(parsed.transactionCode || '').toUpperCase().startsWith(txCode)) {
+      issues.push(issue('error', 'SMS_TX_MISMATCH', 'transactionCode',
+        `SMS shows transaction "${smsTx}" but the official receipt is "${txCode}".`,
+        { smsValue: smsTx, officialValue: txCode }));
+    }
   }
 
   if (parsed.method === 'telebirr') {
@@ -213,6 +257,37 @@ function crossCheckSmsVsOfficial(parsed, official) {
       issues.push(issue('error', 'SMS_RECEIVER_MISMATCH', 'senderName',
         `SMS sender "${parsed.senderName}" does not match official receipt "${official.senderName}".`,
         { smsValue: parsed.senderName, officialValue: official.senderName }));
+    }
+  }
+
+  if (parsed.method === 'boa') {
+    if (parsed.amount && official.amount && !amountsMatch(parsed.amount, official.amount)) {
+      issues.push(issue('error', 'SMS_AMOUNT_MISMATCH', 'amount',
+        `SMS shows ETB ${parsed.amount} but the official Bank of Abyssinia receipt shows ETB ${official.amount}.`,
+        { smsValue: parsed.amount, officialValue: official.amount }));
+    }
+
+    if (parsed.senderName && official.senderName && !namesMatch(parsed.senderName, official.senderName)) {
+      issues.push(issue('error', 'SMS_RECEIVER_MISMATCH', 'senderName',
+        `SMS sender "${parsed.senderName}" does not match official receipt "${official.senderName}".`,
+        { smsValue: parsed.senderName, officialValue: official.senderName }));
+    }
+
+    if (parsed.receiverName && official.receiverName && !namesMatch(parsed.receiverName, official.receiverName)) {
+      issues.push(issue('error', 'SMS_RECEIVER_MISMATCH', 'receiverName',
+        `SMS receiver "${parsed.receiverName}" does not match official receipt "${official.receiverName}".`,
+        { smsValue: parsed.receiverName, officialValue: official.receiverName }));
+    }
+
+    if (parsed.account) {
+      const officialAccount = parsed.direction === 'credit'
+        ? official.receiverAccount
+        : (official.senderAccount || official.receiverAccount);
+      if (officialAccount && !accountsMatch(parsed.account, officialAccount)) {
+        issues.push(issue('error', 'SMS_ACCOUNT_MISMATCH', 'receiverAccount',
+          `SMS account "${parsed.account}" does not match the official BOA receipt account "${officialAccount}".`,
+          { smsValue: parsed.account, officialValue: officialAccount }));
+      }
     }
   }
 

@@ -177,7 +177,7 @@ export const am = {
   'check.backType': '← ወደ አይነት ተመለስ',
   'check.backScreenshot': '← ወደ ስክሪንሹት ተመለስ',
   'check.paymentIdGuide': 'የክፍያ መለያ መመሪያ',
-  'check.smsGuide': 'ሙሉ የTelebirr ወይም CBE የክፍያ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ',
+  'check.smsGuide': 'ሙሉ የTelebirr፣ CBE ወይም የአቢሲኒያ ባንክ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ',
   'check.costRange': 'ወጪ፡ እንደ የተረጋገጠው መጠን 2–20 ብር',
   'check.verificationCost': 'የማረጋገጫ ወጪ',
   'check.verificationCostValue': 'ይህ ማረጋገጫ {cost} ብር ይከፍላል',

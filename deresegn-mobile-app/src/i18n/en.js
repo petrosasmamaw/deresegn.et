@@ -190,7 +190,7 @@ export const en = {
   'check.backType': '← Back to Type',
   'check.backScreenshot': '← Back to Screenshot',
   'check.paymentIdGuide': 'Payment ID guide',
-  'check.smsGuide': 'paste full Telebirr or CBE transaction SMS with receipt link',
+  'check.smsGuide': 'paste full Telebirr, CBE, or Bank of Abyssinia SMS with receipt link',
   'check.costRange': 'Cost: 2–20 Birr based on verified amount',
   'check.verificationCost': 'Verification Cost',
   'check.verificationCostValue': 'This verification will cost {cost} Birr',

@@ -15,13 +15,16 @@ const TX_PLACEHOLDERS = {
   dashen: 'e.g. 110IPSS2616900WO',
 }
 
-const SMS_SUPPORTED = new Set(['telebirr', 'cbe'])
+const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa'])
 
 const SMS_PLACEHOLDERS = {
   telebirr: `Dear customer
 You have transferred ETB 60.00 to Receiver Name (2519****4025) on 17/06/2026 18:14:15. Your transaction number is DFH51OFIED...
 https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
   cbe: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
+  boa: `Dear Petros, your account 2*23 was credited with ETB 100.00 by Mikiyas Amsalu Admasu. Available Balance: ETB 603.71.
+Receipt: https://cs.bankofabyssinia.com/slip/?trx=FT26223W14ZW94077
+For help, call 8397. Bank of Abyssinia.`,
 }
 
 function getCheckCostByAmount(amount) {

@@ -171,6 +171,40 @@ export async function fetchBoaTransactionByReference(reference, accountSuffix) {
   return fetchBoaByReference(ft, [digits.slice(-5)]);
 }
 
+/**
+ * Fast BOA SMS / QR slip verify — load official record from
+ * https://cs.bankofabyssinia.com/slip/?trx=… (API getDetails, not OCR).
+ */
+export async function fetchBoaTransactionFromSlipUrl(slipUrl, extraAccounts = []) {
+  const raw = String(slipUrl || '').trim();
+  const trx = extractBoaReferenceFromQr({ raw })
+    || normalizeTxCode(raw.match(/[?&]trx=([A-Z0-9]+)/i)?.[1]);
+  if (!trx) return null;
+
+  // 1) Full slip trx as API id (fastest — one request)
+  const direct = await fetchBoaApiOnce(trx);
+  if (direct) {
+    return { ...direct, source: 'boa_slip_link', receiptUrl: raw.startsWith('http') ? raw : null };
+  }
+
+  // 2) FT core + account digits (same as reference mode)
+  const ftCore = normalizeTxCode(trx.match(/^(FT[A-Z0-9]{8,14})/i)?.[1] || trx);
+  const trailing = trx.length > ftCore.length ? trx.slice(ftCore.length).replace(/\D/g, '') : '';
+  const accounts = [
+    trailing,
+    trailing.slice(-5),
+    trailing.slice(-8),
+    ...extraAccounts,
+  ].filter(Boolean);
+
+  const byRef = await fetchBoaByReference(ftCore, accounts);
+  if (byRef) {
+    return { ...byRef, source: 'boa_slip_link', receiptUrl: raw.startsWith('http') ? raw : null };
+  }
+
+  return null;
+}
+
 function nearbyReferences(reference) {
   const ref = normalizeTxCode(reference);
   if (!ref || !/^FT[A-Z0-9]{8,}$/i.test(ref)) return [];

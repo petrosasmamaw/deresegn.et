@@ -15,7 +15,8 @@
     "train:dashen": "node scripts/trainDashen.mjs",
     "test:boa-fraud": "node scripts/testBoaFraudMock.mjs",
     "test:paid-api": "node scripts/testPaidApi.mjs",
-    "test:registration-bonus": "node scripts/testRegistrationBonus.mjs"
+    "test:registration-bonus": "node scripts/testRegistrationBonus.mjs",
+    "test:boa-sms": "node scripts/testBoaSms.mjs"
   },
   "keywords": [],
   "author": "",

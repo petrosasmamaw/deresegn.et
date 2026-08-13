@@ -75,13 +75,25 @@ function FormatTextPanel({ method, mode }) {
   }
 
   if (mode === 'sms') {
-    const hintKey = method === 'telebirr' ? 'guide.telebirrSmsHint' : method === 'cbe' ? 'guide.cbeSmsHint' : null
+    const hintKey = {
+      telebirr: 'guide.telebirrSmsHint',
+      cbe: 'guide.cbeSmsHint',
+      boa: 'guide.boaSmsHint',
+    }[method]
     if (!hintKey) return null
-    const body = method === 'telebirr'
-      ? `Dear customer
+
+    const bodyByMethod = {
+      telebirr: `Dear customer
 You have transferred ETB 60.00 to Receiver Name (2519****4025) on 17/06/2026 18:14:15. Your transaction number is DFH51OFIED. Your current balance is ETB 1,240.00.
-https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`
-      : `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Your current balance is ETB 3,103.06. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`
+https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
+      cbe: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Your current balance is ETB 3,103.06. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
+      boa: `Dear Petros, your account 2*23 was credited with ETB 100.00 by Mikiyas Amsalu Admasu. Available Balance: ETB 603.71.
+Receipt: https://cs.bankofabyssinia.com/slip/?trx=FT26223W14ZW94077
+Feedback: https://cs.bankofabyssinia.com/cs/?trx=CFT26223W14ZW
+For help, call 8397 (24/7 Toll-Free). Bank of Abyssinia.`,
+    }
+    const body = bodyByMethod[method]
+    if (!body) return null
 
     return (
       <aside className="receipt-example-panel" aria-label={t('guide.smsFormat')}>

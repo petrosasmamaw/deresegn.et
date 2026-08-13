@@ -54,6 +54,10 @@ function repairSmsUrls(blob) {
   );
   out = repairBrokenHostUrl(
     out,
+    /(https?:\/\/cs\.bankofabyssinia\.com\/slip\/\?[^\s]*)([^\s]*)((?:\s+[^\s]+)*)/gi,
+  );
+  out = repairBrokenHostUrl(
+    out,
     /\b(mbreciept\.cbe\.com\.et\/)([^\s]+)((?:\s+[^\s]+)*)/gi,
   );
 
@@ -142,6 +146,22 @@ function findCbeAmount(blob) {
   return { direction: null, amount: null };
 }
 
+function findBoaSlipUrl(blob) {
+  const match = blob.match(/https?:\/\/cs\.bankofabyssinia\.com\/slip\/\?[^\s]*/i)
+    || blob.match(/\bcs\.bankofabyssinia\.com\/slip\/\?[^\s]*/i);
+  if (!match?.[0]) return '';
+  let url = cleanUrl(match[0]);
+  if (!url.startsWith('http')) url = `https://${url}`;
+  return url.replace(/&amp;/gi, '&');
+}
+
+/** Extract FT… trx from BOA slip receipt URL (not OCR). */
+export function extractBoaTrxFromSlipUrl(url) {
+  const raw = String(url || '');
+  const match = raw.match(/[?&]trx=([A-Z0-9]+)/i);
+  return match?.[1] ? normalizeTxCode(match[1]) : null;
+}
+
 export function detectSmsMethod(text) {
   const blob = normalizeSmsBlob(text);
   if (/transactioninfo\.ethiotelecom\.et\/receipt\//i.test(blob)
@@ -156,6 +176,12 @@ export function detectSmsMethod(text) {
     || /\bfor\s+rec(?:eipt|iept)\s+https?:\/\/apps\.cbe\.com\.et/i.test(blob)
     || /\bBranchReceipt\/FT[A-Z0-9]+/i.test(blob)) {
     return 'cbe';
+  }
+  if (/cs\.bankofabyssinia\.com\/slip\/\?/i.test(blob)
+    || /bank of abyssinia/i.test(blob)
+    || /\bcredited with\s+ETB[\s\S]{0,80}by\s+[A-Za-z]/i.test(blob)
+      && /cs\.bankofabyssinia\.com/i.test(blob)) {
+    return 'boa';
   }
   return null;
 }
@@ -231,6 +257,101 @@ export function parseCbeSms(text) {
   };
 }
 
+/**
+ * BOA SMS — verify via Receipt slip link (cs.bankofabyssinia.com/slip/?trx=…), not OCR.
+ * Example:
+ * Dear Petros, your account 2*23 was credited with ETB 100.00 by Mikiyas…
+ * Receipt: https://cs.bankofabyssinia.com/slip/?trx=FT26223W14ZW94077
+ */
+export function parseBoaSms(text) {
+  const blob = normalizeSmsBlob(text);
+  const receiptUrl = findBoaSlipUrl(blob);
+  const slipTrx = extractBoaTrxFromSlipUrl(receiptUrl)
+    || normalizeTxCode(blob.match(/[?&]trx=(FT[A-Z0-9]+)/i)?.[1])
+    || normalizeTxCode(blob.match(/\b(FT[A-Z0-9]{8,})\b/i)?.[1]);
+
+  // Slip trx is often FT… + account digits. Official Transaction Reference is FT only.
+  let ftOnly = slipTrx;
+  let accountSuffixFromTrx = null;
+  if (slipTrx && /^FT[A-Z0-9]+$/i.test(slipTrx)) {
+    const trailingDigits = slipTrx.match(/(\d{5,8})$/);
+    if (trailingDigits) {
+      const without = slipTrx.slice(0, -trailingDigits[1].length);
+      if (/^FT[A-Z0-9]{8,14}$/i.test(without)) {
+        ftOnly = normalizeTxCode(without);
+        accountSuffixFromTrx = trailingDigits[1].slice(-5);
+      }
+    }
+  }
+
+  const creditMatch = blob.match(
+    /\byour account\s+([\d*]+)\s+was credited with\s+ETB\s*([\d,]+\.?\d*)\s+by\s+([A-Za-z][A-Za-z\s.'-]{2,80}?)(?:\.|,|\s+Available|\s+Receipt)/i,
+  );
+  const debitMatch = blob.match(
+    /\byour account\s+([\d*]+)\s+was debited (?:with\s+)?ETB\s*([\d,]+\.?\d*)/i,
+  );
+
+  let direction = null;
+  let amount = null;
+  let account = null;
+  let senderName = null;
+  let receiverName = null;
+
+  if (creditMatch) {
+    direction = 'credit';
+    account = creditMatch[1]?.trim() || null;
+    amount = parseAmount(creditMatch[2]);
+    senderName = creditMatch[3]?.trim() || null;
+  } else if (debitMatch) {
+    direction = 'debit';
+    account = debitMatch[1]?.trim() || null;
+    amount = parseAmount(debitMatch[2]);
+  } else {
+    const amt = blob.match(/\bcredited with\s+ETB\s*([\d,]+\.?\d*)/i)
+      || blob.match(/\bdebited (?:with\s+)?ETB\s*([\d,]+\.?\d*)/i)
+      || blob.match(/\bETB\s*([\d,]+\.?\d*)/i);
+    amount = parseAmount(amt?.[1]);
+    if (/credited/i.test(blob)) direction = 'credit';
+    else if (/debited/i.test(blob)) direction = 'debit';
+    account = blob.match(/\byour account\s+([\d*]+)/i)?.[1]?.trim() || null;
+    senderName = blob.match(/\bby\s+([A-Za-z][A-Za-z\s.'-]{2,80}?)(?:\.|,|\s+Available|\s+Receipt)/i)?.[1]?.trim() || null;
+  }
+
+  const customerName = blob.match(/Dear\s+([A-Za-z][A-Za-z\s.'-]{1,60}?)(?:,|\s+your\b)/i)?.[1]?.trim()
+    || null;
+
+  if (direction === 'credit' && customerName) receiverName = customerName;
+  if (direction === 'debit' && customerName) senderName = senderName || customerName;
+
+  const availableBalance = parseAmount(
+    blob.match(/\bAvailable Balance:\s*ETB\s*([\d,]+\.?\d*)/i)?.[1],
+  );
+
+  // Digits after FT in slip trx often encode account suffix for getDetails.
+  let accountSuffix = accountSuffixFromTrx;
+  if (!accountSuffix && account) {
+    const digits = String(account).replace(/\D/g, '');
+    if (digits.length >= 2) accountSuffix = digits.slice(-Math.min(5, digits.length));
+  }
+
+  return {
+    method: 'boa',
+    transactionCode: slipTrx || ftOnly,
+    ftReference: ftOnly,
+    amount: amount != null ? String(amount) : null,
+    direction,
+    account,
+    senderAccount: null,
+    senderName,
+    receiverName,
+    customerName,
+    receiptUrl,
+    accountSuffix,
+    availableBalance: availableBalance != null ? String(availableBalance) : null,
+    receiptType: 'boa_slip',
+  };
+}
+
 export function parseTelebirrSms(text) {
   const blob = normalizeSmsBlob(text);
   const receiptUrl = cleanUrl(blob.match(/https?:\/\/transactioninfo\.ethiotelecom\.et\/receipt\/[A-Z0-9]+/i)?.[0]);
@@ -270,21 +391,28 @@ export function parseSms(text, expectedMethod = null) {
 
   const detected = detectSmsMethod(blob);
   const method = expectedMethod || detected;
+  const label = (m) => ({
+    telebirr: 'Telebirr',
+    cbe: 'CBE',
+    boa: 'Bank of Abyssinia',
+  }[m] || m);
+
   if (!method) {
-    const err = new Error('Could not detect bank from SMS. Paste a full Telebirr or CBE transaction SMS.');
+    const err = new Error('Could not detect bank from SMS. Paste a full Telebirr, CBE, or Bank of Abyssinia transaction SMS.');
     err.isValidation = true;
     err.field = 'smsText';
     throw err;
   }
   if (expectedMethod && detected && expectedMethod !== detected) {
-    const err = new Error(`This SMS is for ${detected === 'telebirr' ? 'Telebirr' : 'CBE'}, but you selected ${expectedMethod === 'telebirr' ? 'Telebirr' : 'CBE'}.`);
+    const err = new Error(`This SMS is for ${label(detected)}, but you selected ${label(expectedMethod)}.`);
     err.isValidation = true;
     err.field = 'smsText';
     throw err;
   }
   if (method === 'telebirr') return parseTelebirrSms(blob);
   if (method === 'cbe') return parseCbeSms(blob);
-  const err = new Error('SMS verification is only supported for Telebirr and CBE.');
+  if (method === 'boa') return parseBoaSms(blob);
+  const err = new Error('SMS verification is only supported for Telebirr, CBE, and Bank of Abyssinia.');
   err.isValidation = true;
   err.field = 'method';
   throw err;
