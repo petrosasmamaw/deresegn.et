@@ -200,7 +200,7 @@ function crossCheckSmsVsOfficial(parsed, official) {
   const txCode = normalizeTxCode(official.transactionCode);
   const smsTx = normalizeTxCode(parsed.ftReference || parsed.transactionCode);
   if (smsTx && txCode && smsTx !== txCode) {
-    const smsCore = normalizeTxCode(String(parsed.transactionCode || '').match(/^(FT[A-Z0-9]{8,14})/i)?.[1] || smsTx);
+    const smsCore = normalizeTxCode(String(parsed.transactionCode || '').match(/^((?:FT|TT)[A-Z0-9]{8,14})/i)?.[1] || smsTx);
     if (smsCore !== txCode && !String(parsed.transactionCode || '').toUpperCase().startsWith(txCode)) {
       issues.push(issue('error', 'SMS_TX_MISMATCH', 'transactionCode',
         `SMS shows transaction "${smsTx}" but the official receipt is "${txCode}".`,

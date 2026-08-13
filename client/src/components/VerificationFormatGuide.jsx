@@ -47,9 +47,10 @@ function FormatTextPanel({ method, mode }) {
         { label: t('guide.format'), value: 'FT + 12 chars · 8 digits' },
       ],
       boa: [
-        { label: 'FT Reference', value: 'FT26169X4SRS' },
+        { label: t('ref.boaId'), value: 'FT… or TT…' },
+        { label: t('guide.example'), value: 'TT26171RW0YG' },
         { label: t('ref.boaSuffix'), value: '12345' },
-        { label: t('guide.format'), value: 'FT + 12 chars · 5 digits' },
+        { label: t('guide.format'), value: 'FT/TT + chars · 5 digits' },
       ],
       dashen: [
         { label: 'IPSS Reference', value: '110IPSS2616900WO' },
@@ -87,9 +88,9 @@ function FormatTextPanel({ method, mode }) {
 You have transferred ETB 60.00 to Receiver Name (2519****4025) on 17/06/2026 18:14:15. Your transaction number is DFH51OFIED. Your current balance is ETB 1,240.00.
 https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
       cbe: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Your current balance is ETB 3,103.06. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
-      boa: `Dear Petros, your account 2*23 was credited with ETB 100.00 by Mikiyas Amsalu Admasu. Available Balance: ETB 603.71.
-Receipt: https://cs.bankofabyssinia.com/slip/?trx=FT26223W14ZW94077
-Feedback: https://cs.bankofabyssinia.com/cs/?trx=CFT26223W14ZW
+      boa: `Dear Petros, your account 2*23 was debited with ETB 200.00. Available Balance: ETB 102.63.
+Receipt: https://cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
+Feedback: https://cs.bankofabyssinia.com/cs/?trx=DTT26171RW0YG
 For help, call 8397 (24/7 Toll-Free). Bank of Abyssinia.`,
     }
     const body = bodyByMethod[method]

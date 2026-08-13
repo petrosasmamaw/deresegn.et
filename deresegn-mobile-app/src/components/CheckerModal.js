@@ -29,7 +29,7 @@ import { colors, radius, space } from '../theme/tokens'
 const TX_PLACEHOLDERS = {
   telebirr: 'e.g. DG65L5I9M5',
   cbe: 'e.g. FT26169D8C5M',
-  boa: 'e.g. FT26169X4SRS',
+  boa: 'e.g. FT26169X4SRS or TT26171RW0YG',
   dashen: 'e.g. 110IPSS2616900WO',
 }
 
@@ -41,8 +41,8 @@ You have transferred ETB 60.00 ... transaction number is DFH51OFIED
 https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
   cbe: `Dear ... You have received ETB 2,000.00 ... Thanks for Banking with CBE.
 https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
-  boa: `Dear Petros, your account 2*23 was credited with ETB 100.00 by Mikiyas...
-Receipt: https://cs.bankofabyssinia.com/slip/?trx=FT26223W14ZW94077
+  boa: `Dear Petros, your account 2*23 was debited with ETB 200.00...
+Receipt: https://cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
 Bank of Abyssinia.`,
 }
 
@@ -132,7 +132,7 @@ export default function CheckerModal({
         { key: 'accountSuffix', label: t('ref.cbeSuffix'), placeholder: '12345678', hint: t('ref.cbeSuffixHint') },
       ],
       boa: [
-        { key: 'transactionCode', label: t('ref.ft'), placeholder: 'FT26169X4SRS', hint: t('ref.ftHint') },
+        { key: 'transactionCode', label: t('ref.boaId'), placeholder: 'TT26171RW0YG', hint: t('ref.boaIdHint') },
         { key: 'accountSuffix', label: t('ref.boaSuffix'), placeholder: '12345', hint: t('ref.boaSuffixHint') },
       ],
     }),

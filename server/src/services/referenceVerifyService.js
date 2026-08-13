@@ -52,13 +52,13 @@ export const REFERENCE_INPUT_GUIDE = {
   },
   boa: {
     label: 'Bank of Abyssinia',
-    summary: 'FT reference + last 5 digits of sender account',
+    summary: 'FT/TT reference + last 5 digits of sender account',
     fields: [
       {
         key: 'transactionCode',
-        label: 'FT Reference',
-        placeholder: 'FT26169X4SRS',
-        hint: 'Transaction reference starting with FT',
+        label: 'Payment ID (FT / TT)',
+        placeholder: 'FT26169X4SRS or TT26171RW0YG',
+        hint: 'Transaction reference starting with FT or TT',
       },
       {
         key: 'accountSuffix',
@@ -118,15 +118,15 @@ export function validateReferenceInput(method, { transactionCode, accountSuffix 
       return { transactionCode: ft, accountSuffix: digits.slice(-8) };
     }
     case 'boa': {
-      const ft = normalizeTxCode(code);
+      const ref = normalizeTxCode(code);
       const digits = suffix.replace(/\D/g, '');
-      if (!ft || !/^FT[A-Z0-9]{8,}$/i.test(ft)) {
-        throw validationError('Enter a valid BOA FT reference (e.g. FT26169X4SRS)', 'transactionCode');
+      if (!ref || !/^(?:FT|TT)[A-Z0-9]{8,}$/i.test(ref)) {
+        throw validationError('Enter a valid BOA payment ID starting with FT or TT (e.g. FT26169X4SRS or TT26171RW0YG)', 'transactionCode');
       }
       if (digits.length < 5) {
         throw validationError('Enter the last 5 digits of the sender account', 'accountSuffix');
       }
-      return { transactionCode: ft, accountSuffix: digits.slice(-5) };
+      return { transactionCode: ref, accountSuffix: digits.slice(-5) };
     }
     default:
       throw validationError('Unsupported payment method', 'method');

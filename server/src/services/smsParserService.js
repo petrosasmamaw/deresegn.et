@@ -259,26 +259,26 @@ export function parseCbeSms(text) {
 
 /**
  * BOA SMS — verify via Receipt slip link (cs.bankofabyssinia.com/slip/?trx=…), not OCR.
- * Example:
- * Dear Petros, your account 2*23 was credited with ETB 100.00 by Mikiyas…
- * Receipt: https://cs.bankofabyssinia.com/slip/?trx=FT26223W14ZW94077
+ * Supports FT… and TT… (credit / debit).
+ * Example credit: …trx=FT26223W14ZW94077
+ * Example debit:  …trx=TT26171RW0YG02723
  */
 export function parseBoaSms(text) {
   const blob = normalizeSmsBlob(text);
   const receiptUrl = findBoaSlipUrl(blob);
   const slipTrx = extractBoaTrxFromSlipUrl(receiptUrl)
-    || normalizeTxCode(blob.match(/[?&]trx=(FT[A-Z0-9]+)/i)?.[1])
-    || normalizeTxCode(blob.match(/\b(FT[A-Z0-9]{8,})\b/i)?.[1]);
+    || normalizeTxCode(blob.match(/[?&]trx=((?:FT|TT)[A-Z0-9]+)/i)?.[1])
+    || normalizeTxCode(blob.match(/\b((?:FT|TT)[A-Z0-9]{8,})\b/i)?.[1]);
 
-  // Slip trx is often FT… + account digits. Official Transaction Reference is FT only.
-  let ftOnly = slipTrx;
+  // Slip trx is often CORE (FT/TT…) + account digits.
+  let coreRef = slipTrx;
   let accountSuffixFromTrx = null;
-  if (slipTrx && /^FT[A-Z0-9]+$/i.test(slipTrx)) {
+  if (slipTrx && /^(?:FT|TT)[A-Z0-9]+$/i.test(slipTrx)) {
     const trailingDigits = slipTrx.match(/(\d{5,8})$/);
     if (trailingDigits) {
       const without = slipTrx.slice(0, -trailingDigits[1].length);
-      if (/^FT[A-Z0-9]{8,14}$/i.test(without)) {
-        ftOnly = normalizeTxCode(without);
+      if (/^(?:FT|TT)[A-Z0-9]{8,14}$/i.test(without)) {
+        coreRef = normalizeTxCode(without);
         accountSuffixFromTrx = trailingDigits[1].slice(-5);
       }
     }
@@ -288,7 +288,7 @@ export function parseBoaSms(text) {
     /\byour account\s+([\d*]+)\s+was credited with\s+ETB\s*([\d,]+\.?\d*)\s+by\s+([A-Za-z][A-Za-z\s.'-]{2,80}?)(?:\.|,|\s+Available|\s+Receipt)/i,
   );
   const debitMatch = blob.match(
-    /\byour account\s+([\d*]+)\s+was debited (?:with\s+)?ETB\s*([\d,]+\.?\d*)/i,
+    /\byour account\s+([\d*]+)\s+was debited(?:\s+with)?\s+ETB\s*([\d,]+\.?\d*)/i,
   );
 
   let direction = null;
@@ -308,7 +308,7 @@ export function parseBoaSms(text) {
     amount = parseAmount(debitMatch[2]);
   } else {
     const amt = blob.match(/\bcredited with\s+ETB\s*([\d,]+\.?\d*)/i)
-      || blob.match(/\bdebited (?:with\s+)?ETB\s*([\d,]+\.?\d*)/i)
+      || blob.match(/\bdebited(?:\s+with)?\s+ETB\s*([\d,]+\.?\d*)/i)
       || blob.match(/\bETB\s*([\d,]+\.?\d*)/i);
     amount = parseAmount(amt?.[1]);
     if (/credited/i.test(blob)) direction = 'credit';
@@ -327,7 +327,6 @@ export function parseBoaSms(text) {
     blob.match(/\bAvailable Balance:\s*ETB\s*([\d,]+\.?\d*)/i)?.[1],
   );
 
-  // Digits after FT in slip trx often encode account suffix for getDetails.
   let accountSuffix = accountSuffixFromTrx;
   if (!accountSuffix && account) {
     const digits = String(account).replace(/\D/g, '');
@@ -336,8 +335,8 @@ export function parseBoaSms(text) {
 
   return {
     method: 'boa',
-    transactionCode: slipTrx || ftOnly,
-    ftReference: ftOnly,
+    transactionCode: slipTrx || coreRef,
+    ftReference: coreRef,
     amount: amount != null ? String(amount) : null,
     direction,
     account,

@@ -11,6 +11,39 @@ const NEARBY_BUDGET_MS = 8000;
 const QR_BUDGET_MS = 9000;
 const OCR_GRACE_MS = 800;
 
+/** BOA payment refs: FT… (credit/transfer) or TT… (e.g. debit). */
+export const BOA_REF_RE = /^(FT|TT)[A-Z0-9]{8,}$/i;
+const BOA_REF_CORE_RE = /^(FT|TT)[A-Z0-9]{8,14}$/i;
+const BOA_REF_IN_TEXT_RE = /\b((?:FT|TT)[A-Z0-9]{8,})\b/i;
+const BOA_REF_PREFIX_RE = /^((?:FT|TT)[A-Z0-9]{8,14})/i;
+
+export function isBoaPaymentReference(value) {
+  return BOA_REF_RE.test(normalizeTxCode(value));
+}
+
+/**
+ * Slip trx is often CORE + account digits (e.g. TT26171RW0YG02723 → TT26171RW0YG + 02723).
+ */
+export function splitBoaSlipTrx(rawTrx) {
+  const slipTrx = normalizeTxCode(rawTrx);
+  if (!slipTrx) return { slipTrx: null, coreRef: null, accountSuffix: null };
+  if (!/^(FT|TT)[A-Z0-9]+$/i.test(slipTrx)) {
+    return { slipTrx, coreRef: slipTrx, accountSuffix: null };
+  }
+
+  let coreRef = slipTrx;
+  let accountSuffix = null;
+  const trailingDigits = slipTrx.match(/(\d{5,8})$/);
+  if (trailingDigits) {
+    const without = slipTrx.slice(0, -trailingDigits[1].length);
+    if (BOA_REF_CORE_RE.test(without)) {
+      coreRef = normalizeTxCode(without);
+      accountSuffix = trailingDigits[1].slice(-5);
+    }
+  }
+  return { slipTrx, coreRef, accountSuffix };
+}
+
 const EMPTY_EXTRACTED = {
   senderName: null,
   senderAccount: null,
@@ -95,8 +128,8 @@ export function extractBoaReferenceFromQr(qrData) {
     || raw.match(/bankofabyssinia\.com\/[^?]*\?[^#]*trx=([A-Z0-9]+)/i);
   if (urlMatch?.[1]) return normalizeTxCode(urlMatch[1]);
 
-  const ft = raw.match(/\b(FT[A-Z0-9]{8,14})\b/i);
-  if (ft?.[1]) return normalizeTxCode(ft[1]);
+  const ref = raw.match(BOA_REF_IN_TEXT_RE);
+  if (ref?.[1]) return normalizeTxCode(ref[1]);
 
   return null;
 }
@@ -165,15 +198,16 @@ async function fetchBoaByReference(reference, accounts = []) {
 
 /** Reference-only BOA verify: FT + last 5 digits of payer account. */
 export async function fetchBoaTransactionByReference(reference, accountSuffix) {
-  const ft = normalizeTxCode(reference);
+  const ref = normalizeTxCode(reference);
   const digits = String(accountSuffix || '').replace(/\D/g, '');
-  if (!ft || !/^FT[A-Z0-9]{8,}$/i.test(ft) || digits.length < 5) return null;
-  return fetchBoaByReference(ft, [digits.slice(-5)]);
+  if (!ref || !isBoaPaymentReference(ref) || digits.length < 5) return null;
+  return fetchBoaByReference(ref, [digits.slice(-5)]);
 }
 
 /**
  * Fast BOA SMS / QR slip verify — load official record from
  * https://cs.bankofabyssinia.com/slip/?trx=… (API getDetails, not OCR).
+ * Supports FT… and TT… slip ids.
  */
 export async function fetchBoaTransactionFromSlipUrl(slipUrl, extraAccounts = []) {
   const raw = String(slipUrl || '').trim();
@@ -187,17 +221,14 @@ export async function fetchBoaTransactionFromSlipUrl(slipUrl, extraAccounts = []
     return { ...direct, source: 'boa_slip_link', receiptUrl: raw.startsWith('http') ? raw : null };
   }
 
-  // 2) FT core + account digits (same as reference mode)
-  const ftCore = normalizeTxCode(trx.match(/^(FT[A-Z0-9]{8,14})/i)?.[1] || trx);
-  const trailing = trx.length > ftCore.length ? trx.slice(ftCore.length).replace(/\D/g, '') : '';
+  // 2) Core FT/TT + account digits (same as reference mode)
+  const { coreRef, accountSuffix } = splitBoaSlipTrx(trx);
   const accounts = [
-    trailing,
-    trailing.slice(-5),
-    trailing.slice(-8),
+    accountSuffix,
     ...extraAccounts,
   ].filter(Boolean);
 
-  const byRef = await fetchBoaByReference(ftCore, accounts);
+  const byRef = await fetchBoaByReference(coreRef || trx, accounts);
   if (byRef) {
     return { ...byRef, source: 'boa_slip_link', receiptUrl: raw.startsWith('http') ? raw : null };
   }
@@ -207,7 +238,7 @@ export async function fetchBoaTransactionFromSlipUrl(slipUrl, extraAccounts = []
 
 function nearbyReferences(reference) {
   const ref = normalizeTxCode(reference);
-  if (!ref || !/^FT[A-Z0-9]{8,}$/i.test(ref)) return [];
+  if (!ref || !isBoaPaymentReference(ref)) return [];
 
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   const prefix = ref.slice(0, -1);
@@ -307,7 +338,7 @@ export async function resolveBoaOfficialTransaction({
     }
   }
 
-  if (screenshotRef && /^FT[A-Z0-9]{8,}$/i.test(screenshotRef)) {
+  if (screenshotRef && isBoaPaymentReference(screenshotRef)) {
     const nearby = await discoverNearbyOfficial(screenshotRef, accounts);
     if (nearby?.official) {
       const edited = !txCodesMatch(nearby.reference, screenshotRef);

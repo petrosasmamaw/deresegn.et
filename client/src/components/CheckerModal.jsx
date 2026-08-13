@@ -11,7 +11,7 @@ import { useLocale } from '../i18n/LocaleContext'
 const TX_PLACEHOLDERS = {
   telebirr: 'e.g. DG65L5I9M5',
   cbe: 'e.g. FT26169D8C5M',
-  boa: 'e.g. FT26169X4SRS',
+  boa: 'e.g. FT26169X4SRS or TT26171RW0YG',
   dashen: 'e.g. 110IPSS2616900WO',
 }
 
@@ -22,8 +22,8 @@ const SMS_PLACEHOLDERS = {
 You have transferred ETB 60.00 to Receiver Name (2519****4025) on 17/06/2026 18:14:15. Your transaction number is DFH51OFIED...
 https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
   cbe: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
-  boa: `Dear Petros, your account 2*23 was credited with ETB 100.00 by Mikiyas Amsalu Admasu. Available Balance: ETB 603.71.
-Receipt: https://cs.bankofabyssinia.com/slip/?trx=FT26223W14ZW94077
+  boa: `Dear Petros, your account 2*23 was debited with ETB 200.00. Available Balance: ETB 102.63.
+Receipt: https://cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
 For help, call 8397. Bank of Abyssinia.`,
 }
 
@@ -102,7 +102,7 @@ export default function CheckerModal({
       { key: 'accountSuffix', label: t('ref.cbeSuffix'), placeholder: '12345678', hint: t('ref.cbeSuffixHint') },
     ],
     boa: [
-      { key: 'transactionCode', label: t('ref.ft'), placeholder: 'FT26169X4SRS', hint: t('ref.ftHint') },
+      { key: 'transactionCode', label: t('ref.boaId'), placeholder: 'TT26171RW0YG', hint: t('ref.boaIdHint') },
       { key: 'accountSuffix', label: t('ref.boaSuffix'), placeholder: '12345', hint: t('ref.boaSuffixHint') },
     ],
   }), [t])
