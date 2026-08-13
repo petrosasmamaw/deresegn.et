@@ -3,7 +3,7 @@ import { CheckCircle2, TrendingUp, Clock, Gift } from 'lucide-react'
 import { format } from 'date-fns'
 import Modal from './Modal'
 
-export default function AdminUserDetail({ user, onClose }) {
+export default function AdminUserDetail({ user, onClose, onEdit, onDelete, canDelete = true }) {
   const [activeTab, setActiveTab] = useState('overview')
 
   if (!user) return null
@@ -215,8 +215,18 @@ export default function AdminUserDetail({ user, onClose }) {
           )}
         </div>
 
-        <div className="modal-footer">
-          <button onClick={onClose} className="btn-primary flex-1">
+        <div className="modal-footer gap-2">
+          {canDelete && onDelete && (
+            <button type="button" onClick={onDelete} className="btn-danger flex-1">
+              Delete user
+            </button>
+          )}
+          {onEdit && (
+            <button type="button" onClick={onEdit} className="btn-secondary flex-1">
+              Edit user
+            </button>
+          )}
+          <button type="button" onClick={onClose} className="btn-primary flex-1">
             Close
           </button>
         </div>

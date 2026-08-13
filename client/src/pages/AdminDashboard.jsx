@@ -5,6 +5,7 @@ import { unwrap } from '../api/unwrap'
 import AdminNavbar from '../components/AdminNavbar'
 import AdminUsersList from '../components/AdminUsersList'
 import AdminUserDetail from '../components/AdminUserDetail'
+import AdminUserEditModal from '../components/AdminUserEditModal'
 import AdminAccountsPanel from '../components/AdminAccountsPanel'
 import { Users, TrendingUp, Activity, Zap, Wallet, Gift, FileCheck, Settings } from 'lucide-react'
 import {
@@ -20,6 +21,7 @@ export default function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState(null)
   const [selectedUserId, setSelectedUserId] = useState(null)
   const [userDetail, setUserDetail] = useState(null)
+  const [editUser, setEditUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -57,6 +59,38 @@ export default function AdminDashboard() {
   const handleCloseDetail = () => {
     setSelectedUserId(null)
     setUserDetail(null)
+  }
+
+  const handleEditUser = (rowUser) => {
+    setEditUser(rowUser)
+  }
+
+  const handleDeleteUser = async (rowUser) => {
+    if (rowUser.id === user?.id) {
+      setError('You cannot delete your own account')
+      return
+    }
+    const ok = window.confirm(
+      `Delete ${rowUser.name} (${rowUser.email})?\n\nThis removes the user and all their data. This cannot be undone.`,
+    )
+    if (!ok) return
+
+    try {
+      await axios.delete(`/admin/users/${rowUser.id}`)
+      if (selectedUserId === rowUser.id) handleCloseDetail()
+      setError(null)
+      await fetchDashboardData()
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete user')
+    }
+  }
+
+  const handleUserSaved = async () => {
+    setError(null)
+    await fetchDashboardData()
+    if (selectedUserId && editUser?.id === selectedUserId) {
+      await handleSelectUser(selectedUserId)
+    }
   }
 
   if (loading) {
@@ -227,7 +261,13 @@ export default function AdminDashboard() {
 
           {/* Users Table */}
           {activeTab === 'users' && dashboardData?.users && (
-            <AdminUsersList users={dashboardData.users} onSelectUser={handleSelectUser} />
+            <AdminUsersList
+              users={dashboardData.users}
+              onSelectUser={handleSelectUser}
+              onEditUser={handleEditUser}
+              onDeleteUser={handleDeleteUser}
+              currentUserId={user?.id}
+            />
           )}
 
           {activeTab === 'verifications' && (
@@ -255,7 +295,31 @@ export default function AdminDashboard() {
 
       {/* User Detail Modal */}
       {userDetail && (
-        <AdminUserDetail user={userDetail} onClose={handleCloseDetail} />
+        <AdminUserDetail
+          user={userDetail}
+          onClose={handleCloseDetail}
+          onEdit={() => handleEditUser({
+            id: userDetail.user.id,
+            name: userDetail.user.name,
+            email: userDetail.user.email,
+            role: userDetail.user.role,
+            balance: userDetail.balance,
+          })}
+          onDelete={() => handleDeleteUser({
+            id: userDetail.user.id,
+            name: userDetail.user.name,
+            email: userDetail.user.email,
+          })}
+          canDelete={userDetail.user.id !== user?.id}
+        />
+      )}
+
+      {editUser && (
+        <AdminUserEditModal
+          user={editUser}
+          onClose={() => setEditUser(null)}
+          onSaved={handleUserSaved}
+        />
       )}
     </div>
   )

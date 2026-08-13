@@ -170,3 +170,90 @@ export async function getAllTopups(limit = 100) {
     .limit(limit);
   return topups;
 }
+
+function toMoney(value) {
+  return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
+}
+
+export async function updateAdminUser(userId, payload) {
+  const existing = await db.query.user.findFirst({ where: eq(user.id, userId) });
+  if (!existing) {
+    throw new Error('User not found');
+  }
+
+  const { name, email, role, balance } = payload || {};
+  const updates = {};
+
+  if (name != null) {
+    const trimmed = String(name).trim();
+    if (!trimmed) throw new Error('Name is required');
+    updates.name = trimmed;
+  }
+
+  if (email != null) {
+    const trimmed = String(email).trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('@')) throw new Error('Valid email is required');
+    if (trimmed !== existing.email) {
+      const taken = await db.query.user.findFirst({ where: eq(user.email, trimmed) });
+      if (taken) throw new Error('Email is already in use');
+    }
+    updates.email = trimmed;
+  }
+
+  if (role != null) {
+    const normalized = String(role).trim().toLowerCase();
+    if (!['client', 'admin'].includes(normalized)) {
+      throw new Error('Role must be client or admin');
+    }
+    updates.role = normalized;
+  }
+
+  let updatedUser = existing;
+  if (Object.keys(updates).length) {
+    [updatedUser] = await db
+      .update(user)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(user.id, userId))
+      .returning();
+  }
+
+  if (balance != null) {
+    const parsed = parseFloat(balance);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      throw new Error('Balance must be a non-negative number');
+    }
+    const amount = toMoney(parsed);
+    const row = await db.query.balances.findFirst({ where: eq(balances.userId, userId) });
+    if (row) {
+      await db
+        .update(balances)
+        .set({ amount, updatedAt: new Date() })
+        .where(eq(balances.userId, userId));
+    } else {
+      await db.insert(balances).values({ userId, amount });
+    }
+  }
+
+  return getUserDetailData(userId);
+}
+
+export async function deleteAdminUser(userId, actingAdminId) {
+  if (userId === actingAdminId) {
+    throw new Error('You cannot delete your own account');
+  }
+
+  const existing = await db.query.user.findFirst({ where: eq(user.id, userId) });
+  if (!existing) {
+    throw new Error('User not found');
+  }
+
+  if (existing.role === 'admin') {
+    const admins = await db.select().from(user).where(eq(user.role, 'admin'));
+    if (admins.length <= 1) {
+      throw new Error('Cannot delete the only admin account');
+    }
+  }
+
+  await db.delete(user).where(eq(user.id, userId));
+  return { id: userId, email: existing.email };
+}

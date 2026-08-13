@@ -18,3 +18,8 @@ export const updateUserProfile = async (id, data) => {
     .returning();
   return updated;
 };
+
+export const deleteUserById = async (id) => {
+  const [deleted] = await db.delete(user).where(eq(user.id, id)).returning();
+  return deleted;
+};

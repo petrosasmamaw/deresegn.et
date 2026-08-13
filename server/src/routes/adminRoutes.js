@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateUser } from '../middleware/auth.js';
 import { success, error } from '../utils/response.js';
-import { getAdminDashboardData, getUserDetailData } from '../services/adminService.js';
+import { getAdminDashboardData, getUserDetailData, updateAdminUser, deleteAdminUser } from '../services/adminService.js';
 import {
   getAllTopUpReceiverAccounts,
   updateTopUpReceiverAccount,
@@ -37,7 +37,29 @@ async function getUserDetails(req, res) {
     const data = await getUserDetailData(userId);
     return success(res, data, 'User details retrieved');
   } catch (err) {
-    return error(res, 'Failed to get user details', 500, err.message);
+    return error(res, err.message || 'Failed to get user details', err.message === 'User not found' ? 404 : 500);
+  }
+}
+
+async function patchUser(req, res) {
+  try {
+    const { userId } = req.params;
+    const data = await updateAdminUser(userId, req.body || {});
+    return success(res, data, 'User updated');
+  } catch (err) {
+    const status = /not found/i.test(err.message) ? 404 : 400;
+    return error(res, err.message || 'Failed to update user', status);
+  }
+}
+
+async function removeUser(req, res) {
+  try {
+    const { userId } = req.params;
+    const result = await deleteAdminUser(userId, req.userId);
+    return success(res, result, 'User deleted');
+  } catch (err) {
+    const status = /not found/i.test(err.message) ? 404 : 400;
+    return error(res, err.message || 'Failed to delete user', status);
   }
 }
 
@@ -107,6 +129,8 @@ async function listTopups(req, res) {
 
 router.get('/dashboard', authenticateUser, checkAdminRole, getDashboardData);
 router.get('/users/:userId', authenticateUser, checkAdminRole, getUserDetails);
+router.put('/users/:userId', authenticateUser, checkAdminRole, patchUser);
+router.delete('/users/:userId', authenticateUser, checkAdminRole, removeUser);
 router.get('/topup-accounts', authenticateUser, checkAdminRole, getTopUpAccounts);
 router.put('/topup-accounts/:method', authenticateUser, checkAdminRole, updateTopUpAccount);
 router.get('/settings/registration-bonus', authenticateUser, checkAdminRole, async (req, res) => {

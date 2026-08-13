@@ -1,7 +1,7 @@
 import { format } from 'date-fns'
-import { Eye, Users } from 'lucide-react'
+import { Eye, Pencil, Trash2, Users } from 'lucide-react'
 
-export default function AdminUsersList({ users, onSelectUser }) {
+export default function AdminUsersList({ users, onSelectUser, onEditUser, onDeleteUser, currentUserId }) {
   return (
     <div className="card">
       <div className="mb-6 flex items-center justify-between">
@@ -22,11 +22,12 @@ export default function AdminUsersList({ users, onSelectUser }) {
             <tr>
               <th>Name</th>
               <th>Email</th>
+              <th>Role</th>
               <th style={{ textAlign: 'right' }}>Balance</th>
               <th style={{ textAlign: 'right' }}>Checks</th>
               <th style={{ textAlign: 'right' }}>Top-Ups</th>
               <th>Joined</th>
-              <th style={{ textAlign: 'center' }}>Action</th>
+              <th style={{ textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -34,6 +35,7 @@ export default function AdminUsersList({ users, onSelectUser }) {
               <tr key={u.id}>
                 <td className="font-semibold">{u.name}</td>
                 <td className="tx-mono">{u.email}</td>
+                <td className="capitalize text-sm">{u.role || 'client'}</td>
                 <td className="text-right">
                   <span className="amount-mono">
                     {typeof u.balance === 'string' ? parseFloat(u.balance).toFixed(2) : u.balance.toFixed(2)}
@@ -46,13 +48,33 @@ export default function AdminUsersList({ users, onSelectUser }) {
                   {format(new Date(u.createdAt), 'MMM dd, yyyy')}
                 </td>
                 <td className="text-center">
-                  <button
-                    onClick={() => onSelectUser(u.id)}
-                    className="btn-ghost px-3 py-2 flex items-center gap-2 justify-center mx-auto"
-                    title="View details"
-                  >
-                    <Eye size={16} />
-                  </button>
+                  <div className="flex items-center justify-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onSelectUser(u.id)}
+                      className="btn-ghost px-2 py-2"
+                      title="View details"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onEditUser(u)}
+                      className="btn-ghost px-2 py-2"
+                      title="Edit user"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteUser(u)}
+                      className="btn-ghost px-2 py-2 text-[var(--color-maroon)]"
+                      title={u.id === currentUserId ? 'Cannot delete yourself' : 'Delete user'}
+                      disabled={u.id === currentUserId}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -60,7 +82,6 @@ export default function AdminUsersList({ users, onSelectUser }) {
         </table>
       </div>
 
-      {/* Mobile View */}
       <div className="md:hidden space-y-3">
         {users.map((u) => (
           <div
@@ -72,13 +93,24 @@ export default function AdminUsersList({ users, onSelectUser }) {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-[var(--color-text-primary)] truncate">{u.name}</p>
                 <p className="text-xs text-[var(--color-text-secondary)] font-mono truncate">{u.email}</p>
+                <p className="text-xs capitalize text-[var(--color-text-secondary)] mt-1">{u.role || 'client'}</p>
               </div>
-              <button
-                onClick={() => onSelectUser(u.id)}
-                className="btn-ghost px-2 py-2 flex-shrink-0"
-              >
-                <Eye size={16} />
-              </button>
+              <div className="flex gap-1 flex-shrink-0">
+                <button type="button" onClick={() => onSelectUser(u.id)} className="btn-ghost px-2 py-2">
+                  <Eye size={16} />
+                </button>
+                <button type="button" onClick={() => onEditUser(u)} className="btn-ghost px-2 py-2">
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDeleteUser(u)}
+                  className="btn-ghost px-2 py-2 text-[var(--color-maroon)]"
+                  disabled={u.id === currentUserId}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-2 text-sm">
               <div className="min-w-0">
