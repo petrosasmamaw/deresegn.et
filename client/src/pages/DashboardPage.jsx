@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { CheckCircle2, TrendingUp, KeyRound } from 'lucide-react'
+import { CheckCircle2, TrendingUp, KeyRound, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { fetchBalance, submitTopUp, submitTopUpReference, submitTopUpSms } from '../features/balance/balanceSlice'
 import { fetchCheckHistory, performCheck, performReferenceCheck, performSmsCheck } from '../features/checks/checksSlice'
@@ -98,8 +98,8 @@ export default function DashboardPage() {
     }
   }
 
-  const handleCheckSubmit = async ({ screenshot, method, form, withDetails }) => {
-    const result = await dispatch(performCheck({ screenshot, method, form, withDetails }))
+  const handleCheckSubmit = async ({ screenshot, method, form, withDetails, matchMyAccount }) => {
+    const result = await dispatch(performCheck({ screenshot, method, form, withDetails: false, matchMyAccount }))
     if (performCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
@@ -115,8 +115,8 @@ export default function DashboardPage() {
     }
   }
 
-  const handleReferenceCheckSubmit = async ({ method, transactionCode, accountSuffix }) => {
-    const result = await dispatch(performReferenceCheck({ method, transactionCode, accountSuffix }))
+  const handleReferenceCheckSubmit = async ({ method, transactionCode, accountSuffix, matchMyAccount }) => {
+    const result = await dispatch(performReferenceCheck({ method, transactionCode, accountSuffix, matchMyAccount }))
     if (performReferenceCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
@@ -132,8 +132,8 @@ export default function DashboardPage() {
     }
   }
 
-  const handleSmsCheckSubmit = async ({ method, smsText }) => {
-    const result = await dispatch(performSmsCheck({ method, smsText }))
+  const handleSmsCheckSubmit = async ({ method, smsText, matchMyAccount }) => {
+    const result = await dispatch(performSmsCheck({ method, smsText, matchMyAccount }))
     if (performSmsCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
@@ -177,6 +177,13 @@ export default function DashboardPage() {
               <CheckCircle2 size={18} strokeWidth={2} />
               {t('dash.verifyReceipt')}
             </button>
+            <Link
+              to="/accounts"
+              className="btn-secondary w-full flex items-center justify-center gap-2 text-sm min-h-11"
+            >
+              <Wallet size={16} strokeWidth={2} />
+              {t('nav.myAccounts')}
+            </Link>
             <Link
               to="/developer"
               className="btn-secondary w-full flex items-center justify-center gap-2 text-sm min-h-11"

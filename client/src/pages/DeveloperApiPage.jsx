@@ -329,18 +329,25 @@ export default function DeveloperApiPage() {
   -d '{"method":"telebirr","transactionCode":"DG65L5I9M5"}'`,
                 },
                 {
-                  title: 'CBE — FT + last 8 of sender account',
+                  title: 'CBE — mbreciept link / v2-token (preferred)',
                   body: `curl -X POST "${verifyUrl}" \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: YOUR_KEY" \\
-  -d '{"method":"cbe","transactionCode":"FT26169D8C5M","accountSuffix":"12345678"}'`,
+  -d '{"method":"cbe","transactionCode":"https://mbreciept.cbe.com.et/v2-xxxxxxxx"}'`,
                 },
                 {
-                  title: 'Bank of Abyssinia — FT + last 5 of sender account',
+                  title: 'CBE — legacy FT + full account',
                   body: `curl -X POST "${verifyUrl}" \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: YOUR_KEY" \\
-  -d '{"method":"boa","transactionCode":"FT26169X4SRS","accountSuffix":"12345"}'`,
+  -d '{"method":"cbe","transactionCode":"FT26169D8C5M","accountSuffix":"1000333687112"}'`,
+                },
+                {
+                  title: 'Bank of Abyssinia — FT/TT + full 9-digit sender account',
+                  body: `curl -X POST "${verifyUrl}" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: YOUR_KEY" \\
+  -d '{"method":"boa","transactionCode":"FT26169X4SRS","accountSuffix":"246302723"}'`,
                 },
                 {
                   title: 'Dashen — IPSS reference (VAT)',

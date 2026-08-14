@@ -151,17 +151,30 @@ export function parseTransactionFromQr(qrText) {
 /** Token from CBE mbreciept QR — mobile success uses v2-…, VAT/web receipt uses opaque id. */
 export function extractCbeMbReceiptToken(text) {
   const trimmed = String(text || '').trim();
+  if (!trimmed) return null;
+
   const fromPath = trimmed.match(/mbreciept\.cbe\.com\.et\/(v2-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{8,80})/i)?.[1];
   if (fromPath) return fromPath;
 
   const match = trimmed.match(/^https?:\/\/mbreciept\.cbe\.com\.et\/([^/?#\s]+)/i);
-  if (!match?.[1]) return null;
-  let token = decodeURIComponent(match[1]).trim();
-  // Guard against glued SMS junk after token
-  const cleaned = token.match(/^(v2-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{8,80})/i)?.[1];
-  token = cleaned || token;
-  if (!token || token.length < 8) return null;
-  return token;
+  if (match?.[1]) {
+    let token = decodeURIComponent(match[1]).trim();
+    // Guard against glued SMS junk after token
+    const cleaned = token.match(/^(v2-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{8,80})/i)?.[1];
+    token = cleaned || token;
+    if (token && token.length >= 8) return token;
+  }
+
+  // Bare token pasted into Payment ID (new CBE system — no account suffix).
+  const bareV2 = trimmed.match(/^(v2-[A-Za-z0-9_-]{8,80})$/i)?.[1];
+  if (bareV2) return bareV2;
+
+  return null;
+}
+
+/** True when input is an mbreciept URL or bare v2-/opaque token (not FT…). */
+export function isCbeMbReceiptTokenInput(text) {
+  return Boolean(extractCbeMbReceiptToken(text));
 }
 
 export function parseQrPayload(raw) {

@@ -1,5 +1,5 @@
 import { outboundFetch, BANK_FETCH_TIMEOUT_MS } from '../utils/outboundFetch.js';
-import { httpsGetText } from '../utils/httpsGet.js';
+import { httpsGet, httpsGetText } from '../utils/httpsGet.js';
 
 const PROBES = [
   {
@@ -58,6 +58,23 @@ async function runProbe(probe) {
 
   const started = Date.now();
   try {
+    if (probe.name === 'cbe_branch') {
+      const res = await httpsGet(probe.url, {
+        timeoutMs: Math.min(BANK_FETCH_TIMEOUT_MS, 25000),
+        rejectUnauthorized: false,
+        headers: { Accept: 'application/pdf,*/*' },
+      });
+      const ms = Date.now() - started;
+      const head = res.body.slice(0, 4).toString();
+      const ok = res.ok && head === '%PDF';
+      return {
+        bank: probe.name,
+        ok,
+        ms,
+        detail: ok ? 'PDF ok' : (res.ok ? 'not PDF' : `HTTP ${res.status}`),
+      };
+    }
+
     const response = await outboundFetch(probe.url, {
       timeoutMs: Math.min(BANK_FETCH_TIMEOUT_MS, 25000),
       retries: 1,

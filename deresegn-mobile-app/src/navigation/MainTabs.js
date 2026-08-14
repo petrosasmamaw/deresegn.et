@@ -8,6 +8,7 @@ import TopUpModal from '../components/TopUpModal'
 import HomeScreen from '../screens/HomeScreen'
 import HistoryScreen from '../screens/HistoryScreen'
 import DeveloperApiScreen from '../screens/DeveloperApiScreen'
+import MyAccountsScreen from '../screens/MyAccountsScreen'
 import {
   fetchCheckHistory,
   performCheck,
@@ -83,8 +84,8 @@ function MainWithModals() {
   } = useSelector((s) => s.checks)
   const { submitting: topUpSubmitting, error: topUpError } = useSelector((s) => s.balance)
 
-  const handleCheckSubmit = async ({ screenshot, method, form, withDetails }) => {
-    const result = await dispatch(performCheck({ screenshot, method, form, withDetails }))
+  const handleCheckSubmit = async ({ screenshot, method, form, withDetails, matchMyAccount }) => {
+    const result = await dispatch(performCheck({ screenshot, method, form, withDetails: false, matchMyAccount }))
     if (performCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
@@ -93,9 +94,9 @@ function MainWithModals() {
     return failureFrom(result.payload, t('result.couldNotVerify'))
   }
 
-  const handleReferenceCheckSubmit = async ({ method, transactionCode, accountSuffix }) => {
+  const handleReferenceCheckSubmit = async ({ method, transactionCode, accountSuffix, matchMyAccount }) => {
     const result = await dispatch(
-      performReferenceCheck({ method, transactionCode, accountSuffix }),
+      performReferenceCheck({ method, transactionCode, accountSuffix, matchMyAccount }),
     )
     if (performReferenceCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
@@ -105,8 +106,8 @@ function MainWithModals() {
     return failureFrom(result.payload, 'Payment ID could not be verified')
   }
 
-  const handleSmsCheckSubmit = async ({ method, smsText }) => {
-    const result = await dispatch(performSmsCheck({ method, smsText }))
+  const handleSmsCheckSubmit = async ({ method, smsText, matchMyAccount }) => {
+    const result = await dispatch(performSmsCheck({ method, smsText, matchMyAccount }))
     if (performSmsCheck.fulfilled.match(result)) {
       dispatch(fetchBalance())
       dispatch(fetchCheckHistory())
@@ -155,6 +156,7 @@ function MainWithModals() {
       >
         <Stack.Screen name="Tabs" component={ClientTabs} />
         <Stack.Screen name="DeveloperApi" component={DeveloperApiScreen} />
+        <Stack.Screen name="MyAccounts" component={MyAccountsScreen} />
       </Stack.Navigator>
 
       <CheckerModal

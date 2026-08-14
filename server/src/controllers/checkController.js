@@ -1,6 +1,16 @@
 import { submitReceiptCheck, submitReferenceCheck, submitSmsCheck, getCheckHistory, CheckError } from '../services/checkService.js';
 import { getCertificateByShareToken, getCheckByIdForUser } from '../services/certificateService.js';
+import { getVerifyChannels, toClientCatalog } from '../services/verifyChannelService.js';
 import { success, error } from '../utils/response.js';
+
+export async function getVerifyChannelsCatalog(req, res) {
+  try {
+    const catalog = await getVerifyChannels();
+    return success(res, toClientCatalog(catalog), 'Verify channels retrieved');
+  } catch (err) {
+    return error(res, 'Failed to get verify channels', 500, err.message);
+  }
+}
 
 export async function performCheck(req, res) {
   try {
@@ -8,6 +18,7 @@ export async function performCheck(req, res) {
 
     const method = req.body.method?.trim();
     const withDetails = req.body.withDetails === 'true' || req.body.withDetails === true;
+    const matchMyAccount = req.body.matchMyAccount === 'true' || req.body.matchMyAccount === true;
     const form = {
       senderName: req.body.senderName?.trim() || '',
       senderAccount: req.body.senderAccount?.trim() || '',
@@ -35,6 +46,7 @@ export async function performCheck(req, res) {
       screenshotBuffer: req.file.buffer,
       screenshotMime: req.file.mimetype,
       withDetails,
+      matchMyAccount,
     });
 
     return success(res, {
@@ -76,6 +88,7 @@ export async function performReferenceCheck(req, res) {
       method,
       transactionCode,
       accountSuffix,
+      matchMyAccount: req.body.matchMyAccount === true || req.body.matchMyAccount === 'true',
     });
 
     return success(res, {
@@ -112,6 +125,7 @@ export async function performSmsCheck(req, res) {
       userId: req.userId,
       method,
       smsText,
+      matchMyAccount: req.body.matchMyAccount === true || req.body.matchMyAccount === 'true',
     });
 
     return success(res, {

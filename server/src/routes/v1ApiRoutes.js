@@ -38,8 +38,8 @@ router.get('/', (_req, res) => {
       },
       {
         method: 'cbe',
-        body: { method: 'cbe', transactionCode: 'FT26169D8C5M', accountSuffix: '12345678' },
-        note: 'FT reference + last 8 digits of sender account',
+        body: { method: 'cbe', transactionCode: 'FT26226GC3H3', accountSuffix: '33687112' },
+        note: 'FT + last 8 digits, or mbreciept / v2- token with no suffix',
       },
       {
         method: 'boa',

@@ -12,6 +12,11 @@ import {
   setSetting,
 } from '../services/balanceLedgerService.js';
 import { getAllVerifications, getAllTopups } from '../services/adminService.js';
+import {
+  getVerifyChannels,
+  setVerifyChannels,
+  VERIFY_BANKS,
+} from '../services/verifyChannelService.js';
 
 const router = express.Router();
 
@@ -142,6 +147,29 @@ router.get('/settings/registration-bonus', authenticateUser, checkAdminRole, asy
   }
 });
 router.put('/settings/registration-bonus', authenticateUser, checkAdminRole, updateRegistrationBonusSettings);
+router.get('/settings/verify-channels', authenticateUser, checkAdminRole, async (req, res) => {
+  try {
+    const catalog = await getVerifyChannels();
+    return success(res, { catalog }, 'Verify channels retrieved');
+  } catch (err) {
+    return error(res, 'Failed to get verify channels', 500, err.message);
+  }
+});
+router.put('/settings/verify-channels/:method', authenticateUser, checkAdminRole, async (req, res) => {
+  try {
+    const method = req.params.method?.trim().toLowerCase();
+    if (!VERIFY_BANKS.includes(method)) {
+      return error(res, 'Unknown bank', 400);
+    }
+    const current = await getVerifyChannels();
+    const catalog = await setVerifyChannels({
+      [method]: { ...current[method], ...(req.body || {}) },
+    });
+    return success(res, { catalog }, 'Verify channel updated');
+  } catch (err) {
+    return error(res, err.message || 'Failed to update verify channels', 400);
+  }
+});
 router.get('/verifications', authenticateUser, checkAdminRole, listVerifications);
 router.get('/topups', authenticateUser, checkAdminRole, listTopups);
 

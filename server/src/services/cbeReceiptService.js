@@ -2,12 +2,16 @@ import { PDFParse } from 'pdf-parse';
 import fs from 'fs/promises';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
+import { httpsGet } from '../utils/httpsGet.js';
 import { extractCbeMbReceiptToken, decodeQrFromBuffer, prepareQrScanImage, buildQrDataFromRaw } from './qrService.js';
 import { extractPaymentFromBuffer } from './geminiService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
+import { fetchCbeViaPetros, isPetrosVerifierConfigured } from './petrosVerifierService.js';
 
 const QR_BUDGET_MS = 9000;
 const OCR_GRACE_MS = 800;
+/** CBE PDF host often needs longer than other banks + insecure TLS. */
+const CBE_PDF_TIMEOUT_MS = Math.max(BANK_FETCH_TIMEOUT_MS, 30000);
 
 const EMPTY_EXTRACTED = {
   senderName: null,
@@ -34,10 +38,15 @@ function hasCbeQrToken(qrData) {
 }
 
 const CBE_RECEIPT_BASE = 'https://apps.cbe.com.et:100/?id=';
+/** Direct CBE :100 is often geo-blocked; keep this short so Petros / token path can win. */
+const CBE_FT_FETCH_TIMEOUT_MS = 12000;
 
 const CBE_API_HEADERS = {
   'X-App-ID': 'd1292e42-7400-49de-a2d3-9731caa4c819',
   'X-App-Version': '0a01980b-9859-1369-8198-59f403820000',
+  Accept: '*/*',
+  Origin: 'https://mbreciept.cbe.com.et',
+  Referer: 'https://mbreciept.cbe.com.et/',
 };
 
 function mapCbeApiResponse(data) {
@@ -192,41 +201,64 @@ async function parseCbePdfBuffer(buffer) {
   }
 }
 
-async function fetchCbePdfFromUrl(url, label) {
+function parseCbeHtmlReceipt(html) {
+  const raw = String(html || '');
+  if (/Record Not Found|Invalid Reference|transaction not found/i.test(raw)) return null;
+  const text = raw
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return parseCbePdfText(text);
+}
+
+async function fetchCbePdfFromUrl(url, label, timeoutMs = CBE_PDF_TIMEOUT_MS) {
   try {
-    const response = await outboundFetch(url, {
-      timeoutMs: BANK_FETCH_TIMEOUT_MS,
-      retries: BANK_FETCH_RETRIES,
-      headers: { Accept: 'application/pdf,*/*' },
+    // Native HTTPS + rejectUnauthorized:false — undici fetch() fails TLS on apps.cbe.com.et:100.
+    const response = await httpsGet(url, {
+      timeoutMs,
+      rejectUnauthorized: false,
+      headers: { Accept: 'application/pdf,text/html,*/*' },
     });
 
     if (!response.ok) {
       console.warn(`[CBE PDF] HTTP ${response.status} (${label})`, url);
-      return null;
+      return { official: null, networkError: false };
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.slice(0, 4).toString() !== '%PDF') {
-      const preview = buffer.slice(0, 120).toString('utf8').replace(/\s+/g, ' ').trim();
-      console.warn(`[CBE PDF] Non-PDF (${label}):`, preview.slice(0, 80));
-      return null;
+    const buffer = response.body;
+    if (!buffer?.length) {
+      return { official: null, networkError: false };
     }
 
-    return parseCbePdfBuffer(buffer);
+    if (buffer.slice(0, 4).toString() === '%PDF') {
+      const official = await parseCbePdfBuffer(buffer);
+      return { official, networkError: false };
+    }
+
+    const preview = buffer.slice(0, 180).toString('utf8').replace(/\s+/g, ' ').trim();
+    const htmlOfficial = parseCbeHtmlReceipt(buffer.toString('utf8'));
+    if (htmlOfficial) {
+      htmlOfficial.source = 'cbe_official_html';
+      return { official: htmlOfficial, networkError: false };
+    }
+    console.warn(`[CBE PDF] Non-PDF (${label}):`, preview.slice(0, 80));
+    return { official: null, networkError: false };
   } catch (err) {
+    const networkError = /timeout|ECONNRESET|ETIMEDOUT|ENOTFOUND|ECONNREFUSED|certificate|SSL|TLS|fetch failed|network/i
+      .test(String(err?.message || err || ''));
     console.warn(`[CBE PDF] ${label} failed:`, err.message);
-    return null;
+    return { official: null, networkError };
   }
 }
 
 function buildCbeAccountSuffixCandidates(accountSuffix) {
   const digits = String(accountSuffix || '').replace(/\D/g, '');
-  if (!digits) return [];
-  const candidates = new Set();
-  if (digits.length >= 8) candidates.add(digits.slice(-8));
-  if (digits.length >= 10) candidates.add(digits);
-  if (digits.length > 8 && digits.length < 10) candidates.add(digits);
-  return [...candidates];
+  if (!digits || digits.length < 8) return [];
+  // Official CBE receipt id always uses the last 8 digits of the payer account.
+  return [digits.slice(-8)];
 }
 
 /** Reference-only CBE verify: FT + last 8 digits of payer account (official CBE PDF). */
@@ -235,24 +267,61 @@ export async function fetchCbeTransactionByReference(ftNumber, accountSuffix) {
   const suffixes = buildCbeAccountSuffixCandidates(accountSuffix);
   if (!ft || !/^FT[A-Z0-9]{8,}$/i.test(ft) || !suffixes.length) return null;
 
-  const urls = suffixes.flatMap((suffix) => [
-    {
-      url: `https://apps.cbe.com.et:100/BranchReceipt/${encodeURIComponent(ft)}&${suffix}`,
-      label: `BranchReceipt-${suffix}`,
-    },
-    {
-      url: `${CBE_RECEIPT_BASE}${encodeURIComponent(`${ft}${suffix}`)}`,
-      label: `legacy-id-${suffix}`,
-    },
-  ]);
+  const tryPetros = async () => {
+    if (!isPetrosVerifierConfigured()) return null;
+    return fetchCbeViaPetros(ft, suffixes[0]);
+  };
 
-  const results = await Promise.all(urls.map(async ({ url, label }) => {
-    const official = await fetchCbePdfFromUrl(url, label);
-    if (official) official.source = 'cbe_branch_receipt_pdf';
-    return official;
-  }));
+  const tryDirectPdf = async () => {
+    const urls = suffixes.flatMap((suffix) => [
+      {
+        url: `${CBE_RECEIPT_BASE}${ft}${suffix}`,
+        label: `id-${suffix}`,
+      },
+      {
+        url: `https://apps.cbe.com.et:100/${ft}${suffix}`,
+        label: `path-${suffix}`,
+      },
+      {
+        url: `https://apps.cbe.com.et:100/BranchReceipt/${ft}&${suffix}`,
+        label: `BranchReceipt-${suffix}`,
+      },
+    ]);
 
-  return results.find(Boolean) || null;
+    let networkFailures = 0;
+    for (const { url, label } of urls) {
+      const { official, networkError } = await fetchCbePdfFromUrl(url, label, CBE_FT_FETCH_TIMEOUT_MS);
+      if (official) {
+        official.source = official.source || 'cbe_branch_receipt_pdf';
+        return { official, networkFailures: 0, attempts: urls.length };
+      }
+      if (networkError) networkFailures += 1;
+    }
+    return { official: null, networkFailures, attempts: urls.length };
+  };
+
+  const unreachableError = () => {
+    const err = new Error(
+      'CBE FT receipts need apps.cbe.com.et:100 (often blocked outside Ethiopia). Paste the mbreciept.cbe.com.et / v2- link from SMS instead — that works without port 100.',
+    );
+    err.code = 'CBE_UNREACHABLE';
+    err.isValidation = true;
+    err.field = 'transactionCode';
+    return err;
+  };
+
+  // Direct first (works on an Ethiopian IP). Petros next — skip if their Chrome/PDF path is down.
+  const direct = await tryDirectPdf();
+  if (direct.official) return direct.official;
+
+  const fromPetros = await tryPetros();
+  if (fromPetros) return fromPetros;
+
+  if (direct.networkFailures >= direct.attempts) {
+    throw unreachableError();
+  }
+
+  return null;
 }
 
 export function parseCbeBranchReceiptUrl(receiptUrl) {
@@ -271,7 +340,7 @@ export async function fetchCbeBranchReceipt(receiptUrl) {
   const parsed = parseCbeBranchReceiptUrl(receiptUrl);
   if (!parsed?.receiptUrl) return null;
 
-  const official = await fetchCbePdfFromUrl(parsed.receiptUrl, 'BranchReceipt-link');
+  const { official } = await fetchCbePdfFromUrl(parsed.receiptUrl, 'BranchReceipt-link');
   if (official) {
     official.source = 'cbe_branch_receipt_pdf';
     official.receiptUrl = parsed.receiptUrl;

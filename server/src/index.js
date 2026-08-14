@@ -10,6 +10,7 @@ import appAuthRoutes from './routes/appAuthRoutes.js'
 import adminRoutes from './routes/adminRoutes.js'
 import developerRoutes from './routes/developerRoutes.js'
 import v1ApiRoutes from './routes/v1ApiRoutes.js'
+import meRoutes from './routes/meRoutes.js'
 import errorHandler from './middleware/errorHandler.js'
 import { csrfOriginGuard } from './middleware/csrfOriginGuard.js'
 import {
@@ -22,7 +23,7 @@ import {
 } from './middleware/rateLimiters.js'
 import { testConnection } from './db/index.js'
 import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
-import { ensureApiKeysTable } from './services/apiKeyService.js'
+import { ensureUserPaymentAccountsTable } from './services/userPaymentAccountService.js'
 import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerService.js'
 import { isTrustedOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
@@ -92,6 +93,7 @@ mountAuthHandler()
 app.use('/api/balance/topup', topUpRateLimiter)
 app.use('/api/balance', balanceRoutes)
 app.use('/api/check', verifyRateLimiter, checkRoutes)
+app.use('/api/me', meRoutes)
 app.use('/api/users', appAuthRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/developer', developerRoutes)
@@ -141,6 +143,7 @@ async function start() {
     try {
       await ensureTopUpReceiverDefaults()
       await ensureApiKeysTable()
+      await ensureUserPaymentAccountsTable()
       await ensureRegistrationBonusUniqueIndex()
     } catch (err) {
       console.error('⚠️  Warning: Could not seed top-up receiver accounts:', err.message)

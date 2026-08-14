@@ -6,8 +6,13 @@ const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 /**
  * Native Node HTTPS GET — forces IPv4, no keep-alive.
  * Telebirr (ethiotelecom.et) often hangs with global fetch() from US cloud hosts (Render).
+ * CBE apps.cbe.com.et:100 needs rejectUnauthorized:false (self-signed / broken chain).
  */
-export function httpsGet(url, { timeoutMs = 45000, headers = {} } = {}) {
+export function httpsGet(url, {
+  timeoutMs = 45000,
+  headers = {},
+  rejectUnauthorized = true,
+} = {}) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const req = https.request(
@@ -17,6 +22,7 @@ export function httpsGet(url, { timeoutMs = 45000, headers = {} } = {}) {
         path: `${parsed.pathname}${parsed.search}`,
         method: 'GET',
         family: 4,
+        rejectUnauthorized,
         headers: {
           'User-Agent': DEFAULT_UA,
           Connection: 'close',

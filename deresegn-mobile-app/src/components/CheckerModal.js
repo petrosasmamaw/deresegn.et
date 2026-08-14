@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useDispatch } from 'react-redux'
 import {
   ActivityIndicator,
   Alert,
@@ -11,11 +12,11 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocale } from '../i18n/LocaleContext'
-import ReceiptDetailFields from './ReceiptDetailFields'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 import VerificationCertificate from './VerificationCertificate'
 import {
@@ -25,13 +26,9 @@ import {
 } from './VerificationResult'
 import { ui } from '../theme/styles'
 import { colors, radius, space } from '../theme/tokens'
-
-const TX_PLACEHOLDERS = {
-  telebirr: 'e.g. DG65L5I9M5',
-  cbe: 'e.g. FT26169D8C5M',
-  boa: 'e.g. FT26169X4SRS or TT26171RW0YG',
-  dashen: 'e.g. 110IPSS2616900WO',
-}
+import { api } from '../api/http'
+import { unwrap } from '../api/unwrap'
+import { clearError } from '../features/checks/checksSlice'
 
 const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa'])
 
@@ -94,7 +91,9 @@ export default function CheckerModal({
   lastResolvedDetails,
 }) {
   const { t } = useLocale()
+  const dispatch = useDispatch()
   const insets = useSafeAreaInsets()
+  const navigation = useNavigation()
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState('')
   const [verifyMode, setVerifyMode] = useState('')
@@ -102,12 +101,13 @@ export default function CheckerModal({
   const [preview, setPreview] = useState(null)
   const [rejected, setRejected] = useState(false)
   const [failureIssues, setFailureIssues] = useState([])
-  const [withDetails, setWithDetails] = useState(false)
+  const [matchMyAccount, setMatchMyAccount] = useState(false)
+  const [savedAccounts, setSavedAccounts] = useState([])
   const [successDetails, setSuccessDetails] = useState(null)
   const [successCheck, setSuccessCheck] = useState(null)
-  const [form, setForm] = useState(EMPTY_FORM)
   const [referenceForm, setReferenceForm] = useState(EMPTY_REFERENCE)
   const [smsText, setSmsText] = useState('')
+  const [channelMap, setChannelMap] = useState({})
 
   const methods = useMemo(
     () => [
@@ -119,6 +119,53 @@ export default function CheckerModal({
     [t],
   )
 
+  const visibleMethods = useMemo(
+    () => methods.filter((m) => {
+      const bank = channelMap[m.id]
+      return !bank || bank.enabled !== false
+    }),
+    [methods, channelMap],
+  )
+
+  const enabledModes = useMemo(() => {
+    if (!method) return []
+    const bank = channelMap[method]
+    return ['screenshot', 'reference', 'sms'].filter((mode) => {
+      if (mode === 'sms' && !SMS_SUPPORTED.has(method)) return false
+      if (!bank) return true
+      return Boolean(bank.modes?.[mode])
+    })
+  }, [method, channelMap])
+
+  const selectBank = (id) => {
+    setMethod(id)
+    const bank = channelMap[id]
+    const modes = ['screenshot', 'reference', 'sms'].filter((mode) => {
+      if (mode === 'sms' && !SMS_SUPPORTED.has(id)) return false
+      if (!bank) return true
+      return Boolean(bank.modes?.[mode])
+    })
+    if (modes.length === 1) {
+      setVerifyMode(modes[0])
+      setStep(3)
+    } else {
+      setVerifyMode('')
+      setStep(2)
+    }
+  }
+
+  const backFromInput = () => {
+    setRejected(false)
+    setFailureIssues([])
+    dispatch(clearError())
+    if (enabledModes.length <= 1) {
+      setVerifyMode('')
+      setStep(1)
+    } else {
+      setStep(2)
+    }
+  }
+
   const referenceFieldsByMethod = useMemo(
     () => ({
       telebirr: [
@@ -128,12 +175,12 @@ export default function CheckerModal({
         { key: 'transactionCode', label: t('ref.ipss'), placeholder: '110IPSS2616900WO', hint: t('ref.ipssHint') },
       ],
       cbe: [
-        { key: 'transactionCode', label: t('ref.ft'), placeholder: 'FT26169D8C5M', hint: t('ref.ftHint') },
-        { key: 'accountSuffix', label: t('ref.cbeSuffix'), placeholder: '12345678', hint: t('ref.cbeSuffixHint') },
+        { key: 'transactionCode', label: t('ref.cbeToken'), placeholder: 'FT26226GC3H3 or v2-…', hint: t('ref.cbeTokenHint') },
+        { key: 'accountSuffix', label: t('ref.cbeAccount'), placeholder: '33687112', hint: t('ref.cbeAccountHint'), legacyOnly: true },
       ],
       boa: [
         { key: 'transactionCode', label: t('ref.boaId'), placeholder: 'TT26171RW0YG', hint: t('ref.boaIdHint') },
-        { key: 'accountSuffix', label: t('ref.boaSuffix'), placeholder: '12345', hint: t('ref.boaSuffixHint') },
+        { key: 'accountSuffix', label: t('ref.boaAccount'), placeholder: '246302723', hint: t('ref.boaAccountHint') },
       ],
     }),
     [t],
@@ -159,6 +206,53 @@ export default function CheckerModal({
     [t],
   )
 
+  const savedForMethod = savedAccounts.find((a) => a.method === method && a.accountNumber)
+  const canMatchMyAccount = Boolean(savedForMethod)
+
+  useEffect(() => {
+    if (!visible) return undefined
+    let cancelled = false
+    api.get('/me/accounts')
+      .then((res) => {
+        if (cancelled) return
+        if (res.status >= 400) {
+          setSavedAccounts([])
+          return
+        }
+        setSavedAccounts(unwrap(res).accounts || [])
+      })
+      .catch(() => {
+        if (!cancelled) setSavedAccounts([])
+      })
+    api.get('/check/channels')
+      .then((res) => {
+        if (cancelled) return
+        if (res.status >= 400) {
+          setChannelMap({})
+          return
+        }
+        const banks = unwrap(res).banks || []
+        const next = {}
+        banks.forEach((bank) => { next[bank.id] = bank })
+        setChannelMap(next)
+      })
+      .catch(() => {
+        if (!cancelled) setChannelMap({})
+      })
+    return () => { cancelled = true }
+  }, [visible])
+
+  useEffect(() => {
+    if (!visible) return
+    dispatch(clearError())
+    setRejected(false)
+    setFailureIssues([])
+  }, [visible, dispatch])
+
+  useEffect(() => {
+    if (!canMatchMyAccount) setMatchMyAccount(false)
+  }, [canMatchMyAccount, method])
+
   const resetForm = () => {
     setStep(1)
     setMethod('')
@@ -167,12 +261,12 @@ export default function CheckerModal({
     setPreview(null)
     setRejected(false)
     setFailureIssues([])
-    setWithDetails(false)
+    setMatchMyAccount(false)
     setSuccessDetails(null)
     setSuccessCheck(null)
-    setForm(EMPTY_FORM)
     setReferenceForm(EMPTY_REFERENCE)
     setSmsText('')
+    dispatch(clearError())
   }
 
   const handleClose = () => {
@@ -180,12 +274,7 @@ export default function CheckerModal({
     onClose()
   }
 
-  const successStep =
-    verifyMode === 'reference' || verifyMode === 'sms'
-      ? 4
-      : withDetails
-        ? 5
-        : 4
+  const successStep = 4
 
   const pickImage = async (fromCamera) => {
     try {
@@ -228,7 +317,7 @@ export default function CheckerModal({
     }
   }
 
-  const runVerify = async (useDetails) => {
+  const runVerify = async () => {
     if (!screenshot) {
       setFailureIssues([
         {
@@ -243,13 +332,13 @@ export default function CheckerModal({
 
     setRejected(false)
     setFailureIssues([])
-    setWithDetails(useDetails)
 
     const result = await onSubmit({
       screenshot,
       method,
-      form: useDetails ? form : EMPTY_FORM,
-      withDetails: useDetails,
+      form: EMPTY_FORM,
+      withDetails: false,
+      matchMyAccount,
     })
 
     if (result?.failed) {
@@ -261,7 +350,7 @@ export default function CheckerModal({
     if (result?.success) {
       setSuccessDetails(result.resolvedDetails || lastResolvedDetails || null)
       setSuccessCheck(result.check || lastResult || null)
-      setStep(useDetails ? 5 : 4)
+      setStep(4)
     }
   }
 
@@ -272,6 +361,7 @@ export default function CheckerModal({
       method,
       transactionCode: referenceForm.transactionCode,
       accountSuffix: referenceForm.accountSuffix,
+      matchMyAccount,
     })
     if (result?.failed) {
       setFailureIssues(result.issues || [])
@@ -288,7 +378,7 @@ export default function CheckerModal({
   const runSmsVerify = async () => {
     setRejected(false)
     setFailureIssues([])
-    const result = await onSmsSubmit({ method, smsText })
+    const result = await onSmsSubmit({ method, smsText, matchMyAccount })
     if (result?.failed) {
       setFailureIssues(result.issues || [])
       setRejected(true)
@@ -301,11 +391,56 @@ export default function CheckerModal({
     }
   }
 
-  const referenceFields = referenceFieldsByMethod[method] || []
+  const referenceFields = useMemo(() => {
+    const fields = referenceFieldsByMethod[method] || []
+    if (method !== 'cbe') return fields
+    const code = String(referenceForm.transactionCode || '').trim()
+    const ftLike = /^FT[A-Z0-9]{8,}/i.test(code.replace(/\s+/g, ''))
+    const tokenLike = /mbreciept\.cbe\.com\.et/i.test(code) || /^v2-[A-Za-z0-9_-]{8,}/i.test(code)
+    if (ftLike && !tokenLike) return fields
+    return fields.filter((f) => !f.legacyOnly)
+  }, [method, referenceFieldsByMethod, referenceForm.transactionCode])
   const referenceReady = referenceFields.every((f) =>
     String(referenceForm[f.key] || '').trim(),
   )
-  const detailsReady = Object.values(form).every((v) => String(v || '').trim())
+
+  const openMyAccounts = () => {
+    handleClose()
+    navigation.navigate('MyAccounts')
+  }
+
+  const payToMyAccountBlock = (
+    <View style={[styles.payBox, matchMyAccount && styles.payBoxOn, !canMatchMyAccount && styles.payBoxLocked]}>
+      <Pressable
+        disabled={!canMatchMyAccount}
+        onPress={() => canMatchMyAccount && setMatchMyAccount((v) => !v)}
+        style={styles.payRow}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: matchMyAccount, disabled: !canMatchMyAccount }}
+        accessibilityLabel={t('check.payToMyAccount')}
+        accessibilityHint={canMatchMyAccount ? t('check.payToMyAccountHint') : t('check.payToMyAccountOff')}
+      >
+        <View style={[styles.paySwitch, matchMyAccount && styles.paySwitchOn, !canMatchMyAccount && styles.paySwitchLocked]}>
+          <View style={[styles.payKnob, matchMyAccount && styles.payKnobOn]} />
+        </View>
+        <View style={styles.payCopy}>
+          <Text style={[styles.payTitle, !canMatchMyAccount && styles.payTitleLocked]}>
+            {t('check.payToMyAccount')}
+          </Text>
+          {savedForMethod ? (
+            <Text style={styles.paySaved} numberOfLines={1}>
+              {savedForMethod.accountName} · {savedForMethod.accountNumber}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+      {!canMatchMyAccount ? (
+        <Pressable onPress={openMyAccounts} style={styles.payAdd} accessibilityRole="link">
+          <Text style={styles.payAddText}>{t('check.addAccountLink')}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  )
 
   const summaryDetails =
     successDetails ||
@@ -367,8 +502,9 @@ export default function CheckerModal({
                   style={[ui.btnSecondary, styles.flexBtn]}
                   onPress={() => {
                     setRejected(false)
-                    if (verifyMode === 'reference' || verifyMode === 'sms') setStep(3)
-                    else setStep(withDetails ? 4 : 3)
+                    setFailureIssues([])
+                    dispatch(clearError())
+                    setStep(3)
                   }}
                 >
                   <Text style={ui.btnSecondaryText}>{t('common.tryAgain')}</Text>
@@ -422,7 +558,7 @@ export default function CheckerModal({
             </>
           ) : (
             <>
-              {error && !rejected ? (
+              {error && !rejected && step === 3 ? (
                 <View style={ui.errorBox}>
                   <Text style={ui.errorText}>
                     {typeof error === 'string'
@@ -436,16 +572,16 @@ export default function CheckerModal({
                 <>
                   <Text style={styles.stepTitle}>{t('check.stepMethod')}</Text>
                   <Text style={styles.stepHint}>{t('check.stepMethodHint')}</Text>
-                  {methods.map((m) => (
+                  {visibleMethods.length === 0 && (
+                    <Text style={styles.stepHint}>{t('check.noChannels')}</Text>
+                  )}
+                  {visibleMethods.map((m) => (
                     <SelectCard
                       key={m.id}
                       icon={m.icon}
                       title={m.label}
                       desc={m.desc}
-                      onPress={() => {
-                        setMethod(m.id)
-                        setStep(2)
-                      }}
+                      onPress={() => selectBank(m.id)}
                     />
                   ))}
                 </>
@@ -453,12 +589,18 @@ export default function CheckerModal({
 
               {step === 2 && (
                 <>
-                  <Pressable onPress={() => setStep(1)}>
+                  <Pressable onPress={() => {
+                    setRejected(false)
+                    setFailureIssues([])
+                    dispatch(clearError())
+                    setStep(1)
+                  }}>
                     <Text style={styles.backLink}>{t('check.backMethod')}</Text>
                   </Pressable>
                   <Text style={styles.stepTitle}>{t('check.stepMode')}</Text>
                   <Text style={styles.stepHint}>{t('check.stepModeHint')}</Text>
 
+                  {enabledModes.includes('screenshot') && (
                   <SelectCard
                     icon="camera-outline"
                     title={t('check.modeScreenshot')}
@@ -468,6 +610,8 @@ export default function CheckerModal({
                       setStep(3)
                     }}
                   />
+                  )}
+                  {enabledModes.includes('reference') && (
                   <SelectCard
                     icon="keypad-outline"
                     title={t('check.modeReference')}
@@ -478,7 +622,8 @@ export default function CheckerModal({
                       setStep(3)
                     }}
                   />
-                  {SMS_SUPPORTED.has(method) && (
+                  )}
+                  {enabledModes.includes('sms') && (
                     <SelectCard
                       icon="chatbubble-ellipses-outline"
                       title={t('check.modeSms')}
@@ -501,7 +646,7 @@ export default function CheckerModal({
                     </Text>
                     <Text style={styles.guideLine}>CBE → {t('ref.cbeDetail')}</Text>
                     <Text style={styles.guideLine}>BOA → {t('ref.boaDetail')}</Text>
-                    {SMS_SUPPORTED.has(method) && (
+                    {enabledModes.includes('sms') && (
                       <Text style={[styles.guideLine, { marginTop: 8 }]}>
                         SMS → {t('check.smsGuide')}
                       </Text>
@@ -512,7 +657,7 @@ export default function CheckerModal({
 
               {step === 3 && verifyMode === 'screenshot' && (
                 <>
-                  <Pressable onPress={() => setStep(2)}>
+                  <Pressable onPress={backFromInput}>
                     <Text style={styles.backLink}>{t('check.backType')}</Text>
                   </Pressable>
                   <Text style={styles.stepTitle}>{t('check.stepUpload')}</Text>
@@ -552,43 +697,27 @@ export default function CheckerModal({
                     </View>
                   </View>
 
-                  <View style={styles.rowBtns}>
-                    <Pressable
-                      style={[
-                        ui.btnSecondary,
-                        styles.flexBtn,
-                        (!screenshot || loading) && ui.btnDisabled,
-                      ]}
-                      disabled={!screenshot || loading}
-                      onPress={() => {
-                        setWithDetails(true)
-                        setStep(4)
-                      }}
-                    >
-                      <Text style={ui.btnSecondaryText}>{t('check.withDetails')}</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        ui.btnPrimary,
-                        styles.flexBtn,
-                        (!screenshot || loading) && ui.btnDisabled,
-                      ]}
-                      disabled={!screenshot || loading}
-                      onPress={() => runVerify(false)}
-                    >
-                      {loading && !withDetails ? (
-                        <ActivityIndicator color={colors.ink} />
-                      ) : (
-                        <Text style={ui.btnPrimaryText}>{t('check.verifyBtn')}</Text>
-                      )}
-                    </Pressable>
-                  </View>
+                  {payToMyAccountBlock}
+                  <Pressable
+                    style={[
+                      ui.btnPrimary,
+                      (!screenshot || loading) && ui.btnDisabled,
+                    ]}
+                    disabled={!screenshot || loading}
+                    onPress={() => runVerify()}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color={colors.ink} />
+                    ) : (
+                      <Text style={ui.btnPrimaryText}>{t('check.verifyBtn')}</Text>
+                    )}
+                  </Pressable>
                 </>
               )}
 
               {step === 3 && verifyMode === 'reference' && (
                 <>
-                  <Pressable onPress={() => setStep(2)}>
+                  <Pressable onPress={backFromInput}>
                     <Text style={styles.backLink}>{t('check.backType')}</Text>
                   </Pressable>
                   <Text style={styles.stepTitle}>{t('check.stepPaymentId')}</Text>
@@ -619,6 +748,8 @@ export default function CheckerModal({
                     </View>
                   ))}
 
+                  {payToMyAccountBlock}
+
                   <Pressable
                     style={[
                       ui.btnPrimary,
@@ -639,7 +770,7 @@ export default function CheckerModal({
 
               {step === 3 && verifyMode === 'sms' && (
                 <>
-                  <Pressable onPress={() => setStep(2)}>
+                  <Pressable onPress={backFromInput}>
                     <Text style={styles.backLink}>{t('check.backType')}</Text>
                   </Pressable>
                   <Text style={styles.stepTitle}>{t('check.stepSms')}</Text>
@@ -662,6 +793,8 @@ export default function CheckerModal({
                       : t('check.stepSmsHintCbe')}
                   </Text>
 
+                  {payToMyAccountBlock}
+
                   <Pressable
                     style={[
                       ui.btnPrimary,
@@ -677,50 +810,6 @@ export default function CheckerModal({
                     )}
                   </Pressable>
                   <Text style={styles.costHint}>{t('check.costRange')}</Text>
-                </>
-              )}
-
-              {step === 4 && verifyMode === 'screenshot' && (
-                <>
-                  <Pressable onPress={() => setStep(3)}>
-                    <Text style={styles.backLink}>{t('check.backScreenshot')}</Text>
-                  </Pressable>
-                  <Text style={styles.stepTitle}>{t('check.stepDetails')}</Text>
-                  <Text style={styles.stepHint}>{t('check.stepDetailsHint')}</Text>
-
-                  <ReceiptDetailFields
-                    form={form}
-                    onChange={(field, value) =>
-                      setForm((prev) => ({ ...prev, [field]: value }))
-                    }
-                    txPlaceholder={TX_PLACEHOLDERS[method]}
-                  />
-
-                  {form.amount ? (
-                    <View style={styles.balanceBox}>
-                      <Text style={styles.balanceTitle}>{t('check.verificationCost')}</Text>
-                      <Text style={styles.balanceText}>
-                        {t('check.verificationCostValue', {
-                          cost: getCheckCostByAmount(form.amount),
-                        })}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  <Pressable
-                    style={[
-                      ui.btnPrimary,
-                      (!detailsReady || loading) && ui.btnDisabled,
-                    ]}
-                    disabled={!detailsReady || loading}
-                    onPress={() => runVerify(true)}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color={colors.ink} />
-                    ) : (
-                      <Text style={ui.btnPrimaryText}>{t('check.verifyWithDetails')}</Text>
-                    )}
-                  </Pressable>
                 </>
               )}
             </>
@@ -758,6 +847,96 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     fontSize: 16,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  payBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 40,
+    paddingVertical: 5,
+    paddingLeft: 10,
+    paddingRight: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
+  },
+  payBoxOn: {
+    borderColor: 'rgba(62, 143, 98, 0.42)',
+    backgroundColor: 'rgba(62, 143, 98, 0.1)',
+  },
+  payBoxLocked: {
+    backgroundColor: colors.bgSubtle,
+  },
+  payRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
+  },
+  paySwitch: {
+    width: 32,
+    height: 18,
+    borderRadius: 999,
+    backgroundColor: 'rgba(14, 36, 32, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  paySwitchOn: {
+    backgroundColor: colors.verified,
+  },
+  paySwitchLocked: {
+    backgroundColor: 'rgba(14, 36, 32, 0.12)',
+  },
+  payKnob: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#fff',
+    shadowColor: '#0E2420',
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  payKnobOn: {
+    transform: [{ translateX: 14 }],
+  },
+  payCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  payTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.ink,
+    lineHeight: 16,
+  },
+  payTitleLocked: {
+    color: 'rgba(14, 36, 32, 0.42)',
+  },
+  paySaved: {
+    marginTop: 1,
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  payAdd: {
+    height: 28,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.foilGold,
+    backgroundColor: 'rgba(198, 162, 78, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payAddText: {
+    fontSize: 12,
     fontWeight: '700',
     color: colors.ink,
   },

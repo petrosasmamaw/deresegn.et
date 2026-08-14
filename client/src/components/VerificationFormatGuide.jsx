@@ -42,15 +42,16 @@ function FormatTextPanel({ method, mode }) {
         { label: t('guide.format'), value: '10 uppercase letters & digits' },
       ],
       cbe: [
-        { label: 'FT Reference', value: 'FT26169D8C5M' },
-        { label: t('ref.cbeSuffix'), value: '12345678' },
-        { label: t('guide.format'), value: 'FT + 12 chars · 8 digits' },
+        { label: t('ref.cbeToken'), value: 'FT… or mbreciept / v2-…' },
+        { label: t('guide.example'), value: 'FT26226GC3H3' },
+        { label: t('ref.cbeAccount'), value: '33687112' },
+        { label: t('guide.format'), value: 'FT + last 8 digits · or SMS v2-link (no account)' },
       ],
       boa: [
         { label: t('ref.boaId'), value: 'FT… or TT…' },
         { label: t('guide.example'), value: 'TT26171RW0YG' },
-        { label: t('ref.boaSuffix'), value: '12345' },
-        { label: t('guide.format'), value: 'FT/TT + chars · 5 digits' },
+        { label: t('ref.boaAccount'), value: '246302723' },
+        { label: t('guide.format'), value: 'FT/TT + chars · full 9-digit account' },
       ],
       dashen: [
         { label: 'IPSS Reference', value: '110IPSS2616900WO' },

@@ -75,6 +75,13 @@ export default function HomeScreen() {
             <LangToggle />
             <Pressable
               style={styles.logoutBtn}
+              onPress={() => navigation.navigate('MyAccounts')}
+              accessibilityLabel={t('nav.myAccounts')}
+            >
+              <Ionicons name="wallet-outline" size={20} color={colors.ink} />
+            </Pressable>
+            <Pressable
+              style={styles.logoutBtn}
               onPress={() => navigation.navigate('DeveloperApi')}
               accessibilityLabel={t('nav.getApi')}
             >
@@ -109,6 +116,13 @@ export default function HomeScreen() {
           <Pressable style={[ui.btnPrimary, styles.verifyBtn]} onPress={openVerify}>
             <Ionicons name="shield-checkmark-outline" size={18} color={colors.ink} />
             <Text style={ui.btnPrimaryText}>{t('dash.verifyReceipt')}</Text>
+          </Pressable>
+          <Pressable
+            style={[ui.btnSecondary, styles.apiBtn]}
+            onPress={() => navigation.navigate('MyAccounts')}
+          >
+            <Ionicons name="wallet-outline" size={18} color={colors.ink} />
+            <Text style={ui.btnSecondaryText}>{t('nav.myAccounts')}</Text>
           </Pressable>
           <Pressable
             style={[ui.btnSecondary, styles.apiBtn]}

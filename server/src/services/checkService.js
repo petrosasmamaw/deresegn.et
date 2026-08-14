@@ -33,6 +33,8 @@ import {
   ensureRegistrationBonus,
 } from './balanceLedgerService.js';
 import { computeConfidenceTier } from './confidenceService.js';
+import { matchPaymentToMyAccount } from './userPaymentAccountService.js';
+import { isVerifyChannelEnabled } from './verifyChannelService.js';
 
 function toMoney(value) {
   return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
@@ -87,6 +89,32 @@ export class CheckError extends Error {
 }
 
 export class TopUpError extends CheckError {}
+
+function parseMatchMyAccount(value) {
+  return value === true || value === 'true' || value === '1' || value === 1;
+}
+
+async function assertVerifyChannel(method, mode) {
+  const allowed = await isVerifyChannelEnabled(method, mode);
+  if (!allowed) {
+    throw new CheckError('This verification option is currently unavailable', 403, {
+      issues: [{
+        type: 'error',
+        code: 'CHANNEL_DISABLED',
+        field: 'method',
+        message: 'This verification option is currently unavailable',
+      }],
+    });
+  }
+}
+
+async function enforcePaymentToMyAccount(userId, method, matchMyAccount, details) {
+  if (!parseMatchMyAccount(matchMyAccount) || !userId) return;
+  const match = await matchPaymentToMyAccount(userId, method, details);
+  if (!match.ok) {
+    throw new CheckError(match.message, 422, { issues: match.issues });
+  }
+}
 
 async function cleanupTempFile(filePath) {
   if (!filePath) return;
@@ -566,9 +594,12 @@ export async function submitReceiptCheck({
   screenshotMime,
   screenshotPath,
   withDetails = true,
+  matchMyAccount = false,
 }) {
   let screenshotUrl = null;
   let screenshotPublicId = null;
+
+  await assertVerifyChannel(method, 'screenshot');
 
   try {
     const result = await runReceiptVerification({
@@ -598,6 +629,13 @@ export async function submitReceiptCheck({
       }
       return finalizeRecheck(userId, result.validation.recheckExisting);
     }
+
+    await enforcePaymentToMyAccount(
+      userId,
+      method,
+      matchMyAccount,
+      result.validation.resolvedDetails,
+    );
 
     const upload = screenshotBuffer
       ? await uploadScreenshotBuffer(screenshotBuffer, screenshotMime)
@@ -669,7 +707,10 @@ export async function submitReferenceCheck({
   transactionCode,
   accountSuffix = '',
   billing = { type: 'wallet' },
+  matchMyAccount = false,
 }) {
+  await assertVerifyChannel(method, 'reference');
+
   try {
     validateReferenceInput(method, { transactionCode, accountSuffix });
   } catch (err) {
@@ -716,6 +757,7 @@ export async function submitReferenceCheck({
   }
 
   const details = result.resolvedDetails;
+  await enforcePaymentToMyAccount(userId, method, matchMyAccount, details);
   const useApiKey = billing?.type === 'api_key' && billing.apiKeyId;
 
   let checkCost = 0;
@@ -811,7 +853,10 @@ export async function submitSmsCheck({
   method,
   smsText,
   billing = { type: 'wallet' },
+  matchMyAccount = false,
 }) {
+  await assertVerifyChannel(method, 'sms');
+
   if (!['telebirr', 'cbe', 'boa'].includes(method)) {
     throw new CheckError('SMS verification is only supported for Telebirr, CBE, and Bank of Abyssinia', 400, {
       issues: [{
@@ -873,6 +918,7 @@ export async function submitSmsCheck({
   }
 
   const details = result.resolvedDetails;
+  await enforcePaymentToMyAccount(userId, method, matchMyAccount, details);
   const useApiKey = billing?.type === 'api_key' && billing.apiKeyId;
 
   let checkCost = 0;

@@ -26,7 +26,11 @@ function VisualDiff({ item }) {
   const { t } = useLocale()
   const rows = []
   if (item.formValue != null) {
-    rows.push({ label: t('result.youEntered'), value: item.formValue, mismatch: false })
+    rows.push({
+      label: item.code?.startsWith('MY_ACCOUNT') ? t('result.yourSaved') : t('result.youEntered'),
+      value: item.formValue,
+      mismatch: false,
+    })
   }
   if (item.screenshotValue != null) {
     const mismatch = item.formValue != null && item.formValue !== item.screenshotValue

@@ -157,6 +157,20 @@ export const topUpReceiverAccounts = pgTable('top_up_receiver_accounts', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+/** One saved payout account per user per bank (Telebirr / CBE / BOA / Dashen). */
+export const userPaymentAccounts = pgTable('user_payment_accounts', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  method: varchar('method', { length: 20 }).notNull(),
+  accountName: text('account_name').notNull(),
+  accountNumber: text('account_number').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('user_payment_accounts_user_id_idx').on(table.userId),
+  userMethodIdx: uniqueIndex('user_payment_accounts_user_method_idx').on(table.userId, table.method),
+}));
+
 /** Prepaid developer API keys — capacity is sum of verified receipt amounts (Birr). */
 export const apiKeys = pgTable('api_keys', {
   id: serial('id').primaryKey(),

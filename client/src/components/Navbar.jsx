@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../features/auth/authSlice'
-import { LogOut, Plus, KeyRound, Menu, X } from 'lucide-react'
+import { LogOut, Plus, KeyRound, Menu, X, Wallet } from 'lucide-react'
 import { useDashboardUi } from '../context/DashboardUiContext'
 import { useLocale } from '../i18n/LocaleContext'
 import LangToggle from './LangToggle'
@@ -62,6 +62,17 @@ export default function Navbar() {
 
           {user ? (
             <>
+              <button
+                type="button"
+                onClick={() => navigate('/accounts')}
+                className="btn-ghost px-2 md:px-3 flex items-center justify-center gap-1.5"
+                title={t('nav.myAccounts')}
+                aria-label={t('nav.myAccounts')}
+              >
+                <Wallet size={17} strokeWidth={2} />
+                <span className="hidden lg:inline text-sm">{t('nav.myAccounts')}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => navigate('/developer')}
@@ -147,6 +158,14 @@ export default function Navbar() {
             {user ? (
               <>
                 <p className="navbar-user text-xs truncate px-1 pb-1">{user.email || user.name}</p>
+                <button
+                  type="button"
+                  onClick={() => go('/accounts')}
+                  className="btn-ghost w-full justify-start gap-2"
+                >
+                  <Wallet size={17} />
+                  {t('nav.myAccounts')}
+                </button>
                 <button
                   type="button"
                   onClick={() => go('/developer')}

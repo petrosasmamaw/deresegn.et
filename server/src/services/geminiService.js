@@ -8,18 +8,13 @@ Find the "Invoice No." field (10 characters, e.g. DFC7TG1O11, DF52MV8ILW, or DG6
 Also check for receipt URLs like transactioninfo.ethiotelecom.et/receipt/...
 Return ONLY valid JSON (no markdown): { "transactionCode": string or null }`;
 
-/** Fastest current models — gemini-2.0-* is shut down (limit 0). */
-const MODELS = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-3.1-flash-lite',
-];
+/** Primary extractor: gemini-2.0-flash (fast OCR for Ethiopian receipts). Override with GEMINI_MODEL. */
+const PRIMARY_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim();
+const FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
-/** Prefer the model that currently succeeds for Telebirr Invoice No. OCR. */
-const TELEBIRR_INVOICE_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-2.5-flash-lite',
-];
+function modelQueue() {
+  return [...new Set([PRIMARY_MODEL, ...FALLBACK_MODELS].filter(Boolean))];
+}
 
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 18000;
 const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 8000;
@@ -119,7 +114,7 @@ export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mime
   const prompt = buildExtractionPrompt(method);
 
   let lastError = null;
-  for (const modelName of MODELS) {
+  for (const modelName of modelQueue()) {
     try {
       const text = await callModel(apiKey, modelName, base64, mimeType, prompt);
       return parseGeminiJson(text);
@@ -138,7 +133,7 @@ export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mime
   throw lastError || new Error('All Gemini models failed — check GEMINI_API_KEY and quota');
 }
 
-/** Fast Telebirr invoice-only OCR — prefer working flash-lite first (avoid multi-model timeouts). */
+/** Fast Telebirr invoice-only OCR — same primary model as full receipt extract. */
 export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image/jpeg') {
   if (isGeminiQuotaBlocked()) return null;
 
@@ -147,7 +142,7 @@ export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image
 
   const base64 = buffer.toString('base64');
 
-  for (const modelName of TELEBIRR_INVOICE_MODELS) {
+  for (const modelName of modelQueue()) {
     try {
       const text = await callModel(
         apiKey,

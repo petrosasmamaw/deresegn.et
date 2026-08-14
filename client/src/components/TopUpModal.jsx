@@ -62,8 +62,8 @@ export default function TopUpModal({
       { key: 'transactionCode', label: t('ref.invoice'), placeholder: 'DG65L5I9M5', hint: t('ref.invoiceHint') },
     ],
     cbe: [
-      { key: 'transactionCode', label: t('ref.ft'), placeholder: 'FT26169D8C5M', hint: t('ref.ftHint') },
-      { key: 'accountSuffix', label: t('ref.cbeSuffix'), placeholder: '12345678', hint: t('ref.cbeSuffixHintShort') },
+      { key: 'transactionCode', label: t('ref.cbeToken'), placeholder: 'FT26226GC3H3 or v2-…', hint: t('ref.cbeTokenHint') },
+      { key: 'accountSuffix', label: t('ref.cbeAccount'), placeholder: '33687112', hint: t('ref.cbeAccountHintShort'), legacyOnly: true },
     ],
   }), [t])
 
@@ -78,7 +78,15 @@ export default function TopUpModal({
   }, [isOpen])
 
   const selectedAccount = receiverAccounts.find((a) => a.method === method)
-  const referenceFields = referenceFieldsByMethod[method] || []
+  const referenceFields = useMemo(() => {
+    const fields = referenceFieldsByMethod[method] || []
+    if (method !== 'cbe') return fields
+    if (/^FT[A-Z0-9]{8,}/i.test(String(referenceForm.transactionCode || '').trim().replace(/\s+/g, ''))
+      && !/mbreciept\.cbe\.com\.et|^v2-/i.test(String(referenceForm.transactionCode || '').trim())) {
+      return fields
+    }
+    return fields.filter((f) => !f.legacyOnly)
+  }, [method, referenceFieldsByMethod, referenceForm.transactionCode])
   const referenceReady = referenceFields.every((f) => String(referenceForm[f.key] || '').trim())
   const successStep = 4
 

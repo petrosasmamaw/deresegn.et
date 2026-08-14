@@ -156,4 +156,24 @@ export const api = {
     await captureCookies(res, res.data)
     return res
   },
+
+  async put(path, data, config = {}) {
+    const res = await axios.put(`${getApiBaseUrl()}${path}`, data, {
+      ...config,
+      headers: await withSessionHeaders(config.headers),
+      validateStatus: () => true,
+    })
+    await captureCookies(res, res.data)
+    return res
+  },
+
+  async delete(path, config = {}) {
+    const res = await axios.delete(`${getApiBaseUrl()}${path}`, {
+      ...config,
+      headers: await withSessionHeaders(config.headers),
+      validateStatus: () => true,
+    })
+    await captureCookies(res, res.data)
+    return res
+  },
 }

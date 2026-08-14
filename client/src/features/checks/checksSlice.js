@@ -5,13 +5,14 @@ import { compressImageForUpload } from '../../lib/compressImage'
 
 export const performCheck = createAsyncThunk(
   'checks/perform',
-  async ({ screenshot, method, form, withDetails = true }, { rejectWithValue }) => {
+  async ({ screenshot, method, form, withDetails = false, matchMyAccount = false }, { rejectWithValue }) => {
     try {
       const uploadFile = await compressImageForUpload(screenshot)
       const formData = new FormData()
       formData.append('screenshot', uploadFile)
       formData.append('method', method)
       formData.append('withDetails', withDetails ? 'true' : 'false')
+      formData.append('matchMyAccount', matchMyAccount ? 'true' : 'false')
       if (withDetails) {
         formData.append('senderName', form.senderName)
         formData.append('senderAccount', form.senderAccount)
@@ -44,12 +45,13 @@ export const performCheck = createAsyncThunk(
 
 export const performReferenceCheck = createAsyncThunk(
   'checks/performReference',
-  async ({ method, transactionCode, accountSuffix = '' }, { rejectWithValue }) => {
+  async ({ method, transactionCode, accountSuffix = '', matchMyAccount = false }, { rejectWithValue }) => {
     try {
       const res = await axios.post('/check/reference', {
         method,
         transactionCode,
         accountSuffix,
+        matchMyAccount,
       }, { timeout: 120000 })
       const data = unwrap(res)
       return {
@@ -70,9 +72,9 @@ export const performReferenceCheck = createAsyncThunk(
 
 export const performSmsCheck = createAsyncThunk(
   'checks/performSms',
-  async ({ method, smsText }, { rejectWithValue }) => {
+  async ({ method, smsText, matchMyAccount = false }, { rejectWithValue }) => {
     try {
-      const res = await axios.post('/check/sms', { method, smsText }, { timeout: 120000 })
+      const res = await axios.post('/check/sms', { method, smsText, matchMyAccount }, { timeout: 120000 })
       const data = unwrap(res)
       return {
         check: {

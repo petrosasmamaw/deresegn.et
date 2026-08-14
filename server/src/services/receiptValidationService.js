@@ -26,7 +26,7 @@ function normalizeText(value) {
   return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-function normalizeAccount(value) {
+export function normalizeAccount(value) {
   const raw = String(value || '').trim().replace(/^ETB[-\s]*/i, '');
   const digitParts = raw.replace(/[^\d*]/g, '').split('*').filter(Boolean);
   if (digitParts.length >= 2) {
@@ -44,7 +44,7 @@ function normalizeAccount(value) {
   return digits;
 }
 
-function namesMatch(a, b) {
+export function namesMatch(a, b) {
   const na = normalizeText(a);
   const nb = normalizeText(b);
   if (!na || !nb) return false;
@@ -55,7 +55,7 @@ function namesMatch(a, b) {
   return overlap.length >= Math.min(2, Math.min(wordsA.length, wordsB.length));
 }
 
-function accountsMatch(a, b) {
+export function accountsMatch(a, b) {
   const aa = normalizeAccount(a);
   const ab = normalizeAccount(b);
   if (!aa || !ab) return false;

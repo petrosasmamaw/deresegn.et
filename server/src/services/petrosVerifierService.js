@@ -112,7 +112,7 @@ async function postPetrosVerify(path, body, invoiceId) {
     return { ok: false, status: response.status, error: 'non-json' };
   }
 
-  if (!response.ok || !json?.success || !json?.data) {
+  if (!response.ok || !json?.success) {
     const rawError = json?.error || json?.message || text.slice(0, 160) || `HTTP ${response.status}`;
     return {
       ok: false,
@@ -122,7 +122,21 @@ async function postPetrosVerify(path, body, invoiceId) {
     };
   }
 
-  return { ok: true, data: json.data, status: response.status };
+  // Some Petros CBE token responses put fields on the root instead of data{}.
+  const data = json.data
+    || ((json.reference || json.receiptNo || json.amount != null || json.payer || json.payerName)
+      ? json
+      : null);
+  if (!data) {
+    return {
+      ok: false,
+      status: response.status,
+      error: 'missing data',
+      json,
+    };
+  }
+
+  return { ok: true, data, status: response.status };
 }
 
 /**
@@ -166,6 +180,104 @@ export async function fetchTelebirrViaPetros(invoiceId) {
       return mapped;
     } catch (err) {
       console.warn('[Petros]', attempt.path, 'error', id, safeLogText(err?.message || err));
+    }
+  }
+
+  return null;
+}
+
+/** Map remote CBE JSON into Deresegn official fields. */
+export function mapPetrosCbePayload(data, ftReference) {
+  if (!data || typeof data !== 'object') return null;
+
+  const transactionCode = normalizeTxCode(
+    data.reference
+    || data.referenceNumber
+    || data.transactionReference
+    || data.id
+    || (/^FT/i.test(String(ftReference || '')) ? ftReference : null),
+  );
+  const amount = parseBirrAmount(data.amount)
+    ?? parseBirrAmount(data.transferredAmount)
+    ?? parseBirrAmount(data.totalAmount)
+    ?? parseBirrAmount(data.totalDebited);
+  if (!transactionCode || amount == null) return null;
+
+  return {
+    transactionCode,
+    amount: String(amount),
+    senderName: data.payerName || data.payer || data.senderName || data.debitAccountHolder || null,
+    senderAccount: data.payerAccount || data.senderAccount || data.debitAccountNo || null,
+    receiverName: data.receiverName || data.receiver || data.creditAccountHolder || null,
+    receiverAccount: data.receiverAccount || data.creditAccountNo || null,
+    source: 'petros_verifier_api',
+  };
+}
+
+/**
+ * CBE lookup via Petros — token/URL (new) or FT + last-8 (legacy).
+ */
+export async function fetchCbeViaPetros(reference, accountSuffix) {
+  if (!isPetrosVerifierConfigured()) return null;
+
+  const raw = String(reference || '').trim();
+  if (!raw) return null;
+
+  const { extractCbeMbReceiptToken } = await import('./qrService.js');
+  const token = extractCbeMbReceiptToken(raw);
+  const started = Date.now();
+
+  let attempts;
+  let logId;
+
+  if (token) {
+    logId = token;
+    attempts = [
+      { path: '/verify-cbe', body: { reference: token } },
+      { path: '/verify-cbe', body: { reference: `https://mbreciept.cbe.com.et/${token}` } },
+      { path: '/verify', body: { reference: token, bank: 'cbe' } },
+    ];
+  } else {
+    const ft = normalizeTxCode(raw);
+    const digits = String(accountSuffix || '').replace(/\D/g, '');
+    const suffix = digits.length >= 8 ? digits.slice(-8) : '';
+    if (!ft || !/^FT[A-Z0-9]{8,}$/i.test(ft) || !suffix) return null;
+    logId = ft;
+    attempts = [
+      { path: '/verify-cbe', body: { reference: ft, accountSuffix: suffix } },
+      { path: '/verify', body: { reference: ft, suffix, bank: 'cbe' } },
+      { path: '/verify', body: { reference: ft, accountSuffix: suffix, bank: 'cbe' } },
+    ];
+  }
+
+  for (const attempt of attempts) {
+    try {
+      const result = await postPetrosVerify(attempt.path, attempt.body, logId);
+      if (!result.ok) {
+        console.warn('[Petros]', attempt.path, 'failed', logId, result.status, safeLogText(result.error));
+        if (/Could not find Chrome|Puppeteer failed|puppeteer/i.test(String(result.error || ''))) {
+          break;
+        }
+        continue;
+      }
+
+      const mapped = mapPetrosCbePayload(result.data, logId);
+      if (!mapped) {
+        console.warn('[Petros]', attempt.path, 'unmapped', logId);
+        continue;
+      }
+
+      console.log(
+        '[Petros] cbe ok',
+        mapped.transactionCode,
+        'amount',
+        mapped.amount,
+        `via ${attempt.path}`,
+        `${Date.now() - started}ms`,
+      );
+      return mapped;
+    } catch (err) {
+      console.warn('[Petros]', attempt.path, 'error', logId, safeLogText(err?.message || err));
     }
   }
 

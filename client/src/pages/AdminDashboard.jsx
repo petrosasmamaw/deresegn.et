@@ -7,7 +7,8 @@ import AdminUsersList from '../components/AdminUsersList'
 import AdminUserDetail from '../components/AdminUserDetail'
 import AdminUserEditModal from '../components/AdminUserEditModal'
 import AdminAccountsPanel from '../components/AdminAccountsPanel'
-import { Users, TrendingUp, Activity, Zap, Wallet, Gift, FileCheck, Settings } from 'lucide-react'
+import AdminVerifyChannelsPanel from '../components/AdminVerifyChannelsPanel'
+import { Users, TrendingUp, Activity, Zap, Wallet, Gift, FileCheck, Settings, Landmark } from 'lucide-react'
 import {
   AdminVerificationsPanel,
   AdminTopupsPanel,
@@ -169,6 +170,14 @@ export default function AdminDashboard() {
             </button>
             <button
               type="button"
+              onClick={() => setActiveTab('channels')}
+              className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'channels' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
+            >
+              <Landmark size={16} />
+              Banks
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab('accounts')}
               className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'accounts' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
@@ -288,6 +297,8 @@ export default function AdminDashboard() {
               onUpdated={fetchDashboardData}
             />
           )}
+
+          {activeTab === 'channels' && <AdminVerifyChannelsPanel />}
 
           {activeTab === 'accounts' && <AdminAccountsPanel />}
         </div>
