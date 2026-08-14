@@ -84,6 +84,11 @@ function validateAccountNumber(method, raw) {
   throw new Error('Unsupported payment method');
 }
 
+function lastFourDigits(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 4 ? digits.slice(-4) : '';
+}
+
 function accountsMatchForMethod(method, saved, official) {
   if (accountsMatch(saved, official)) return true;
   const a = normalizeAccount(saved);
@@ -92,7 +97,12 @@ function accountsMatchForMethod(method, saved, official) {
   const shorter = a.length <= b.length ? a : b;
   const longer = a.length > b.length ? a : b;
   if (method === 'boa' && shorter.length >= 5 && longer.endsWith(shorter)) return true;
-  if (method === 'cbe' && shorter.length >= 8 && longer.endsWith(shorter)) return true;
+  // CBE receipts/SMS often mask the receiver as 1**7112 — match last 4 only.
+  if (method === 'cbe') {
+    const saved4 = lastFourDigits(saved) || lastFourDigits(a);
+    const official4 = lastFourDigits(official) || lastFourDigits(b);
+    return Boolean(saved4 && official4 && saved4 === official4);
+  }
   return false;
 }
 
