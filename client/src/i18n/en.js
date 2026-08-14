@@ -363,6 +363,8 @@ export const en = {
   'result.notes': 'Notes',
   'result.youEntered': 'You entered',
   'result.yourSaved': 'Your saved account',
+  'result.yourNameNumber': 'Your name and number',
+  'result.receiverOnPayment': 'Receiver on this payment',
   'result.screenshotShows': 'Screenshot shows',
   'result.officialRecord': 'Official record',
   'result.screenshot': 'Screenshot',
@@ -399,7 +401,7 @@ export const en = {
   'code.CBE_VERIFY_FAILED': 'CBE verification failed',
   'code.TELEBIRR_VERIFY_FAILED': 'Telebirr verification failed',
   'code.MY_ACCOUNT_NOT_SAVED': 'No saved account for this bank',
-  'code.MY_ACCOUNT_NAME_MISMATCH': 'Receiver name does not match',
+  'code.MY_ACCOUNT_NAME_MISMATCH': 'Receiver name is not the same',
   'code.MY_ACCOUNT_NUMBER_MISMATCH': 'Receiver account does not match',
   'code.MY_ACCOUNT_RECEIVER_MISSING': 'Official receiver missing',
 

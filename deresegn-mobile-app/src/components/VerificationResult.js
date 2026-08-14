@@ -24,10 +24,33 @@ function issueLabel(t, item) {
 
 function VisualDiff({ item }) {
   const { t } = useLocale()
+  const isMyAccount = String(item.code || '').startsWith('MY_ACCOUNT')
+  const yourLine = item.yourName
+    ? `${item.yourName}${item.yourNumber ? ` · ${item.yourNumber}` : ''}`
+    : item.formValue
+  const receiverLine = item.receiverName
+    ? `${item.receiverName}${item.receiverAccount && item.receiverAccount !== '—' ? ` · ${item.receiverAccount}` : ''}`
+    : item.qrValue
+
+  if (isMyAccount && (yourLine || receiverLine)) {
+    return (
+      <View style={styles.diff}>
+        <View style={styles.diffRow}>
+          <Text style={styles.diffLabel}>{t('result.yourNameNumber')}</Text>
+          <Text style={styles.diffValue}>{String(yourLine || '—')}</Text>
+        </View>
+        <View style={styles.diffRow}>
+          <Text style={styles.diffLabel}>{t('result.receiverOnPayment')}</Text>
+          <Text style={[styles.diffValue, styles.diffMismatch]}>{String(receiverLine || '—')}</Text>
+        </View>
+      </View>
+    )
+  }
+
   const rows = []
   if (item.formValue != null) {
     rows.push({
-      label: item.code?.startsWith('MY_ACCOUNT') ? t('result.yourSaved') : t('result.youEntered'),
+      label: t('result.youEntered'),
       value: item.formValue,
       mismatch: false,
     })

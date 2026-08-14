@@ -250,7 +250,7 @@ export default function CheckerModal({
   }, [visible, dispatch])
 
   useEffect(() => {
-    if (!canMatchMyAccount) setMatchMyAccount(false)
+    setMatchMyAccount(canMatchMyAccount)
   }, [canMatchMyAccount, method])
 
   const resetForm = () => {

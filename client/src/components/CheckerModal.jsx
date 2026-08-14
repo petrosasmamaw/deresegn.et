@@ -215,7 +215,7 @@ export default function CheckerModal({
   }, [isOpen, dispatch])
 
   useEffect(() => {
-    if (!canMatchMyAccount) setMatchMyAccount(false)
+    setMatchMyAccount(canMatchMyAccount)
   }, [canMatchMyAccount, method])
 
   const handleReferenceChange = (field, value) => {

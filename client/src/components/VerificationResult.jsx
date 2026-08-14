@@ -3,10 +3,35 @@ import { useLocale } from '../i18n/LocaleContext'
 
 function VisualDiff({ item }) {
   const { t } = useLocale()
+  const isMyAccount = String(item.code || '').startsWith('MY_ACCOUNT')
+  const yourLine = item.yourName
+    ? `${item.yourName}${item.yourNumber ? ` · ${item.yourNumber}` : ''}`
+    : item.formValue
+  const receiverLine = item.receiverName
+    ? `${item.receiverName}${item.receiverAccount && item.receiverAccount !== '—' ? ` · ${item.receiverAccount}` : ''}`
+    : item.qrValue
+
+  if (isMyAccount && (yourLine || receiverLine)) {
+    return (
+      <div className="payment-verify-diff my-account-summary" aria-label={t('result.fieldCompare')}>
+        <div className="payment-verify-diff-row payment-verify-diff-row--match">
+          <dt>{t('result.yourNameNumber')}</dt>
+          <dd>{yourLine}</dd>
+          <span aria-hidden="true"><CheckCircle2 size={14} color="var(--color-verified)" /></span>
+        </div>
+        <div className="payment-verify-diff-row payment-verify-diff-row--mismatch">
+          <dt>{t('result.receiverOnPayment')}</dt>
+          <dd>{receiverLine}</dd>
+          <span aria-hidden="true"><XCircle size={14} color="var(--color-maroon)" /></span>
+        </div>
+      </div>
+    )
+  }
+
   const rows = []
   if (item.formValue != null) {
     rows.push({
-      label: item.code?.startsWith('MY_ACCOUNT') ? t('result.yourSaved') : t('result.youEntered'),
+      label: t('result.youEntered'),
       value: item.formValue,
       status: 'entered',
     })

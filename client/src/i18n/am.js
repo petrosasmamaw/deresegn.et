@@ -345,6 +345,8 @@ export const am = {
   'result.notes': 'ማስታወሻዎች',
   'result.youEntered': 'እርስዎ ያስገቡት',
   'result.yourSaved': 'ያስቀመጡት ሂሳብ',
+  'result.yourNameNumber': 'የእርስዎ ስምና ቁጥር',
+  'result.receiverOnPayment': 'በዚህ ክፍያ ላይ ያለው ተቀባይ',
   'result.screenshotShows': 'ስክሪንሹት ያሳያል',
   'result.officialRecord': 'ኦፊሴላዊ መዝገብ',
   'result.screenshot': 'ስክሪንሹት',

@@ -162,6 +162,12 @@ export async function deleteUserPaymentAccount(userId, method) {
   ));
 }
 
+function formatAccountLine(name, number) {
+  const n = String(name || '').trim() || '—';
+  const a = String(number || '').trim() || '—';
+  return `${n} · ${a}`;
+}
+
 /**
  * After official bank lookup succeeds, confirm receiver name + account match the user's saved payout account.
  * Fast in-memory compare — no extra OCR or bank call.
@@ -181,55 +187,66 @@ export async function matchPaymentToMyAccount(userId, method, details) {
     };
   }
 
-  const officialName = details?.receiverName || '';
-  const officialAccount = details?.receiverAccount || '';
+  const officialName = String(details?.receiverName || '').trim();
+  const officialAccount = String(details?.receiverAccount || '').trim();
+  const yourLine = formatAccountLine(saved.accountName, saved.accountNumber);
+  const receiverLine = formatAccountLine(officialName, officialAccount);
+  const extras = {
+    yourName: saved.accountName,
+    yourNumber: saved.accountNumber,
+    receiverName: officialName || '—',
+    receiverAccount: officialAccount || '—',
+    formValue: yourLine,
+    qrValue: receiverLine,
+  };
+
   const issues = [];
 
-  if (!String(officialName).trim()) {
+  if (!officialName) {
     issues.push({
       type: 'error',
       code: 'MY_ACCOUNT_RECEIVER_MISSING',
       field: 'receiverName',
-      message: 'The official record did not include a receiver name, so it cannot be matched to your saved account.',
-      formValue: saved.accountName,
-      qrValue: '—',
+      message: `Your name and number is ${yourLine}. The official record did not include a receiver name.`,
+      ...extras,
     });
   } else if (!namesMatch(saved.accountName, officialName)) {
     issues.push({
       type: 'error',
       code: 'MY_ACCOUNT_NAME_MISMATCH',
       field: 'receiverName',
-      message: `Your saved name is ${saved.accountName}, but the real receiver is ${officialName}.`,
-      formValue: saved.accountName,
-      qrValue: officialName,
+      message: `Your name and number is ${yourLine}. The receiver on this payment is ${officialName}. The names are not the same.`,
+      ...extras,
     });
   }
 
-  if (!String(officialAccount).trim()) {
+  if (!officialAccount) {
     issues.push({
       type: 'error',
       code: 'MY_ACCOUNT_RECEIVER_MISSING',
       field: 'receiverAccount',
-      message: 'The official record did not include a receiver account, so it cannot be matched to your saved account.',
-      formValue: saved.accountNumber,
-      qrValue: '—',
+      message: `Your name and number is ${yourLine}. The official record did not include a receiver account.`,
+      ...extras,
     });
   } else if (!accountsMatchForMethod(method, saved.accountNumber, officialAccount)) {
     issues.push({
       type: 'error',
       code: 'MY_ACCOUNT_NUMBER_MISMATCH',
       field: 'receiverAccount',
-      message: `Your saved account is ${saved.accountNumber}, but the real receiver account is ${officialAccount}.`,
-      formValue: saved.accountNumber,
-      qrValue: officialAccount,
+      message: `Your name and number is ${yourLine}. The receiver account on this payment is ${officialAccount}. The numbers are not the same.`,
+      ...extras,
     });
   }
 
   if (issues.length) {
+    const primary = {
+      ...issues[0],
+      message: issues.map((i) => i.message).join(' '),
+    };
     return {
       ok: false,
-      message: issues[0].message,
-      issues,
+      message: primary.message,
+      issues: [primary],
     };
   }
   return { ok: true };

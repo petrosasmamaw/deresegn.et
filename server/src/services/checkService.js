@@ -620,6 +620,13 @@ export async function submitReceiptCheck({
       });
     }
 
+    await enforcePaymentToMyAccount(
+      userId,
+      method,
+      matchMyAccount,
+      result.validation.resolvedDetails,
+    );
+
     if (result.validation.recheckExisting) {
       if (result.validation.previousVerification) {
         return buildExistingVerifiedResult(
@@ -629,13 +636,6 @@ export async function submitReceiptCheck({
       }
       return finalizeRecheck(userId, result.validation.recheckExisting);
     }
-
-    await enforcePaymentToMyAccount(
-      userId,
-      method,
-      matchMyAccount,
-      result.validation.resolvedDetails,
-    );
 
     const upload = screenshotBuffer
       ? await uploadScreenshotBuffer(screenshotBuffer, screenshotMime)
@@ -742,6 +742,9 @@ export async function submitReferenceCheck({
     });
   }
 
+  const details = result.resolvedDetails;
+  await enforcePaymentToMyAccount(userId, method, matchMyAccount, details);
+
   const dup = await resolveDuplicateCheck(userId, result.txCode);
   if (dup.action === 'recheck') {
     return finalizeRecheck(userId, dup.existing);
@@ -756,8 +759,6 @@ export async function submitReferenceCheck({
     throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
   }
 
-  const details = result.resolvedDetails;
-  await enforcePaymentToMyAccount(userId, method, matchMyAccount, details);
   const useApiKey = billing?.type === 'api_key' && billing.apiKeyId;
 
   let checkCost = 0;
@@ -903,6 +904,9 @@ export async function submitSmsCheck({
     });
   }
 
+  const details = result.resolvedDetails;
+  await enforcePaymentToMyAccount(userId, method, matchMyAccount, details);
+
   const dup = await resolveDuplicateCheck(userId, result.txCode);
   if (dup.action === 'recheck') {
     return finalizeRecheck(userId, dup.existing);
@@ -917,8 +921,6 @@ export async function submitSmsCheck({
     throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
   }
 
-  const details = result.resolvedDetails;
-  await enforcePaymentToMyAccount(userId, method, matchMyAccount, details);
   const useApiKey = billing?.type === 'api_key' && billing.apiKeyId;
 
   let checkCost = 0;
