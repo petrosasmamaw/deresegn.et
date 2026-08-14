@@ -77,13 +77,17 @@ function amountsMatch(a, b) {
   return Math.abs(p - f) <= 1;
 }
 
-function telebirrAmountsCompatible(officialAmount, smsAmount) {
+function telebirrAmountsCompatible(officialAmount, smsAmount, official = null) {
+  if (official && typeof official === 'object') {
+    if (smsAmount == null) return true;
+    const shown = Number(String(smsAmount).replace(/,/g, ''));
+    if (Number.isNaN(shown)) return false;
+    const candidates = [official.amount, official.settledAmount, officialAmount]
+      .filter((v) => v != null && v !== '');
+    return candidates.some((value) => amountsMatch(shown, value));
+  }
   if (officialAmount == null || smsAmount == null) return true;
-  const o = Number(String(officialAmount).replace(/,/g, ''));
-  const s = Number(String(smsAmount).replace(/,/g, ''));
-  if (Number.isNaN(o) || Number.isNaN(s)) return false;
-  if (amountsMatch(o, s)) return true;
-  return Math.abs(o - s) <= 2;
+  return amountsMatch(officialAmount, smsAmount);
 }
 
 function issue(type, code, field, message, extra = {}) {
@@ -209,10 +213,15 @@ function crossCheckSmsVsOfficial(parsed, official) {
   }
 
   if (parsed.method === 'telebirr') {
-    if (parsed.amount && official.amount && !telebirrAmountsCompatible(official.amount, parsed.amount)) {
+    if (parsed.amount && official.amount && !telebirrAmountsCompatible(official.amount, parsed.amount, official)) {
       issues.push(issue('error', 'SMS_AMOUNT_MISMATCH', 'amount',
         `SMS shows ETB ${parsed.amount} transferred but the official Telebirr receipt shows ETB ${official.amount}.`,
         { smsValue: parsed.amount, officialValue: official.amount }));
+    }
+    if (parsed.senderName && official.senderName && !namesMatch(parsed.senderName, official.senderName)) {
+      issues.push(issue('error', 'SMS_RECEIVER_MISMATCH', 'senderName',
+        `SMS sender "${parsed.senderName}" does not match official receipt "${official.senderName}".`,
+        { smsValue: parsed.senderName, officialValue: official.senderName }));
     }
     if (parsed.receiverName && official.receiverName && !namesMatch(parsed.receiverName, official.receiverName)) {
       issues.push(issue('error', 'SMS_RECEIVER_MISMATCH', 'receiverName',

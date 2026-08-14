@@ -174,6 +174,10 @@ export async function fetchTelebirrReceipt(invoiceId) {
           console.log('[Telebirr] Official receipt loaded:', id, 'amount', fromPetros.amount, 'via petros');
           return fromPetros;
         }
+        if (!/^(1|true|yes)$/i.test(String(process.env.TELEBIRR_FORCE_DIRECT || ''))) {
+          console.warn('[Telebirr] Petros miss — skipping slow Ethio Telecom HTML');
+          return null;
+        }
       }
 
       if (TELEBIRR_SKIP_DIRECT) {

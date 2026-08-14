@@ -4,20 +4,35 @@ import { buildExtractionPrompt } from './receiptFormats.js';
 import { normalizeTelebirrInvoiceId } from '../utils/telebirrInvoice.js';
 
 const TELEBIRR_INVOICE_PROMPT = `This is a Telebirr mobile wallet payment receipt screenshot.
-Find the "Invoice No." field (10 characters, e.g. DFC7TG1O11, DF52MV8ILW, or DG65L5I9M5).
-Also check for receipt URLs like transactioninfo.ethiotelecom.et/receipt/...
-Return ONLY valid JSON (no markdown): { "transactionCode": string or null }`;
+Read these fields exactly as printed (do not guess or correct them):
+- Invoice No. (10 characters, e.g. DFC7TG1O11, DF52MV8ILW, DG65L5I9M5) or a transactioninfo.ethiotelecom.et/receipt/... URL
+- Payer / sender name
+- Payer telebirr / sender account
+- Credited party / receiver name
+- Credited party account
+- Total Paid Amount or transfer amount (number only, no ETB)
+Return ONLY valid JSON (no markdown):
+{ "transactionCode": string or null, "amount": number or null, "senderName": string or null, "senderAccount": string or null, "receiverName": string or null, "receiverAccount": string or null }`;
 
-/** Primary extractor: gemini-2.0-flash (fast OCR for Ethiopian receipts). Override with GEMINI_MODEL. */
-const PRIMARY_MODEL = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim();
-const FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+/** gemini-2.0-flash shut down June 1 2026. Fast OCR: 3.1 Flash-Lite; fallbacks still live. */
+const PRIMARY_MODEL = (process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite').trim();
+const FALLBACK_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+
+const SHUT_DOWN_MODELS = new Set([
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-001',
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash-lite-001',
+]);
 
 function modelQueue() {
-  return [...new Set([PRIMARY_MODEL, ...FALLBACK_MODELS].filter(Boolean))];
+  const requested = (process.env.GEMINI_MODEL || PRIMARY_MODEL).trim();
+  const primary = SHUT_DOWN_MODELS.has(requested) ? PRIMARY_MODEL : requested;
+  return [...new Set([primary, ...FALLBACK_MODELS].filter((id) => id && !SHUT_DOWN_MODELS.has(id)))];
 }
 
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 18000;
-const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 8000;
+const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 5000;
 
 let cachedGenAI = null;
 let cachedApiKey = null;
@@ -45,7 +60,13 @@ function getGenerativeModel(apiKey, modelName) {
     cachedModels.clear();
   }
   if (!cachedModels.has(modelName)) {
-    cachedModels.set(modelName, cachedGenAI.getGenerativeModel({ model: modelName }));
+    cachedModels.set(modelName, cachedGenAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 1024,
+      },
+    }));
   }
   return cachedModels.get(modelName);
 }
@@ -133,12 +154,22 @@ export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mime
   throw lastError || new Error('All Gemini models failed — check GEMINI_API_KEY and quota');
 }
 
-/** Fast Telebirr invoice-only OCR — same primary model as full receipt extract. */
-export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image/jpeg') {
-  if (isGeminiQuotaBlocked()) return null;
+const EMPTY_TELEBIRR_OCR = {
+  senderName: null,
+  senderAccount: null,
+  receiverName: null,
+  receiverAccount: null,
+  amount: null,
+  date: null,
+  transactionCode: null,
+};
+
+/** One fast Gemini call for Telebirr Invoice No. + printed names/amount. Primary model only. */
+export async function extractTelebirrOcrFromBuffer(buffer, mimeType = 'image/jpeg') {
+  if (isGeminiQuotaBlocked()) return { ...EMPTY_TELEBIRR_OCR };
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey?.trim()) return null;
+  if (!apiKey?.trim()) return { ...EMPTY_TELEBIRR_OCR };
 
   const base64 = buffer.toString('base64');
 
@@ -152,25 +183,29 @@ export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image
         TELEBIRR_INVOICE_PROMPT,
         TELEBIRR_INVOICE_TIMEOUT_MS,
       );
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) continue;
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = parseGeminiJson(text);
       const invoice = normalizeTelebirrInvoiceId(parsed.transactionCode);
       if (invoice) {
-        console.log('[Gemini] Telebirr invoice OCR:', invoice, 'via', modelName);
-        return invoice;
+        parsed.transactionCode = invoice;
+        console.log('[Gemini] Telebirr OCR:', invoice, 'via', modelName);
+        return parsed;
+      }
+      if (parsed.amount != null || parsed.senderName || parsed.receiverName) {
+        return parsed;
       }
     } catch (err) {
-      console.warn(`[Gemini] invoice OCR ${modelName}:`, err.message);
+      console.warn(`[Gemini] Telebirr OCR ${modelName}:`, err.message);
       if (isQuotaError(err)) {
         markGeminiQuotaBlocked();
-        return null;
-      }
-      if (!isRetryableModelError(err) && !/timed out/i.test(err.message || '')) {
-        // try next preferred model
+        break;
       }
     }
   }
 
-  return null;
+  return { ...EMPTY_TELEBIRR_OCR };
+}
+
+export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image/jpeg') {
+  const parsed = await extractTelebirrOcrFromBuffer(buffer, mimeType);
+  return normalizeTelebirrInvoiceId(parsed.transactionCode) || null;
 }

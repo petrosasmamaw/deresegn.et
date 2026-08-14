@@ -97,14 +97,25 @@ function topUpAmountsCompatible(qrAmount, screenshotAmount) {
   return Math.abs(q - s) <= 10;
 }
 
-/** Telebirr receipts show Settled Amount and Total Paid Amount (fees differ by a few birr). */
-function telebirrAmountsCompatible(officialAmount, screenshotAmount) {
+/** Telebirr SMS/screenshot amount must match official total paid or settled (±1 Birr). No ±10 window. */
+function telebirrAmountMatchesOfficial(shownAmount, official) {
+  if (shownAmount == null || official == null) return true;
+  const shown = Number(String(shownAmount).replace(/,/g, ''));
+  if (Number.isNaN(shown)) return false;
+  const candidates = [official.amount, official.settledAmount, official.totalPaidAmount]
+    .filter((v) => v != null && v !== '');
+  if (!candidates.length && official) {
+    return amountsMatch(shownAmount, official);
+  }
+  return candidates.some((value) => amountsMatch(shown, value));
+}
+
+function telebirrAmountsCompatible(officialAmount, screenshotAmount, official = null) {
+  if (official && typeof official === 'object') {
+    return telebirrAmountMatchesOfficial(screenshotAmount, official);
+  }
   if (officialAmount == null || screenshotAmount == null) return true;
-  const o = Number(String(officialAmount).replace(/,/g, ''));
-  const s = Number(String(screenshotAmount).replace(/,/g, ''));
-  if (Number.isNaN(o) || Number.isNaN(s)) return false;
-  if (amountsMatch(o, s)) return true;
-  return Math.abs(o - s) <= 15;
+  return amountsMatch(officialAmount, screenshotAmount);
 }
 
 /** CBE VAT receipts may show total debited (transfer + fees) while the official API returns transfer amount. */
@@ -407,7 +418,7 @@ function validateTelebirrReceipt({
       { screenshotValue: shotTx, qrValue: officialTx }));
   }
 
-  if (screenshotCropped || !geminiUsed) return;
+  if (screenshotCropped && !extracted?.amount && !extracted?.receiverName) return;
 
   const shotTx = normalizeTxCode(extracted?.transactionCode);
   const officialTx = normalizeTxCode(qrFields?.transactionCode);
@@ -417,6 +428,13 @@ function validateTelebirrReceipt({
       { screenshotValue: shotTx, qrValue: officialTx }));
   }
 
+  if (extracted?.senderName && qrFields?.senderName
+    && !namesMatch(extracted.senderName, qrFields.senderName)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'senderName',
+      `Sender name error: screenshot shows "${extracted.senderName}" but the official Telebirr record shows "${qrFields.senderName}". The receipt appears edited.`,
+      { screenshotValue: extracted.senderName, qrValue: qrFields.senderName }));
+  }
+
   if (extracted?.receiverName && qrFields?.receiverName
     && !namesMatch(extracted.receiverName, qrFields.receiverName)) {
     issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'receiverName',
@@ -424,8 +442,22 @@ function validateTelebirrReceipt({
       { screenshotValue: extracted.receiverName, qrValue: qrFields.receiverName }));
   }
 
+  if (extracted?.senderAccount && qrFields?.senderAccount
+    && !accountsMatch(extracted.senderAccount, qrFields.senderAccount)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'senderAccount',
+      `Sender account error: screenshot shows "${extracted.senderAccount}" but the official Telebirr record shows "${qrFields.senderAccount}". The receipt appears edited.`,
+      { screenshotValue: extracted.senderAccount, qrValue: qrFields.senderAccount }));
+  }
+
+  if (extracted?.receiverAccount && qrFields?.receiverAccount
+    && !accountsMatch(extracted.receiverAccount, qrFields.receiverAccount)) {
+    issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'receiverAccount',
+      `Receiver account error: screenshot shows "${extracted.receiverAccount}" but the official Telebirr record shows "${qrFields.receiverAccount}". The receipt appears edited.`,
+      { screenshotValue: extracted.receiverAccount, qrValue: qrFields.receiverAccount }));
+  }
+
   if (extracted?.amount != null && qrFields?.amount
-    && !telebirrAmountsCompatible(qrFields.amount, extracted.amount)) {
+    && !telebirrAmountsCompatible(qrFields.amount, extracted.amount, telebirrResolve?.official)) {
     issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'amount',
       `Amount error: screenshot shows ${extracted.amount} but the official Telebirr record shows ${qrFields.amount}. The receipt appears edited.`,
       { screenshotValue: extracted.amount, qrValue: qrFields.amount }));

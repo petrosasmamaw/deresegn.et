@@ -82,11 +82,14 @@ export function mapPetrosTelebirrPayload(data, invoiceId) {
   };
 }
 
-async function postPetrosVerify(path, body, invoiceId) {
+async function postPetrosVerify(path, body, invoiceId, {
+  timeoutMs = PETROS_TIMEOUT_MS,
+  retries = PETROS_RETRY_COUNT,
+} = {}) {
   const response = await outboundFetch(`${PETROS_BASE_URL}${path}`, {
     method: 'POST',
-    timeoutMs: PETROS_TIMEOUT_MS,
-    retries: PETROS_RETRY_COUNT,
+    timeoutMs,
+    retries,
     logHost: 'petros-verifier',
     headers: {
       Accept: 'application/json',
@@ -150,6 +153,7 @@ export async function fetchTelebirrViaPetros(invoiceId) {
   if (!id) return null;
 
   const started = Date.now();
+  const telebirrTimeoutMs = Number(process.env.TELEBIRR_PETROS_TIMEOUT_MS) || 12000;
   const attempts = [
     { path: '/verify-telebirr', body: { reference: id } },
     { path: '/verify', body: { reference: id, bank: 'telebirr' } },
@@ -157,9 +161,15 @@ export async function fetchTelebirrViaPetros(invoiceId) {
 
   for (const attempt of attempts) {
     try {
-      const result = await postPetrosVerify(attempt.path, attempt.body, id);
+      const result = await postPetrosVerify(attempt.path, attempt.body, id, {
+        timeoutMs: telebirrTimeoutMs,
+        retries: 0,
+      });
       if (!result.ok) {
         console.warn('[Petros]', attempt.path, 'failed', id, result.status, safeLogText(result.error));
+        const endpointMissing = result.status === 404 || result.status === 405;
+        const txMissing = /not found|invalid receipt|no transaction/i.test(String(result.error || ''));
+        if (txMissing && !endpointMissing) return null;
         continue;
       }
 
