@@ -27,7 +27,7 @@ export default function SessionOpenPage({ ready = false, onFinished }) {
   const [actIndex, setActIndex] = useState(0)
   const [exiting, setExiting] = useState(false)
   const brand = locale === 'am' ? t('home.titleAm') : t('home.title')
-  const brandAlt = locale === 'am' ? 'Tamagn Tech' : t('home.titleAm')
+  const brandAlt = locale === 'am' ? 'Tamagn Check' : t('home.titleAm')
   const act = ACTS[actIndex]
 
   useEffect(() => {

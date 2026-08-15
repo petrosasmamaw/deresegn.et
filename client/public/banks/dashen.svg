@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dashen Bank">
+  <rect width="64" height="64" rx="12" fill="#1C6E3F"/>
+  <path d="M32 12l16 28H16L32 12z" fill="#E8C547"/>
+  <path d="M18 44h28v6H18z" fill="#fff"/>
+  <circle cx="32" cy="30" r="4" fill="#1C6E3F"/>
+</svg>

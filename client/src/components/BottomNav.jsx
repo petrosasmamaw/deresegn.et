@@ -41,7 +41,8 @@ export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick 
             className="bottom-nav-fab"
             aria-label={t('bottom.verifyAria')}
           >
-            <Plus size={26} strokeWidth={2.5} />
+            <Plus size={22} strokeWidth={2.5} />
+            <span>{t('bottom.verify')}</span>
           </button>
         </div>
       </nav>

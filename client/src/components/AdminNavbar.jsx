@@ -18,13 +18,13 @@ export default function AdminNavbar({ user }) {
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <img
             src="/deresegn-logo.svg"
-            alt="Tamagn Tech"
+            alt="Tamagn Check"
             width={28}
             height={28}
             className="rounded-md flex-shrink-0 w-7 h-7"
           />
           <div className="min-w-0">
-            <h1 className="navbar-brand leading-tight truncate">Tamagn Tech</h1>
+            <h1 className="navbar-brand leading-tight truncate">Tamagn Check</h1>
             <p className="text-xs truncate" style={{ color: 'rgba(244, 238, 220, 0.62)' }}>Admin</p>
           </div>
         </div>

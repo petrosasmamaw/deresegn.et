@@ -21,7 +21,7 @@ export default function HomePage() {
   }
 
   const brandTitle = locale === 'am' ? t('home.titleAm') : t('home.title')
-  const brandAlt = locale === 'am' ? 'Tamagn Tech' : t('home.titleAm')
+  const brandAlt = locale === 'am' ? 'Tamagn Check' : t('home.titleAm')
 
   return (
     <main className="auth-hero min-h-screen overflow-x-hidden">

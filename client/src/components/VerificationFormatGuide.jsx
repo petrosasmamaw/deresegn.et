@@ -1,4 +1,5 @@
 import { useLocale } from '../i18n/LocaleContext'
+import { Receipt } from 'lucide-react'
 
 const RECEIPT_IMAGES = {
   telebirr: '/telebirr.jpg',
@@ -117,7 +118,21 @@ For receipt https://receipt.dashensuperapp.com/receipt/110IPSS2616900WO`,
 
 export default function VerificationFormatGuide({ method, mode = 'screenshot' }) {
   const { t } = useLocale()
-  if (!method) return null
+
+  if (!method) {
+    return (
+      <aside className="receipt-example-panel receipt-example-idle" aria-label={t('guide.templateIdleTitle')}>
+        <p className="receipt-example-label">{t('guide.templateIdleTitle')}</p>
+        <p className="receipt-example-hint">{t('guide.templateIdleHint')}</p>
+        <div className="receipt-silhouette" aria-hidden="true">
+          <Receipt size={36} strokeWidth={1.5} />
+          <span />
+          <span />
+          <span />
+        </div>
+      </aside>
+    )
+  }
 
   const label = BANK_LABELS[method] || method
   const badgeClass = BANK_BADGE_CLASS[method] || 'bank-badge-cbe'

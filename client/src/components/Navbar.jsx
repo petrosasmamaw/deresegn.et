@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../features/auth/authSlice'
@@ -15,14 +15,18 @@ export default function Navbar() {
   const { openTopUp } = useDashboardUi()
   const { t } = useLocale()
   const [menuOpen, setMenuOpen] = useState(false)
+  const closeBtnRef = useRef(null)
+
+  const closeMenu = () => setMenuOpen(false)
 
   useEffect(() => {
     if (!menuOpen) return undefined
     const onKey = (e) => {
-      if (e.key === 'Escape') setMenuOpen(false)
+      if (e.key === 'Escape') closeMenu()
     }
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKey)
+    closeBtnRef.current?.focus()
     return () => {
       document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
@@ -30,13 +34,13 @@ export default function Navbar() {
   }, [menuOpen])
 
   const handleLogout = async () => {
-    setMenuOpen(false)
+    closeMenu()
     await dispatch(logout())
     navigate('/login')
   }
 
   const go = (path) => {
-    setMenuOpen(false)
+    closeMenu()
     navigate(path)
   }
 
@@ -56,7 +60,6 @@ export default function Navbar() {
           </a>
         </div>
 
-        {/* Desktop / tablet bar */}
         <div className="hidden md:flex items-center gap-2 md:gap-3 ml-auto flex-shrink-0">
           <LangToggle />
 
@@ -121,7 +124,6 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile compact controls */}
         <div className="flex md:hidden items-center gap-1.5 ml-auto flex-shrink-0">
           <LangToggle />
           {user && (
@@ -142,63 +144,83 @@ export default function Navbar() {
           )}
           <button
             type="button"
-            className="btn-ghost px-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            className="nav-menu-btn"
+            aria-label={t('nav.openMenu')}
             aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((o) => !o)}
+            aria-controls="nav-drawer"
+            onClick={() => setMenuOpen(true)}
           >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            <Menu size={22} strokeWidth={2} />
           </button>
         </div>
       </div>
 
-      {menuOpen && (
-        <div className="md:hidden border-t" style={{ borderColor: 'rgba(198, 162, 78, 0.25)' }}>
-          <div className="container mx-auto px-3 py-3 flex flex-col gap-2">
+      <div className={`nav-drawer-root md:hidden${menuOpen ? ' is-open' : ''}`} aria-hidden={!menuOpen}>
+        <button
+          type="button"
+          className="nav-drawer-scrim"
+          tabIndex={menuOpen ? 0 : -1}
+          aria-label={t('nav.closeMenu')}
+          onClick={closeMenu}
+        />
+        <aside
+          id="nav-drawer"
+          className="nav-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('nav.brand')}
+        >
+          <div className="nav-drawer-head">
+            <div className="nav-drawer-brand">
+              <img src="/deresegn-logo.svg" alt="" width={32} height={32} />
+              <span>{t('nav.brand')}</span>
+            </div>
+            <button
+              ref={closeBtnRef}
+              type="button"
+              className="nav-drawer-close"
+              aria-label={t('nav.closeMenu')}
+              onClick={closeMenu}
+              tabIndex={menuOpen ? 0 : -1}
+            >
+              <X size={20} strokeWidth={2.25} />
+            </button>
+          </div>
+
+          <div className="nav-drawer-body">
             {user ? (
               <>
-                <p className="navbar-user text-xs truncate px-1 pb-1">{user.email || user.name}</p>
+                <p className="nav-drawer-user">{user.email || user.name}</p>
                 <button
                   type="button"
-                  onClick={() => go('/accounts')}
-                  className="btn-ghost w-full justify-start gap-2"
+                  onClick={() => { closeMenu(); openTopUp() }}
+                  className="nav-drawer-link"
+                  tabIndex={menuOpen ? 0 : -1}
                 >
-                  <Wallet size={17} />
-                  {t('nav.myAccounts')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => go('/developer')}
-                  className="btn-ghost w-full justify-start gap-2"
-                >
-                  <KeyRound size={17} />
-                  {t('nav.getApi')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setMenuOpen(false); openTopUp() }}
-                  className="btn-ghost w-full justify-start gap-2"
-                >
-                  <Plus size={17} />
+                  <Plus size={18} strokeWidth={2} />
                   {t('nav.topUpTitle')}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="btn-ghost w-full justify-start gap-2"
-                >
-                  <LogOut size={17} />
+                <button type="button" onClick={() => go('/accounts')} className="nav-drawer-link" tabIndex={menuOpen ? 0 : -1}>
+                  <Wallet size={18} strokeWidth={2} />
+                  {t('nav.myAccounts')}
+                </button>
+                <button type="button" onClick={() => go('/developer')} className="nav-drawer-link" tabIndex={menuOpen ? 0 : -1}>
+                  <KeyRound size={18} strokeWidth={2} />
+                  {t('nav.getApi')}
+                </button>
+                <button type="button" onClick={handleLogout} className="nav-drawer-link nav-drawer-link-out" tabIndex={menuOpen ? 0 : -1}>
+                  <LogOut size={18} strokeWidth={2} />
                   {t('nav.logout')}
                 </button>
               </>
             ) : (
-              <a href="/login" className="btn-primary w-full text-center" onClick={() => setMenuOpen(false)}>
+              <a href="/login" className="btn-primary w-full text-center" onClick={closeMenu} tabIndex={menuOpen ? 0 : -1}>
                 {t('nav.signIn')}
               </a>
             )}
           </div>
-        </div>
-      )}
+        </aside>
+      </div>
     </nav>
   )
 }

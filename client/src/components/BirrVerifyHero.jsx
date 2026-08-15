@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { CheckCircle2, ShieldCheck } from 'lucide-react'
 import { useLocale } from '../i18n/LocaleContext'
 import './BirrVerifyHero.css'
 
@@ -15,7 +14,7 @@ function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
 }
 
-export default function BirrVerifyHero({ onVerifyClick }) {
+export default function BirrVerifyHero() {
   const { t } = useLocale()
   const sceneRef = useRef(null)
   const dhRef = useRef(null)
@@ -72,6 +71,8 @@ export default function BirrVerifyHero({ onVerifyClick }) {
     let hxAng = 0
     let dialAng = 0
     let rafId = 0
+    let cycleBusy = false
+    let cycleGen = 0
 
     const drawHex = (ang, highlight) => {
       hCtx.clearRect(0, 0, 58, 58)
@@ -184,9 +185,18 @@ export default function BirrVerifyHero({ onVerifyClick }) {
     }
 
     const clearTs = () => {
-      timers.forEach(clearTimeout)
+      timers.forEach((id) => {
+        clearTimeout(id)
+        clearInterval(id)
+      })
       timers.length = 0
     }
+
+    const sweepNotes = () => {
+      hero.querySelectorAll('.dh-note,.dh-particle').forEach((el) => el.remove())
+    }
+
+    const alive = (gen) => running && gen === cycleGen
 
     const W = () => hero.offsetWidth || scene.offsetWidth || 680
 
@@ -273,10 +283,10 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       note.wrap.style.bottom = `${bottomPx}px`
     }
 
-    const moveNote = (note, fromX, toX, fromB, toB, dur, cb) => {
+    const moveNote = (note, fromX, toX, fromB, toB, dur, gen, cb) => {
       let start = null
       const frame = (ts) => {
-        if (!running) return
+        if (!alive(gen)) return
         if (!start) start = ts
         const p = Math.min((ts - start) / dur, 1)
         const ep = easeInOut(p)
@@ -287,8 +297,8 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       requestAnimationFrame(frame)
     }
 
-    const phaseReceive = (note, data, vaultX) => {
-      if (!running) return
+    const phaseReceive = (note, data, vaultX, gen) => {
+      if (!alive(gen)) return
       setDot(5)
       dialAng += Math.PI * 0.45
       addStrip(data.cls)
@@ -296,27 +306,34 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       note.wrap.style.transition = 'opacity 0.4s'
       note.wrap.style.opacity = '0'
       T(() => {
+        if (!alive(gen)) return
         closeDoors()
         slot.className = 'dh-slot'
         setLights('')
       }, 320)
-      T(() => note.wrap.parentNode?.removeChild(note.wrap), 500)
-      T(() => { if (running) runCycle() }, 850)
+      T(() => {
+        note.wrap.parentNode?.removeChild(note.wrap)
+        if (gen !== cycleGen) return
+        cycleBusy = false
+        T(() => {
+          if (running && gen === cycleGen) runCycle()
+        }, 420)
+      }, 500)
     }
 
-    const phaseExit = (note, data, machX, insideB, railBottom, vaultX) => {
-      if (!running) return
+    const phaseExit = (note, data, machX, insideB, railBottom, vaultX, gen) => {
+      if (!alive(gen)) return
       setDot(4)
-      moveNote(note, machX, machX, insideB, railBottom, 300, () => {
+      moveNote(note, machX, machX, insideB, railBottom, 300, gen, () => {
         note.inner.style.transform = 'perspective(200px) rotateY(4deg)'
-        moveNote(note, machX, vaultX, railBottom, railBottom, 950, () => {
-          phaseReceive(note, data, vaultX)
+        moveNote(note, machX, vaultX, railBottom, railBottom, 950, gen, () => {
+          phaseReceive(note, data, vaultX, gen)
         })
       })
     }
 
-    const phaseVerified = (note, data, machX, insideB, railBottom, vaultX) => {
-      if (!running) return
+    const phaseVerified = (note, data, machX, insideB, railBottom, vaultX, gen) => {
+      if (!alive(gen)) return
       setDot(3)
       sm.textContent = 'VERIFIED'
       sm.className = 'dh-scr-main green'
@@ -333,11 +350,11 @@ export default function BirrVerifyHero({ onVerifyClick }) {
 
       burst(machX, hero.offsetHeight - 110, false)
       openDoors()
-      T(() => phaseExit(note, data, machX, insideB, railBottom, vaultX), 650)
+      T(() => phaseExit(note, data, machX, insideB, railBottom, vaultX, gen), 650)
     }
 
-    const phaseInside = (note, data, machX, insideB, railBottom, vaultX) => {
-      if (!running) return
+    const phaseInside = (note, data, machX, insideB, railBottom, vaultX, gen) => {
+      if (!alive(gen)) return
       setDot(2)
       note.inner.style.opacity = '0.15'
       note.inner.style.transform = 'perspective(200px) rotateY(-8deg) scale(0.9)'
@@ -349,6 +366,7 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       ss.textContent = 'VERIFYING...'
       sf.style.width = '0%'
       T(() => {
+        if (!alive(gen)) return
         sf.style.width = '100%'
         sf.className = 'dh-scr-fill green'
       }, 40)
@@ -360,7 +378,7 @@ export default function BirrVerifyHero({ onVerifyClick }) {
 
       let bStart = null
       const animBeam = (ts) => {
-        if (!running) {
+        if (!alive(gen)) {
           beam.classList.remove('on')
           return
         }
@@ -377,6 +395,10 @@ export default function BirrVerifyHero({ onVerifyClick }) {
 
       let blinkN = 0
       const blinkId = setInterval(() => {
+        if (!alive(gen)) {
+          clearInterval(blinkId)
+          return
+        }
         blinkN += 1
         hxi.style.color = blinkN % 2 ? '#3E8F62' : 'rgba(62,143,98,0.3)'
         hxAng += 0.06
@@ -386,12 +408,12 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       T(() => {
         clearInterval(blinkId)
         stopVibrate()
-        phaseVerified(note, data, machX, insideB, railBottom, vaultX)
+        phaseVerified(note, data, machX, insideB, railBottom, vaultX, gen)
       }, 1100)
     }
 
-    const phaseEnter = (note, data, machX, railBottom, vaultX) => {
-      if (!running) return
+    const phaseEnter = (note, data, machX, railBottom, vaultX, gen) => {
+      if (!alive(gen)) return
       setDot(1)
       slot.classList.add('gold')
       setLights('gold')
@@ -403,13 +425,18 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       const slotBottom = slotInsertBottom()
       const insideB = slotBottom - 12
 
-      moveNote(note, machX, machX, railBottom, insideB, 380, () => {
-        phaseInside(note, data, machX, insideB, railBottom, vaultX)
+      moveNote(note, machX, machX, railBottom, insideB, 380, gen, () => {
+        phaseInside(note, data, machX, insideB, railBottom, vaultX, gen)
       })
     }
 
     const runCycle = () => {
-      if (!running) return
+      if (!running || cycleBusy) return
+      cycleBusy = true
+      cycleGen += 1
+      const gen = cycleGen
+      sweepNotes()
+
       const data = NOTES[ni % NOTES.length]
       ni += 1
       const note = makeNote(data.src)
@@ -435,66 +462,54 @@ export default function BirrVerifyHero({ onVerifyClick }) {
       setDot(0)
 
       T(() => {
+        if (!alive(gen)) return
         note.inner.style.transition = 'filter 0.5s,transform 0.4s'
-        moveNote(note, startX, machX, bottom, bottom, 1200, () => {
-          phaseEnter(note, data, machX, bottom, vaultX)
+        moveNote(note, startX, machX, bottom, bottom, 1200, gen, () => {
+          phaseEnter(note, data, machX, bottom, vaultX, gen)
         })
       }, 100)
+    }
+
+    const halt = () => {
+      running = false
+      cycleBusy = false
+      cycleGen += 1
+      clearTs()
+      cancelAnimationFrame(rafId)
+      stopVibrate()
+      beam.classList.remove('on')
+      sweepNotes()
     }
 
     const obs = new IntersectionObserver((entries) => {
       entries.forEach((en) => {
         if (!en.isIntersecting) {
-          running = false
-          clearTs()
-          cancelAnimationFrame(rafId)
-          stopVibrate()
+          halt()
         } else if (!running) {
           running = true
           loop()
-          clearTs()
-          T(() => runCycle(), 300)
+          runCycle()
         }
       })
     })
     obs.observe(scene)
 
-    T(() => runCycle(), 500)
+    runCycle()
 
     return () => {
-      running = false
-      clearTs()
-      cancelAnimationFrame(rafId)
-      stopVibrate()
+      halt()
       obs.disconnect()
-      hero.querySelectorAll('.dh-note,.dh-particle').forEach((el) => el.remove())
     }
   }, [])
 
   return (
-    <section className="birr-verify-hero">
+    <section className="birr-verify-hero" aria-label={t('hero.title')}>
       <div className="birr-verify-hero-inner">
         <div className="birr-verify-hero-copy">
-          <div className="birr-verify-hero-copy-text">
-            <p className="eyebrow">{t('hero.eyebrow')}</p>
-            <h1 className="page-title">{t('hero.title')}</h1>
-            <p className="page-subtitle">{t('hero.subtitle')}</p>
-          </div>
-          {onVerifyClick && (
-            <div className="hero-verify-cta">
-              <div className="hero-verify-cta-icon" aria-hidden="true">
-                <ShieldCheck size={18} strokeWidth={2} />
-              </div>
-              <div className="hero-verify-cta-copy">
-                <p className="hero-verify-cta-title">{t('hero.ctaTitle')}</p>
-                <p className="hero-verify-cta-desc">{t('hero.ctaDesc')}</p>
-              </div>
-              <button type="button" onClick={onVerifyClick} className="hero-verify-btn">
-                <CheckCircle2 size={14} strokeWidth={2.25} />
-                <span>{t('hero.ctaBtn')}</span>
-              </button>
-            </div>
-          )}
+          <h1 className="birr-verify-hero-title">{t('hero.title')}</h1>
+          <p className="birr-verify-hero-alt">{t('hero.brandAlt')}</p>
+          <p className="birr-verify-hero-sub">{t('hero.body')}</p>
+          <p className="birr-verify-hero-banks">{t('hero.coverage')}</p>
         </div>
 
         <div className="birr-verify-scene" ref={sceneRef} aria-hidden="true">
@@ -509,7 +524,7 @@ export default function BirrVerifyHero({ onVerifyClick }) {
 
             <div className="dh-machine" ref={machRef}>
               <div className="dh-m-label">
-                <span className="dh-m-name">Tamagn Tech</span>
+                <span className="dh-m-name">Tamagn Check</span>
                 <span className="dh-m-sub">AI VERIFY MACHINE</span>
               </div>
               <div className="dh-m-body">

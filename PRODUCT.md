@@ -14,7 +14,7 @@ Secondary: developers integrating Paid Verify API; admins operating the service.
 
 ## Product Purpose
 
-Tamagn Tech (ታማኝ ቸክ) is a trusted Ethiopian receipt checker. Success means a user can confirm authenticity quickly and share a verification certificate for valid receipts.
+Tamagn Check (ታማኝ ቸክ) is a trusted Ethiopian receipt checker. Success means a user can confirm authenticity quickly and share a verification certificate for valid receipts.
 
 ## Positioning
 
@@ -30,7 +30,7 @@ Official-feeling verification for Ethiopian mobile-money and bank receipts, with
 
 ## Brand Commitments
 
-- Names: **Tamagn Tech**, **ታማኝ ቸክ**, site tamagncheck.online.
+- Names: **Tamagn Check**, **ታማኝ ቸክ**, site tamagncheck.online.
 - Visual identity already shipped in code (verification / banknote / guilloché world) — extend, do not rebrand.
 
 ## Accessibility

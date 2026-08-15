@@ -1,5 +1,5 @@
 ---
-name: Tamagn Tech
+name: Tamagn Check
 description: Official Ethiopian receipt verification — parchment, foil gold, birr green, guilloché.
 colors:
   ink: "#0E2420"
@@ -111,13 +111,13 @@ components:
     size: "4.75rem"
 ---
 
-# Design System: Tamagn Tech
+# Design System: Tamagn Check
 
 ## Overview
 
 **Creative North Star: "The Guilloché Certificate"**
 
-Tamagn Tech reads as official Ethiopian payment verification — banknote atmosphere, not a SaaS dashboard. Surfaces sit on warm parchment under a faint gold guilloché field; ink and birr green carry authority; foil gold marks trust, progress, and accents. The brand names itself at hero scale (Tamagn Tech / ታማኝ ቸክ) before any secondary message.
+Tamagn Check reads as official Ethiopian payment verification — banknote atmosphere, not a SaaS dashboard. Surfaces sit on warm parchment under a faint gold guilloché field; ink and birr green carry authority; foil gold marks trust, progress, and accents. The brand names itself at hero scale (Tamagn Check / ታማኝ ቸክ) before any secondary message.
 
 Density stays ceremonial and sparse on promotional and boot surfaces: one composition, one seal, one act of copy, one soft gold progress cue. Product UI (dashboard, forms) reuses the same palette and Fraunces display voice with tighter Inter body copy and restrained white elevated cards — still parchment-rooted, never purple chrome or flat gray app chrome.
 
@@ -173,7 +173,7 @@ Four brand metals on parchment: deep ink, institutional birr green, foil gold, a
 - **Mono** (500, 11–28px by role): Balances, IDs, certificate codes.
 
 ### Named Rules
-**The Brand-First Type Rule.** On branded first viewports, the product name outranks the act headline in size and weight; no supporting line may overpower Tamagn Tech / ታማኝ ቸክ.
+**The Brand-First Type Rule.** On branded first viewports, the product name outranks the act headline in size and weight; no supporting line may overpower Tamagn Check / ታማኝ ቸክ.
 
 **The Bilingual Pair Rule.** Always show the active locale brand with the alternate script as foil-gold secondary line (English ↔ Amharic).
 

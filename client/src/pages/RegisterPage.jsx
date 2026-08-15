@@ -28,7 +28,7 @@ export default function RegisterPage() {
   }
 
   const brandTitle = locale === 'am' ? t('home.titleAm') : t('auth.brand')
-  const brandAlt = locale === 'am' ? 'Tamagn Tech' : t('home.titleAm')
+  const brandAlt = locale === 'am' ? 'Tamagn Check' : t('home.titleAm')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
