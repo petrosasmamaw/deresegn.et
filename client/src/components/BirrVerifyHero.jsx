@@ -507,7 +507,6 @@ export default function BirrVerifyHero() {
       <div className="birr-verify-hero-inner">
         <div className="birr-verify-hero-copy">
           <h1 className="birr-verify-hero-title">{t('hero.title')}</h1>
-          <p className="birr-verify-hero-alt">{t('hero.brandAlt')}</p>
           <p className="birr-verify-hero-sub">{t('hero.body')}</p>
           <p className="birr-verify-hero-banks">{t('hero.coverage')}</p>
         </div>

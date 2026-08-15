@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { CheckCircle2, Download, Link2, ShieldCheck } from 'lucide-react'
+import { Download, Link2 } from 'lucide-react'
 import { useLocale } from '../i18n/LocaleContext'
 import './VerificationCertificate.css'
 
@@ -73,7 +73,7 @@ function drawCertificateToCanvas(cert, labels) {
   return canvas
 }
 
-export default function VerificationCertificate({ check, compact = false }) {
+export default function VerificationCertificate({ check, compact = false, details = null }) {
   const { t } = useLocale()
   const cardRef = useRef(null)
   const [copied, setCopied] = useState(false)
@@ -126,68 +126,62 @@ export default function VerificationCertificate({ check, compact = false }) {
   }
 
   return (
-    <div className={`verify-certificate${compact ? ' verify-certificate--compact' : ''}`} ref={cardRef}>
-      <div className="verify-certificate-header">
-        <div className="verify-certificate-brand">
-          <ShieldCheck size={18} strokeWidth={2} />
-          <span>{t('cert.verifiedBy')}</span>
+    <article className={`verify-certificate${compact ? ' verify-certificate--compact' : ''}`} ref={cardRef}>
+      <header className="verify-certificate-header">
+        <div>
+          <h3 className="verify-certificate-title">{t('cert.paymentTitle')}</h3>
+          <p className="verify-certificate-check-id">{t('cert.certificateId', { id: check.id })}</p>
         </div>
         <div className="verified-stamp verify-certificate-stamp">{t('cert.valid')}</div>
-      </div>
+      </header>
 
       <div className="verify-certificate-body">
-        <p className="verify-certificate-check-id">{t('cert.certificateId', { id: check.id })}</p>
-        <h3 className="verify-certificate-title">{t('cert.paymentTitle')}</h3>
+        <p className="verify-certificate-amount">
+          {displayValue(check.amount)}
+          <span> ETB</span>
+        </p>
+        <p className="verify-certificate-id font-mono">{displayValue(check.transactionCode)}</p>
 
         <dl className="verify-certificate-grid">
           <div>
-            <dt>{t('field.paymentId')}</dt>
-            <dd className="font-mono">{displayValue(check.transactionCode)}</dd>
-          </div>
-          <div>
-            <dt>{t('field.amountShort')}</dt>
-            <dd className="amount-mono">{displayValue(check.amount)} ETB</dd>
-          </div>
-          <div>
             <dt>{t('field.sender')}</dt>
             <dd>{displayValue(check.senderName)}</dd>
+            {details?.senderAccount && (
+              <dd className="verify-certificate-sub font-mono">{details.senderAccount}</dd>
+            )}
           </div>
           <div>
             <dt>{t('field.receiver')}</dt>
             <dd>{displayValue(check.receiverName)}</dd>
+            {details?.receiverAccount && (
+              <dd className="verify-certificate-sub font-mono">{details.receiverAccount}</dd>
+            )}
           </div>
           <div>
             <dt>{t('cert.bankMethod')}</dt>
             <dd>{methodLabels[check.paymentMethod] || check.paymentMethod}</dd>
           </div>
           <div>
-            <dt>{t('cert.confidence')}</dt>
-            <dd>
-              <span className={`confidence-badge confidence-badge--${check.confidenceTier || 'verified'}`}>
-                <CheckCircle2 size={12} />
-                {tierLabels[check.confidenceTier] || t('common.verified')}
-              </span>
-            </dd>
-          </div>
-          <div className="verify-certificate-grid-span">
             <dt>{t('cert.verifiedAt')}</dt>
             <dd>{formatDate(check.createdAt)}</dd>
           </div>
         </dl>
+
+        <p className="verify-certificate-sign">{t('cert.verifiedBy')}</p>
       </div>
 
       {shareUrl && (
         <div className="verify-certificate-actions">
-          <button type="button" className="btn-secondary verify-certificate-action" onClick={handleCopyLink}>
-            <Link2 size={15} />
+          <button type="button" className="verify-certificate-action is-ghost" onClick={handleCopyLink}>
+            <Link2 size={16} />
             {copied ? t('cert.copied') : t('cert.copy')}
           </button>
-          <button type="button" className="btn-primary verify-certificate-action" onClick={handleDownload}>
-            <Download size={15} />
+          <button type="button" className="verify-certificate-action is-ink" onClick={handleDownload}>
+            <Download size={16} />
             {t('cert.downloadPng')}
           </button>
         </div>
       )}
-    </div>
+    </article>
   )
 }

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
-import { Smartphone, Building2, RotateCcw, Upload, Hash, Camera, MessageSquare } from 'lucide-react'
+import { Smartphone, Building2, RotateCcw, Upload, Hash, Camera, MessageSquare, XCircle, Check } from 'lucide-react'
 import Modal from './Modal'
-import { VerificationFailureList, VerificationSuccessNote, VerificationWarningList } from './VerificationResult'
+import { VerificationFailureList, VerificationWarningList } from './VerificationResult'
 import VerificationCertificate from './VerificationCertificate'
-import ReceiptSummaryCard from './ReceiptSummaryCard'
 import VerificationFormatGuide from './VerificationFormatGuide'
 import { useLocale } from '../i18n/LocaleContext'
 import axios from '../api/axiosInstance'
@@ -381,12 +380,6 @@ export default function CheckerModal({
     transactionCode: lastResult.transactionCode,
   } : null)
 
-  const successMessage = verifyMode === 'sms'
-    ? t('check.successSms')
-    : verifyMode === 'reference'
-      ? t('check.successReference')
-      : t('check.successReceipt')
-
   const previousVerification = (successCheck || lastResult)?.previousVerification || null
   const previousVerificationLabel = previousVerification?.verifiedBy === 'self'
     ? t('check.prevSelf')
@@ -400,22 +393,6 @@ export default function CheckerModal({
         return Number.isNaN(when.getTime()) ? null : when.toLocaleString()
       })()
     : null
-
-  const previousVerificationColor = previousVerification?.verifiedBy === 'self'
-    ? {
-        bg: 'var(--color-info-muted)',
-        border: 'var(--color-info)',
-        text: 'var(--color-info)',
-      }
-    : {
-        bg: 'rgba(125, 74, 255, 0.10)',
-        border: 'rgba(125, 74, 255, 0.35)',
-        text: 'rgb(125, 74, 255)',
-      }
-
-  const previousVerificationHint = previousVerification?.verifiedBy === 'self'
-    ? t('check.prevSelfHint')
-    : t('check.prevOtherHint')
 
   const startAnother = () => {
     setRejected(false)
@@ -462,6 +439,9 @@ export default function CheckerModal({
             aria-label={m.label}
             aria-pressed={method === m.id}
           >
+            <span className="verify-pick" aria-hidden="true">
+              <Check size={10} strokeWidth={3} />
+            </span>
             <span className="verify-bank-mark">
               <img src={BANK_LOGOS[m.id]} alt="" width="32" height="32" />
             </span>
@@ -476,18 +456,21 @@ export default function CheckerModal({
           <div className="verify-mode-grid" role="tablist">
             {enabledModes.includes('screenshot') && (
               <button type="button" role="tab" aria-selected={verifyMode === 'screenshot'} className={`verify-mode-btn${verifyMode === 'screenshot' ? ' is-active' : ''}`} onClick={() => pickMode('screenshot')}>
+                <span className="verify-pick" aria-hidden="true"><Check size={10} strokeWidth={3} /></span>
                 <Camera size={18} strokeWidth={2} />
                 {t('check.modeScreenshotShort')}
               </button>
             )}
             {enabledModes.includes('sms') && (
               <button type="button" role="tab" aria-selected={verifyMode === 'sms'} className={`verify-mode-btn${verifyMode === 'sms' ? ' is-active' : ''}`} onClick={() => pickMode('sms')}>
+                <span className="verify-pick" aria-hidden="true"><Check size={10} strokeWidth={3} /></span>
                 <MessageSquare size={18} strokeWidth={2} />
                 {t('check.modeSmsShort')}
               </button>
             )}
             {enabledModes.includes('reference') && (
               <button type="button" role="tab" aria-selected={verifyMode === 'reference'} className={`verify-mode-btn${verifyMode === 'reference' ? ' is-active' : ''}`} onClick={() => pickMode('reference')}>
+                <span className="verify-pick" aria-hidden="true"><Check size={10} strokeWidth={3} /></span>
                 <Hash size={18} strokeWidth={2} />
                 {t('check.modeReferenceShort')}
               </button>
@@ -498,65 +481,66 @@ export default function CheckerModal({
     </>
   )
 
+  const showingResult = rejected || step === successStep
+
   const flow = rejected ? (
-    <div className="space-y-5">
-      {selector}
-      <VerificationFailureList issues={failureIssues} />
-      <div className="flex gap-3">
+    <div className="verify-outcome verify-outcome--fail">
+      <div className="verify-outcome-hero">
+        <span className="verify-outcome-mark" aria-hidden="true">
+          <XCircle size={28} strokeWidth={2} />
+        </span>
+        <h2 className="verify-outcome-title">{t('result.couldNotVerify')}</h2>
+        <p className="verify-outcome-lead">{t('result.failedHint')}</p>
+      </div>
+      <VerificationFailureList issues={failureIssues} nested />
+      <div className="verify-outcome-cta">
         <button
           type="button"
           onClick={() => {
             dismissLastAttempt()
             setStep(3)
           }}
-          className="btn-secondary flex-1 flex items-center justify-center gap-2"
+          className="verify-outcome-again"
         >
-          <RotateCcw size={16} strokeWidth={2} />
+          <RotateCcw size={18} strokeWidth={2} />
           {t('common.tryAgain')}
         </button>
-        {!embedded && (
-          <button type="button" onClick={handleClose} className="btn-primary flex-1">
+        {embedded ? (
+          <button type="button" onClick={startAnother} className="verify-outcome-another">
+            {t('check.another')}
+          </button>
+        ) : (
+          <button type="button" onClick={handleClose} className="verify-outcome-another">
             {t('common.close')}
           </button>
         )}
       </div>
     </div>
   ) : step === successStep ? (
-    <div className="space-y-5">
+    <div className="verify-outcome verify-outcome--pass">
       {previousVerificationLabel && (
-        <div
-          className="rounded-lg p-3 border"
-          style={{
-            background: previousVerificationColor.bg,
-            borderColor: previousVerificationColor.border,
-          }}
-        >
-          <p className="text-[var(--text-sm)] font-semibold" style={{ color: previousVerificationColor.text }}>
-            {previousVerificationLabel}
-          </p>
-          <p className="text-[var(--text-xs)] mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            {previousVerificationHint}
-            {previousVerificationMeta ? ` ${t('check.verifiedOn', { when: previousVerificationMeta })}` : ''}
-          </p>
-        </div>
+        <p className="verify-outcome-prev">
+          {previousVerificationLabel}
+          {previousVerificationMeta ? ` · ${t('check.verifiedOn', { when: previousVerificationMeta })}` : ''}
+        </p>
       )}
-      <VerificationSuccessNote message={successMessage} />
       {(successCheck || lastResult) && (
-        <VerificationCertificate check={successCheck || lastResult} />
+        <VerificationCertificate
+          check={successCheck || lastResult}
+          details={summaryDetails}
+        />
       )}
-      {summaryDetails && <ReceiptSummaryCard details={summaryDetails} />}
       <VerificationWarningList issues={lastResult?.validationResult?.issues || successCheck?.validationResult?.issues || []} />
-      <div className="bg-[var(--color-info-muted)] rounded-lg p-3 border border-[var(--color-info)]">
-        <p className="text-[var(--text-xs)] font-semibold text-[var(--color-info)] mb-1">{t('check.balanceUpdate')}</p>
-        <p className="text-[var(--text-sm)] text-[var(--color-text-primary)]">
+      <div className="verify-outcome-cta">
+        <p className="verify-outcome-balance">
           {(successCheck || lastResult)?.isRecheck
             ? t('check.noCharge')
             : t('check.deducted', { amount: (successCheck || lastResult)?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount) })}
         </p>
+        <button type="button" onClick={embedded ? startAnother : handleClose} className="verify-outcome-another">
+          {embedded ? t('check.another') : t('check.complete')}
+        </button>
       </div>
-      <button type="button" onClick={embedded ? startAnother : handleClose} className="btn-primary w-full">
-        {embedded ? t('check.another') : t('check.complete')}
-      </button>
     </div>
   ) : (
     <div className="space-y-1">
@@ -709,22 +693,24 @@ export default function CheckerModal({
 
   if (embedded) {
     return (
-      <div className="verify-stage" id="verify-desk">
+      <div className={`verify-stage${showingResult ? ' is-result' : ''}`} id="verify-desk">
         <section className="verify-desk">
           {flow}
         </section>
-        <div className="verify-template">
-          {template}
-        </div>
+        {!showingResult && (
+          <div className="verify-template">
+            {template}
+          </div>
+        )}
       </div>
     )
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={t('check.title')} wide>
-      <div className="modal-body modal-split">
-        <div className="modal-split-main modal-split-main-pad">{flow}</div>
-        {template}
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('check.title')} wide={!showingResult}>
+      <div className={`modal-body${showingResult ? '' : ' modal-split'}`}>
+        <div className={showingResult ? '' : 'modal-split-main modal-split-main-pad'}>{flow}</div>
+        {!showingResult && template}
       </div>
     </Modal>
   )

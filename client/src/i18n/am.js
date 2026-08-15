@@ -112,10 +112,10 @@ export const am = {
   'dash.verifyFailed': 'ማረጋገጫ አልተሳካም',
 
   'hero.eyebrow': 'ዳሽቦርድ',
-  'hero.title': 'ታማኝ ቸክ',
+  'hero.title': 'አረጋግጥ፣ ከዚያ እመን።',
   'hero.brandAlt': 'Tamagn Check',
   'hero.subtitle': 'የኢትዮጵያ የደረሰኝ ማረጋገጫ',
-  'hero.body': 'እቃ፣ ገንዘብ ወይም ብድር ከመስጠትዎ በፊት የTelebirr፣ CBE፣ ዳሽን ወይም የአቢሲኒያ ክፍያ እውነተኛ መሆኑን ያረጋግጡ።',
+  'hero.body': 'የTelebirr፣ CBE፣ ዳሽን እና BOA ደረሰኞችን ከኦፊሴላዊ መዝገብ ጋር እናወዳድራለን። የውሸት አይሳካም። እውነተኛው ሰርተፊኬት ያገኛል።',
   'hero.coverage': 'ስክሪንሹት · የክፍያ መለያ · SMS',
   'hero.ctaTitle': 'ደረሰኝ አረጋግጥ',
   'hero.ctaDesc': 'Telebirr፣ CBE እና የባንክ ክፍያዎችን በሰከንዶች ውስጥ ያረጋግጡ',
@@ -359,6 +359,7 @@ export const am = {
 
   'result.failed': 'ማረጋገጫ አልተሳካም',
   'result.couldNotVerify': 'ደረሰኙን ማረጋገጥ አልተቻለም',
+  'result.failedHint': 'ከታች ያለውን ልዩነት ያስተካክሉ፣ ከዚያ በተመሳሳይ ባንክና መንገድ እንደገና ይሞክሩ።',
   'result.notes': 'ማስታወሻዎች',
   'result.youEntered': 'እርስዎ ያስገቡት',
   'result.yourSaved': 'ያስቀመጡት ሂሳብ',

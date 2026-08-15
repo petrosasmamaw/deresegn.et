@@ -83,17 +83,19 @@ function issueLabel(t, item) {
   return item.code?.replace(/_/g, ' ') || t('result.error')
 }
 
-export function VerificationFailureList({ issues = [], title }) {
+export function VerificationFailureList({ issues = [], title, nested = false }) {
   const { t } = useLocale()
   if (!issues.length) return null
   const heading = title || t('result.couldNotVerify')
 
   return (
-    <div className="payment-verify-fail">
-      <div className="payment-verify-fail-header">
-        <AlertCircle size={18} strokeWidth={1.5} aria-hidden="true" />
-        <p className="font-medium">{heading}</p>
-      </div>
+    <div className={`payment-verify-fail${nested ? ' is-nested' : ''}`}>
+      {!nested && (
+        <div className="payment-verify-fail-header">
+          <AlertCircle size={18} strokeWidth={1.5} aria-hidden="true" />
+          <p className="font-medium">{heading}</p>
+        </div>
+      )}
       <ul className="payment-verify-list">
         {issues.map((item, idx) => (
           <li key={`${item.code || 'issue'}-${item.field || 'f'}-${idx}`} className="payment-verify-item payment-verify-item-error">

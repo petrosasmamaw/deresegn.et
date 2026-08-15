@@ -121,10 +121,10 @@ export const en = {
 
   // Hero
   'hero.eyebrow': 'Dashboard',
-  'hero.title': 'Tamagn Check',
+  'hero.title': 'Verify, Then Trust.',
   'hero.brandAlt': 'ታማኝ ቸክ',
   'hero.subtitle': 'Official Ethiopian receipt verification',
-  'hero.body': 'Confirm a Telebirr, CBE, Dashen, or Bank of Abyssinia payment is real before you release goods, cash, or credit.',
+  'hero.body': 'We match Telebirr, CBE, Dashen, and BOA slips to the official record. Fake fails. Real gets a certificate.',
   'hero.coverage': 'Screenshot · Payment ID · SMS',
   'hero.ctaTitle': 'Verify Receipt',
   'hero.ctaDesc': 'Confirm Telebirr, CBE & bank payments in seconds',
@@ -377,6 +377,7 @@ export const en = {
   // Result
   'result.failed': 'Verification failed',
   'result.couldNotVerify': 'Receipt could not be verified',
+  'result.failedHint': 'Fix the mismatch below, then try again with the same bank and method.',
   'result.notes': 'Notes',
   'result.youEntered': 'You entered',
   'result.yourSaved': 'Your saved account',
