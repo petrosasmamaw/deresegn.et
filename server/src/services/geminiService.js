@@ -33,6 +33,17 @@ function modelQueue() {
 
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 18000;
 const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 5000;
+const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 5000;
+
+const BOA_OCR_PROMPT = `This is a Bank of Abyssinia (BOA) payment receipt screenshot.
+Read these fields exactly as printed (do not guess):
+- Transaction Reference / Payment ID starting with FT or TT (e.g. FT26169X4SRS, TT26171RW0YG)
+- Or a slip URL like cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
+- Payer / sender name and account
+- Receiver / beneficiary name and account
+- Transferred Amount only (number, no fees)
+Return ONLY valid JSON (no markdown):
+{ "transactionCode": string or null, "amount": number or null, "senderName": string or null, "senderAccount": string or null, "receiverName": string or null, "receiverAccount": string or null }`;
 
 let cachedGenAI = null;
 let cachedApiKey = null;
@@ -208,4 +219,42 @@ export async function extractTelebirrOcrFromBuffer(buffer, mimeType = 'image/jpe
 export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image/jpeg') {
   const parsed = await extractTelebirrOcrFromBuffer(buffer, mimeType);
   return normalizeTelebirrInvoiceId(parsed.transactionCode) || null;
+}
+
+export async function extractBoaOcrFromBuffer(buffer, mimeType = 'image/jpeg') {
+  if (isGeminiQuotaBlocked()) return { ...EMPTY_TELEBIRR_OCR };
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey?.trim()) return { ...EMPTY_TELEBIRR_OCR };
+
+  const base64 = buffer.toString('base64');
+
+  for (const modelName of modelQueue()) {
+    try {
+      const text = await callModel(
+        apiKey,
+        modelName,
+        base64,
+        mimeType,
+        BOA_OCR_PROMPT,
+        BOA_OCR_TIMEOUT_MS,
+      );
+      const parsed = parseGeminiJson(text);
+      if (parsed.transactionCode) {
+        console.log('[Gemini] BOA OCR:', parsed.transactionCode, 'via', modelName);
+        return parsed;
+      }
+      if (parsed.amount != null || parsed.senderName || parsed.receiverName) {
+        return parsed;
+      }
+    } catch (err) {
+      console.warn(`[Gemini] BOA OCR ${modelName}:`, err.message);
+      if (isQuotaError(err)) {
+        markGeminiQuotaBlocked();
+        break;
+      }
+    }
+  }
+
+  return { ...EMPTY_TELEBIRR_OCR };
 }

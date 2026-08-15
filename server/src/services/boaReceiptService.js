@@ -1,15 +1,19 @@
-import { extractPaymentFromBuffer } from './geminiService.js';
+import { extractBoaOcrFromBuffer, isGeminiQuotaBlocked } from './geminiService.js';
 import { decodeQrFromBuffer, prepareQrScanImage, buildQrDataFromRaw } from './qrService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { extractBoaFieldsFromQrPayload } from './boaQrCrypto.js';
 import { normalizeTxCode, txCodesMatch } from '../utils/txCode.js';
-import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
+import { outboundFetch } from '../utils/outboundFetch.js';
 
 const BOA_API = 'https://cs.bankofabyssinia.com/api/onlineSlip/getDetails/?id=';
-const API_TIMEOUT_MS = BANK_FETCH_TIMEOUT_MS;
-const NEARBY_BUDGET_MS = 8000;
-const QR_BUDGET_MS = 9000;
-const OCR_GRACE_MS = 800;
+const API_TIMEOUT_MS = Number(process.env.BOA_API_TIMEOUT_MS) || 8000;
+const API_RETRIES = Number.isFinite(Number(process.env.BOA_API_RETRIES))
+  ? Math.max(0, Number(process.env.BOA_API_RETRIES))
+  : 0;
+const NEARBY_BUDGET_MS = Number(process.env.BOA_NEARBY_BUDGET_MS) || 4000;
+const QR_BUDGET_MS = Number(process.env.BOA_QR_BUDGET_MS) || 2500;
+const OCR_GRACE_MS = 400;
+const inflightBoaFetches = new Map();
 
 /** BOA payment refs: FT… (credit/transfer) or TT… (e.g. debit). */
 export const BOA_REF_RE = /^(FT|TT)[A-Z0-9]{8,}$/i;
@@ -166,34 +170,69 @@ function mergeBoaQrDecryptedFields(qrFields, decryptedFields) {
 async function fetchBoaApiOnce(reference, suffix = '') {
   const id = normalizeBoaApiId(reference);
   if (!id) return null;
+  const key = `${id}|${suffix}`;
+  if (inflightBoaFetches.has(key)) return inflightBoaFetches.get(key);
 
-  const url = `${BOA_API}${encodeURIComponent(`${id}${suffix}`)}`;
-  try {
-    const response = await outboundFetch(url, {
-      timeoutMs: API_TIMEOUT_MS,
-      retries: BANK_FETCH_RETRIES,
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        Referer: 'https://cs.bankofabyssinia.com/',
-      },
-    });
+  const run = (async () => {
+    const url = `${BOA_API}${encodeURIComponent(`${id}${suffix}`)}`;
+    try {
+      const response = await outboundFetch(url, {
+        timeoutMs: API_TIMEOUT_MS,
+        retries: API_RETRIES,
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          Referer: 'https://cs.bankofabyssinia.com/',
+        },
+      });
 
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (data?.header?.status !== 'success' || !Array.isArray(data?.body) || !data.body[0]) {
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (data?.header?.status !== 'success' || !Array.isArray(data?.body) || !data.body[0]) {
+        return null;
+      }
+      return mapBoaApiBody(data.body[0]);
+    } catch {
       return null;
+    } finally {
+      inflightBoaFetches.delete(key);
     }
-    return mapBoaApiBody(data.body[0]);
-  } catch {
-    return null;
-  }
+  })();
+
+  inflightBoaFetches.set(key, run);
+  return run;
+}
+
+async function firstOfficialHit(tasks) {
+  if (!tasks.length) return null;
+  return new Promise((resolve) => {
+    let pending = tasks.length;
+    let settled = false;
+    for (const task of tasks) {
+      Promise.resolve(task).then((hit) => {
+        if (settled) return;
+        if (hit) {
+          settled = true;
+          resolve(hit);
+          return;
+        }
+        pending -= 1;
+        if (pending === 0) resolve(null);
+      }).catch(() => {
+        pending -= 1;
+        if (!settled && pending === 0) resolve(null);
+      });
+    }
+  });
 }
 
 async function fetchBoaByReference(reference, accounts = []) {
   const suffixes = buildSuffixCandidates(...accounts);
-  const tasks = suffixes.map((suffix) => fetchBoaApiOnce(reference, suffix));
-  const results = await Promise.all(tasks);
-  return results.find(Boolean) || null;
+  const preferred = suffixes.filter((s) => s === '' || s.length === 5);
+  const rest = suffixes.filter((s) => !preferred.includes(s));
+  const first = await firstOfficialHit(preferred.map((suffix) => fetchBoaApiOnce(reference, suffix)));
+  if (first) return first;
+  if (!rest.length) return null;
+  return firstOfficialHit(rest.map((suffix) => fetchBoaApiOnce(reference, suffix)));
 }
 
 /** Reference-only BOA verify: FT + last 5 digits of payer account. */
@@ -253,7 +292,7 @@ function nearbyReferences(reference) {
 async function discoverNearbyOfficial(reference, accounts = [], deadlineMs = NEARBY_BUDGET_MS) {
   const deadline = Date.now() + deadlineMs;
   const candidates = nearbyReferences(reference);
-  const suffixes = buildSuffixCandidates(...accounts);
+  const suffixes = buildSuffixCandidates(...accounts).filter((s) => s === '' || s.length === 5);
 
   for (let i = 0; i < candidates.length; i += 8) {
     if (Date.now() >= deadline) break;
@@ -392,8 +431,13 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
 
   const preparedPromise = prepareQrScanImage(buffer);
 
-  const geminiPromise = extractPaymentFromBuffer(buffer, 'boa', mime)
-    .then((data) => ({ data }))
+  const geminiPromise = (isGeminiQuotaBlocked()
+    ? Promise.resolve({ ...EMPTY_EXTRACTED })
+    : extractBoaOcrFromBuffer(buffer, mime))
+    .then((data) => {
+      geminiUsed = Boolean(data?.transactionCode || data?.amount || data?.receiverName);
+      return { data: { ...EMPTY_EXTRACTED, ...data } };
+    })
     .catch((err) => {
       geminiError = err.message;
       geminiUsed = false;
@@ -401,7 +445,9 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
     });
 
   const screenshotPrefetchPromise = geminiPromise.then(async (outcome) => {
-    const ref = normalizeTxCode(outcome.data?.transactionCode);
+    const rawTx = String(outcome.data?.transactionCode || '');
+    const fromUrl = extractBoaReferenceFromQr({ raw: rawTx });
+    const ref = normalizeTxCode(fromUrl || outcome.data?.transactionCode);
     if (!ref) return null;
     const official = await fetchBoaByReference(ref, [
       outcome.data?.senderAccount,
@@ -410,11 +456,9 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
     return official ? { reference: ref, official, via: 'screenshot_reference' } : null;
   });
 
-  const qrPromise = preparedPromise.then(async (prepared) => {
-    const prefetch = await screenshotPrefetchPromise;
-    if (prefetch?.official) return buildQrDataFromRaw(null);
-    return decodeQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, image: prepared });
-  });
+  const qrPromise = preparedPromise.then((prepared) => (
+    decodeQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, image: prepared })
+  ));
 
   const qrPrefetchPromise = qrPromise.then(async (qrData) => {
     const ref = extractBoaReferenceFromQr(qrData);
