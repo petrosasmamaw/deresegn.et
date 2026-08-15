@@ -96,6 +96,7 @@ router.post('/verify/reference', authenticateApiKey, async (req, res) => {
       transactionCode,
       accountSuffix,
       billing: { type: 'api_key', apiKeyId: req.apiKey.id, apiKeyRow: req.apiKey },
+      matchMyAccount: req.body.matchMyAccount === true || req.body.matchMyAccount === 'true',
     });
 
     return success(res, {
@@ -124,6 +125,7 @@ router.post('/verify/sms', authenticateApiKey, async (req, res) => {
       method,
       smsText,
       billing: { type: 'api_key', apiKeyId: req.apiKey.id, apiKeyRow: req.apiKey },
+      matchMyAccount: req.body.matchMyAccount === true || req.body.matchMyAccount === 'true',
     });
 
     return success(res, {

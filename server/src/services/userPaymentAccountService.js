@@ -89,8 +89,24 @@ function lastFourDigits(value) {
   return digits.length >= 4 ? digits.slice(-4) : '';
 }
 
+function maskedPrefixSuffixMatch(saved, official) {
+  const savedRaw = String(saved || '');
+  const officialRaw = String(official || '');
+  const maskedRaw = /\*/.test(officialRaw) ? officialRaw : (/\*/.test(savedRaw) ? savedRaw : '');
+  const full = /\*/.test(officialRaw)
+    ? normalizeAccount(saved)
+    : (/\*/.test(savedRaw) ? normalizeAccount(official) : '');
+  if (!maskedRaw || !full || full.length < 6) return false;
+  const parts = maskedRaw.replace(/[^\d*]/g, '').split('*').filter(Boolean);
+  if (parts.length < 2) return false;
+  const prefix = parts[0];
+  const suffix = parts[parts.length - 1];
+  return prefix.length >= 3 && suffix.length >= 2 && full.startsWith(prefix) && full.endsWith(suffix);
+}
+
 function accountsMatchForMethod(method, saved, official) {
   if (accountsMatch(saved, official)) return true;
+  if (maskedPrefixSuffixMatch(saved, official)) return true;
   const a = normalizeAccount(saved);
   const b = normalizeAccount(official);
   if (!a || !b) return false;
@@ -103,6 +119,7 @@ function accountsMatchForMethod(method, saved, official) {
     const official4 = lastFourDigits(official) || lastFourDigits(b);
     return Boolean(saved4 && official4 && saved4 === official4);
   }
+  if (method === 'dashen' && shorter.length >= 6 && longer.endsWith(shorter)) return true;
   return false;
 }
 
