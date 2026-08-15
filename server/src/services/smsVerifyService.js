@@ -10,6 +10,7 @@ import {
   fetchBoaTransactionFromSlipUrl,
   fetchBoaTransactionByReference,
 } from './boaReceiptService.js';
+import { fetchDashenTransactionByReference } from './dashenService.js';
 
 export const SMS_SCREENSHOT_PLACEHOLDER = 'sms://verification';
 
@@ -56,6 +57,18 @@ function accountsMatch(a, b) {
   const masked = /\*/.test(rawA) || /\*/.test(rawB);
 
   if (masked) {
+    const maskedRaw = /\*/.test(rawA) ? rawA : rawB;
+    const full = /\*/.test(rawA) ? ab : aa;
+    const parts = String(maskedRaw).replace(/[^\d*]/g, '').split('*').filter(Boolean);
+    if (parts.length >= 2 && full.length >= 6) {
+      const prefix = parts[0];
+      const suffix = parts[parts.length - 1];
+      if (prefix.length >= 3 && suffix.length >= 2
+        && full.startsWith(prefix)
+        && full.endsWith(suffix)) {
+        return true;
+      }
+    }
     if (aa.length < 2 || ab.length < 2) return false;
     const suffixLen = Math.min(4, aa.length, ab.length);
     if (aa.slice(-suffixLen) !== ab.slice(-suffixLen)) return false;
@@ -75,6 +88,26 @@ function amountsMatch(a, b) {
   const f = Number(String(b).replace(/,/g, ''));
   if (Number.isNaN(p) || Number.isNaN(f)) return false;
   return Math.abs(p - f) <= 1;
+}
+
+/** Dashen Super App debit SMS is transfer + small bank fees (service/VAT/DRRF), official PDF is Transaction Amount. */
+function dashenSmsAmountsCompatible(official, smsAmount, parsed) {
+  if (smsAmount == null || official?.amount == null) return true;
+  const shown = Number(String(smsAmount).replace(/,/g, ''));
+  if (Number.isNaN(shown)) return false;
+  const candidates = [official.amount, official.total].filter((v) => v != null && v !== '');
+  if (candidates.some((value) => amountsMatch(shown, value))) return true;
+
+  const principal = Number(String(official.amount).replace(/,/g, ''));
+  if (Number.isNaN(principal)) return false;
+  if (shown > principal && shown - principal <= 2) return true;
+
+  const feeSum = [parsed?.serviceFee, parsed?.vat, parsed?.drrfFee]
+    .map((v) => Number(String(v || '').replace(/,/g, '')))
+    .filter((n) => !Number.isNaN(n) && n >= 0)
+    .reduce((sum, n) => sum + n, 0);
+  if (feeSum > 0 && feeSum <= 2 && amountsMatch(shown, principal + feeSum)) return true;
+  return false;
 }
 
 function telebirrAmountsCompatible(officialAmount, smsAmount, official = null) {
@@ -135,6 +168,12 @@ async function fetchOfficialForSms(parsed) {
     }
   }
 
+  if (parsed.method === 'dashen') {
+    if (parsed.transactionCode) {
+      return fetchDashenTransactionByReference(parsed.transactionCode);
+    }
+  }
+
   return null;
 }
 
@@ -187,6 +226,22 @@ function validateParsedSms(parsed) {
     if (!parsed.transactionCode) {
       return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
         'Could not read the transaction reference (trx=) from the BOA Receipt link.')];
+    }
+    return [];
+  }
+
+  if (parsed.method === 'dashen') {
+    if (!parsed.receiptUrl && !parsed.transactionCode) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Paste the full Dashen Super App SMS including the receipt link (receipt.dashensuperapp.com/receipt/…).')];
+    }
+    if (!parsed.receiptUrl || !/receipt\.dashensuperapp\.com\/receipt\//i.test(parsed.receiptUrl)) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Dashen SMS must include the receipt link: https://receipt.dashensuperapp.com/receipt/…')];
+    }
+    if (!parsed.transactionCode) {
+      return [issue('error', 'SMS_PARSE_FAILED', 'smsText',
+        'Could not read the IPSS reference from the Dashen receipt link.')];
     }
     return [];
   }
@@ -295,6 +350,37 @@ function crossCheckSmsVsOfficial(parsed, official) {
       if (officialAccount && !accountsMatch(parsed.account, officialAccount)) {
         issues.push(issue('error', 'SMS_ACCOUNT_MISMATCH', 'receiverAccount',
           `SMS account "${parsed.account}" does not match the official BOA receipt account "${officialAccount}".`,
+          { smsValue: parsed.account, officialValue: officialAccount }));
+      }
+    }
+  }
+
+  if (parsed.method === 'dashen') {
+    if (parsed.amount && official.amount && !dashenSmsAmountsCompatible(official, parsed.amount, parsed)) {
+      issues.push(issue('error', 'SMS_AMOUNT_MISMATCH', 'amount',
+        `SMS shows ETB ${parsed.amount} but the official Dashen receipt shows ETB ${official.amount}.`,
+        { smsValue: parsed.amount, officialValue: official.amount }));
+    }
+
+    if (parsed.senderName && official.senderName && !namesMatch(parsed.senderName, official.senderName)) {
+      issues.push(issue('error', 'SMS_RECEIVER_MISMATCH', 'senderName',
+        `SMS sender "${parsed.senderName}" does not match official receipt "${official.senderName}".`,
+        { smsValue: parsed.senderName, officialValue: official.senderName }));
+    }
+
+    if (parsed.receiverName && official.receiverName && !namesMatch(parsed.receiverName, official.receiverName)) {
+      issues.push(issue('error', 'SMS_RECEIVER_MISMATCH', 'receiverName',
+        `SMS receiver "${parsed.receiverName}" does not match official receipt "${official.receiverName}".`,
+        { smsValue: parsed.receiverName, officialValue: official.receiverName }));
+    }
+
+    if (parsed.account) {
+      const officialAccount = parsed.direction === 'credit'
+        ? official.receiverAccount
+        : (official.senderAccount || official.receiverAccount);
+      if (officialAccount && !accountsMatch(parsed.account, officialAccount)) {
+        issues.push(issue('error', 'SMS_ACCOUNT_MISMATCH', 'receiverAccount',
+          `SMS account "${parsed.account}" does not match the official Dashen receipt account "${officialAccount}".`,
           { smsValue: parsed.account, officialValue: officialAccount }));
       }
     }

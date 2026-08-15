@@ -1,6 +1,7 @@
 import { normalizeTxCode } from '../utils/txCode.js';
 import { normalizeTelebirrInvoiceId } from './telebirrReceiptService.js';
 import { extractCbeMbReceiptToken } from './qrService.js';
+import { extractDashenReferenceFromText } from './dashenService.js';
 
 function cleanUrl(raw) {
   return String(raw || '').replace(/[).,;]+$/g, '').trim();
@@ -55,6 +56,10 @@ function repairSmsUrls(blob) {
   out = repairBrokenHostUrl(
     out,
     /(https?:\/\/cs\.bankofabyssinia\.com\/slip\/\?[^\s]*)([^\s]*)((?:\s+[^\s]+)*)/gi,
+  );
+  out = repairBrokenHostUrl(
+    out,
+    /(https?:\/\/receipt\.dashensuperapp\.com\/receipt\/)([^\s]+)((?:\s+[^\s]+)*)/gi,
   );
   out = repairBrokenHostUrl(
     out,
@@ -183,7 +188,90 @@ export function detectSmsMethod(text) {
       && /cs\.bankofabyssinia\.com/i.test(blob)) {
     return 'boa';
   }
+  if (/receipt\.dashensuperapp\.com\/receipt\//i.test(blob)
+    || /thank you for using dashen super app/i.test(blob)
+    || /\bdashen super app\b/i.test(blob)
+    || extractDashenReferenceFromText(blob)) {
+    return 'dashen';
+  }
   return null;
+}
+
+function findDashenReceiptUrl(blob) {
+  const match = blob.match(/https?:\/\/receipt\.dashensuperapp\.com\/receipt\/[A-Za-z0-9]+/i)
+    || blob.match(/\breceipt\.dashensuperapp\.com\/receipt\/[A-Za-z0-9]+/i);
+  if (!match?.[0]) return '';
+  let url = cleanUrl(match[0]);
+  if (!url.startsWith('http')) url = `https://${url}`;
+  return url.replace(/&amp;/gi, '&');
+}
+
+/**
+ * Dashen Super App SMS — official lookup via receipt.dashensuperapp.com/receipt/{IPSS}.
+ * Debit SMS amount is often transfer + service fee + VAT + DRRF (not VAT Transaction Amount).
+ */
+export function parseDashenSms(text) {
+  const blob = normalizeSmsBlob(text);
+  const receiptUrl = findDashenReceiptUrl(blob);
+  const transactionCode = extractDashenReferenceFromText(receiptUrl, blob);
+
+  const debitMatch = blob.match(
+    /\byour account\s+([\d*]+)\s+has been debited with\s+ETB\s*([\d,]+\.?\d*)/i,
+  );
+  const creditMatch = blob.match(
+    /\byour account\s+([\d*]+)\s+has been credited with\s+ETB\s*([\d,]+\.?\d*)/i,
+  );
+
+  let direction = null;
+  let amount = null;
+  let account = null;
+  if (debitMatch) {
+    direction = 'debit';
+    account = debitMatch[1]?.trim() || null;
+    amount = parseAmount(debitMatch[2]);
+  } else if (creditMatch) {
+    direction = 'credit';
+    account = creditMatch[1]?.trim() || null;
+    amount = parseAmount(creditMatch[2]);
+  } else {
+    const amt = blob.match(/\b(?:has been\s+)?debited with\s+ETB\s*([\d,]+\.?\d*)/i)
+      || blob.match(/\b(?:has been\s+)?credited with\s+ETB\s*([\d,]+\.?\d*)/i);
+    amount = parseAmount(amt?.[1]);
+    if (/debited/i.test(blob)) direction = 'debit';
+    else if (/credited/i.test(blob)) direction = 'credit';
+    account = blob.match(/\byour account\s+([\d*]+)/i)?.[1]?.trim() || null;
+  }
+
+  const serviceFee = parseAmount(blob.match(/\bservice fee of\s+ETB\s*([\d,]+\.?\d*)/i)?.[1]);
+  const vat = parseAmount(blob.match(/\bVAT of\s+ETB\s*([\d,]+\.?\d*)/i)?.[1]);
+  const drrfFee = parseAmount(blob.match(/\bDRRF fee of\s+ETB\s*([\d,]+\.?\d*)/i)?.[1]);
+
+  const customerName = blob.match(/Dear\s+(?:Customer|Sir|Madam)\b/i)
+    ? null
+    : blob.match(/Dear\s+([A-Za-z][A-Za-z\s.'-]{1,60}?)(?:,|\s+your\b)/i)?.[1]?.trim() || null;
+
+  let senderName = null;
+  let receiverName = null;
+  if (direction === 'debit' && customerName) senderName = customerName;
+  if (direction === 'credit' && customerName) receiverName = customerName;
+
+  return {
+    method: 'dashen',
+    transactionCode,
+    amount: amount != null ? String(amount) : null,
+    direction,
+    account,
+    senderAccount: direction === 'debit' ? account : null,
+    senderName,
+    receiverName,
+    receiverAccount: direction === 'credit' ? account : null,
+    customerName,
+    receiptUrl,
+    serviceFee: serviceFee != null ? String(serviceFee) : null,
+    vat: vat != null ? String(vat) : null,
+    drrfFee: drrfFee != null ? String(drrfFee) : null,
+    receiptType: 'dashen_superapp',
+  };
 }
 
 export function parseCbeSms(text) {
@@ -394,10 +482,11 @@ export function parseSms(text, expectedMethod = null) {
     telebirr: 'Telebirr',
     cbe: 'CBE',
     boa: 'Bank of Abyssinia',
+    dashen: 'Dashen Bank',
   }[m] || m);
 
   if (!method) {
-    const err = new Error('Could not detect bank from SMS. Paste a full Telebirr, CBE, or Bank of Abyssinia transaction SMS.');
+    const err = new Error('Could not detect bank from SMS. Paste a full Telebirr, CBE, Bank of Abyssinia, or Dashen transaction SMS.');
     err.isValidation = true;
     err.field = 'smsText';
     throw err;
@@ -411,7 +500,8 @@ export function parseSms(text, expectedMethod = null) {
   if (method === 'telebirr') return parseTelebirrSms(blob);
   if (method === 'cbe') return parseCbeSms(blob);
   if (method === 'boa') return parseBoaSms(blob);
-  const err = new Error('SMS verification is only supported for Telebirr, CBE, and Bank of Abyssinia.');
+  if (method === 'dashen') return parseDashenSms(blob);
+  const err = new Error('SMS verification is only supported for Telebirr, CBE, Bank of Abyssinia, and Dashen Bank.');
   err.isValidation = true;
   err.field = 'method';
   throw err;

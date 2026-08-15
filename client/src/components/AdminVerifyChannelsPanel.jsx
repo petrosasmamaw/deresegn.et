@@ -7,7 +7,7 @@ const BANKS = [
   { id: 'telebirr', label: 'Telebirr', icon: Smartphone, smsAvailable: true },
   { id: 'cbe', label: 'CBE', icon: Building2, smsAvailable: true },
   { id: 'boa', label: 'Bank of Abyssinia', icon: Building2, smsAvailable: true },
-  { id: 'dashen', label: 'Dashen', icon: Building2, smsAvailable: false },
+  { id: 'dashen', label: 'Dashen', icon: Building2, smsAvailable: true },
 ]
 
 const MODES = [

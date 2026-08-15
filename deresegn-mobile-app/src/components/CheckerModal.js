@@ -30,7 +30,7 @@ import { api } from '../api/http'
 import { unwrap } from '../api/unwrap'
 import { clearError } from '../features/checks/checksSlice'
 
-const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa'])
+const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa', 'dashen'])
 
 const SMS_PLACEHOLDERS = {
   telebirr: `Dear customer
@@ -41,6 +41,8 @@ https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
   boa: `Dear Petros, your account 2*23 was debited with ETB 200.00...
 Receipt: https://cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
 Bank of Abyssinia.`,
+  dashen: `Dear Customer, your account 5110****011 has been debited with ETB 100.48...
+For receipt https://receipt.dashensuperapp.com/receipt/110IPSS2616900WO`,
 }
 
 const EMPTY_FORM = {

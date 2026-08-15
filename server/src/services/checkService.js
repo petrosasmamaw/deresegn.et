@@ -858,13 +858,13 @@ export async function submitSmsCheck({
 }) {
   await assertVerifyChannel(method, 'sms');
 
-  if (!['telebirr', 'cbe', 'boa'].includes(method)) {
-    throw new CheckError('SMS verification is only supported for Telebirr, CBE, and Bank of Abyssinia', 400, {
+  if (!['telebirr', 'cbe', 'boa', 'dashen'].includes(method)) {
+    throw new CheckError('SMS verification is only supported for Telebirr, CBE, Bank of Abyssinia, and Dashen Bank', 400, {
       issues: [{
         type: 'error',
         code: 'UNSUPPORTED_METHOD',
         field: 'method',
-        message: 'SMS verification is only supported for Telebirr, CBE, and Bank of Abyssinia',
+        message: 'SMS verification is only supported for Telebirr, CBE, Bank of Abyssinia, and Dashen Bank',
       }],
     });
   }

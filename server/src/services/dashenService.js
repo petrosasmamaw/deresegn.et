@@ -108,10 +108,12 @@ function mapPdfFields(rawFields) {
   const txRef = rawFields.transaction_reference || rawFields.transaction_ref;
   const amount = parseAmount(rawFields.transaction_amount || rawFields.amount);
   if (!txRef || amount == null) return null;
+  const total = parseAmount(rawFields.total);
 
   return {
     transactionCode: normalizeTxCode(txRef),
     amount: String(amount),
+    total: total != null ? String(total) : null,
     senderName: rawFields.sender_name || null,
     senderAccount: rawFields.sender_account_number || rawFields.sender_account || null,
     receiverName: rawFields.receiver_name || null,
@@ -143,6 +145,9 @@ function parseDashenPdfPythonStyle(text) {
     || blob.match(PDF_PYTHON_RES.total)?.[1]
     || blob.match(PDF_FIELD_RES.amount)?.[1];
 
+  const totalRaw = blob.match(PDF_PYTHON_RES.total)?.[1]
+    || blob.match(PDF_FIELD_RES.total)?.[1];
+
   return mapPdfFields({
     transaction_reference: txRef,
     sender_name: senderName,
@@ -150,6 +155,7 @@ function parseDashenPdfPythonStyle(text) {
     receiver_name: receiverName,
     receiver_account: receiverAccount,
     amount: amountRaw,
+    total: totalRaw,
   });
 }
 
@@ -166,6 +172,7 @@ function parseDashenPdfRegex(text) {
     receiver_name: fields.receiver_name,
     receiver_account: fields.receiver_account,
     amount: fields.amount,
+    total: fields.total,
   });
 }
 

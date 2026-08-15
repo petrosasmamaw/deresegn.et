@@ -357,7 +357,7 @@ export default function DeveloperApiPage() {
   -d '{"method":"dashen","transactionCode":"110IPSS2616900WO"}'`,
                 },
                 {
-                  title: 'SMS (Telebirr or CBE only)',
+                  title: 'SMS (Telebirr, CBE, BOA, Dashen)',
                   body: `curl -X POST "${apiBase}/v1/verify/sms" \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: YOUR_KEY" \\

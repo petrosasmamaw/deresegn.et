@@ -199,7 +199,7 @@ export const am = {
   'check.backType': '← ወደ አይነት ተመለስ',
   'check.backScreenshot': '← ወደ ስክሪንሹት ተመለስ',
   'check.paymentIdGuide': 'የክፍያ መለያ መመሪያ',
-  'check.smsGuide': 'ሙሉ የTelebirr፣ CBE ወይም የአቢሲኒያ ባንክ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ',
+  'check.smsGuide': 'ሙሉ የTelebirr፣ CBE፣ የአቢሲኒያ ባንክ ወይም የዳሽን SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ',
   'check.costRange': 'ወጪ፡ እንደ የተረጋገጠው መጠን 2–20 ብር',
   'check.verificationCost': 'የማረጋገጫ ወጪ',
   'check.verificationCostValue': 'ይህ ማረጋገጫ {cost} ብር ይከፍላል',
@@ -417,5 +417,6 @@ export const am = {
   'guide.telebirrSmsHint': 'ሙሉ የTelebirr የክፍያ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ።',
   'guide.cbeSmsHint': 'ሙሉ የCBE SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ።',
   'guide.boaSmsHint': 'ሙሉ የአቢሲኒያ ባንክ SMS ከደረሰኝ አገናኝ ጋር ይለጥፉ (FT ወይም TT trx)።',
+  'guide.dashenSmsHint': 'ሙሉ የDashen Super App SMS ከ receipt.dashensuperapp.com አገናኝ ጋር ይለጥፉ።',
   'guide.receiptGuide': 'የደረሰኝ መመሪያ',
 }

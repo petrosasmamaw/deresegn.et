@@ -81,6 +81,7 @@ function FormatTextPanel({ method, mode }) {
       telebirr: 'guide.telebirrSmsHint',
       cbe: 'guide.cbeSmsHint',
       boa: 'guide.boaSmsHint',
+      dashen: 'guide.dashenSmsHint',
     }[method]
     if (!hintKey) return null
 
@@ -93,6 +94,8 @@ https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
 Receipt: https://cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
 Feedback: https://cs.bankofabyssinia.com/cs/?trx=DTT26171RW0YG
 For help, call 8397 (24/7 Toll-Free). Bank of Abyssinia.`,
+      dashen: `Dear Customer, your account 5110****011 has been debited with ETB 100.48 on 2026-06-18 at 10:23:00. A service fee of ETB 0.4, VAT of ETB 0.06 and DRRF fee of ETB 0.02 have been applied. Your current balance is ETB 64.52. Thank you for using Dashen Super App!
+For receipt https://receipt.dashensuperapp.com/receipt/110IPSS2616900WO`,
     }
     const body = bodyByMethod[method]
     if (!body) return null

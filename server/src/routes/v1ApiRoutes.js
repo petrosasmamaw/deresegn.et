@@ -53,7 +53,7 @@ router.get('/', (_req, res) => {
       },
     ],
     sms: {
-      methods: ['telebirr', 'cbe', 'boa'],
+      methods: ['telebirr', 'cbe', 'boa', 'dashen'],
       body: { method: 'telebirr', smsText: 'Paste full bank SMS including receipt link' },
     },
     capacity: 'Sum of verified payment amounts (Birr). When used >= capacity, key status becomes expired — renew after topping up.',

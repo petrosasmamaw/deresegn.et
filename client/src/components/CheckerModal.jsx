@@ -21,7 +21,7 @@ function isCbeFtLike(value) {
   return /^FT[A-Z0-9]{8,}/i.test(String(value || '').trim().replace(/\s+/g, ''))
 }
 
-const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa'])
+const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa', 'dashen'])
 
 const SMS_PLACEHOLDERS = {
   telebirr: `Dear customer
@@ -31,6 +31,8 @@ https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
   boa: `Dear Petros, your account 2*23 was debited with ETB 200.00. Available Balance: ETB 102.63.
 Receipt: https://cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
 For help, call 8397. Bank of Abyssinia.`,
+  dashen: `Dear Customer, your account 5110****011 has been debited with ETB 100.48 on 2026-06-18 at 10:23:00. A service fee of ETB 0.4, VAT of ETB 0.06 and DRRF fee of ETB 0.02 have been applied. Thank you for using Dashen Super App!
+For receipt https://receipt.dashensuperapp.com/receipt/110IPSS2616900WO`,
 }
 
 function getCheckCostByAmount(amount) {

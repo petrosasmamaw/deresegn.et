@@ -2,7 +2,8 @@ import { getSetting, setSetting } from './balanceLedgerService.js';
 
 export const VERIFY_BANKS = ['telebirr', 'cbe', 'boa', 'dashen'];
 export const VERIFY_MODES = ['screenshot', 'reference', 'sms'];
-export const SMS_BANKS = new Set(['telebirr', 'cbe', 'boa']);
+export const SMS_BANKS = new Set(['telebirr', 'cbe', 'boa', 'dashen']);
+const CHANNELS_SCHEMA_VERSION = 2;
 
 const SETTING_KEY = 'verify_channels';
 
@@ -48,12 +49,30 @@ export function normalizeVerifyChannels(raw) {
       sms: SMS_BANKS.has(id) ? parseBool(incoming.sms, fallback.sms) : false,
     };
   }
+  const storedVersion = Number(parsed._v) || 1;
+  if (storedVersion < CHANNELS_SCHEMA_VERSION) {
+    next.dashen.sms = true;
+  }
+  next._v = Math.max(storedVersion, CHANNELS_SCHEMA_VERSION);
   return next;
 }
 
 export async function getVerifyChannels() {
   const raw = await getSetting(SETTING_KEY, null);
-  return normalizeVerifyChannels(raw);
+  const normalized = normalizeVerifyChannels(raw);
+  let storedVersion = 1;
+  if (raw && typeof raw === 'object') storedVersion = Number(raw._v) || 1;
+  else if (typeof raw === 'string') {
+    try {
+      storedVersion = Number(JSON.parse(raw)._v) || 1;
+    } catch {
+      storedVersion = 1;
+    }
+  }
+  if (storedVersion < CHANNELS_SCHEMA_VERSION) {
+    await setSetting(SETTING_KEY, JSON.stringify(normalized));
+  }
+  return normalized;
 }
 
 export async function setVerifyChannels(patch) {
