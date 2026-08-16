@@ -60,87 +60,102 @@ export default function Navbar() {
           </a>
         </div>
 
-        <div className="hidden md:flex items-center gap-2 md:gap-3 ml-auto flex-shrink-0">
-          <LangToggle />
-
+        <div className="hidden md:flex items-center ml-auto flex-shrink-0">
           {user ? (
             <>
-              <button
-                type="button"
-                onClick={() => navigate('/accounts')}
-                className="btn-ghost px-2 md:px-3 flex items-center justify-center gap-1.5"
-                title={t('nav.myAccounts')}
-                aria-label={t('nav.myAccounts')}
-              >
-                <Wallet size={17} strokeWidth={2} />
-                <span className="hidden lg:inline text-sm">{t('nav.myAccounts')}</span>
-              </button>
+              <div className="navbar-tools">
+                <button
+                  type="button"
+                  onClick={() => navigate('/accounts')}
+                  className="navbar-tool"
+                  title={t('nav.myAccounts')}
+                  aria-label={t('nav.myAccounts')}
+                >
+                  <Wallet size={16} strokeWidth={2} />
+                  <span>{t('nav.myAccounts')}</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => navigate('/developer')}
-                className="btn-ghost px-2 md:px-3 flex items-center gap-1.5"
-                title={t('nav.getApi')}
-                aria-label={t('nav.getApi')}
-              >
-                <KeyRound size={17} strokeWidth={2} />
-                <span className="hidden lg:inline text-sm">{t('nav.getApi')}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/developer')}
+                  className="navbar-tool"
+                  title={t('nav.getApi')}
+                  aria-label={t('nav.getApi')}
+                >
+                  <KeyRound size={16} strokeWidth={2} />
+                  <span>{t('nav.getApi')}</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={openTopUp}
-                className="credit-pill credit-pill-mobile credit-pill-btn"
-                title={t('nav.topUpTitle')}
-                aria-label={t('nav.balanceAria', { balance })}
-              >
-                <span
-                  className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                  style={{ background: 'var(--color-verified)' }}
-                />
-                <span>{balance}</span>
-                <span className="text-[10px] opacity-75 uppercase tracking-wide">{t('common.birr')}</span>
-                <Plus size={12} className="credit-pill-plus" strokeWidth={2.5} />
-              </button>
+                <div className="navbar-wallet">
+                  <span className="credit-pill" title={t('nav.balanceAria', { balance })}>
+                    <span
+                      className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ background: 'var(--color-verified)' }}
+                    />
+                    <span>{balance}</span>
+                    <span className="credit-pill-unit">{t('common.birr')}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={openTopUp}
+                    className="navbar-topup"
+                    title={t('nav.topUpTitle')}
+                    aria-label={t('nav.topUpTitle')}
+                  >
+                    <Plus size={18} strokeWidth={2.75} />
+                  </button>
+                </div>
 
-              <span className="hidden lg:inline navbar-user font-medium max-w-xs truncate">
-                {user.email || user.name}
-              </span>
+                <LangToggle />
+              </div>
 
-              <button
-                onClick={handleLogout}
-                className="btn-ghost px-2 md:px-3 flex items-center gap-2"
-                title={t('nav.logout')}
-                aria-label={t('nav.logout')}
-              >
-                <LogOut size={18} strokeWidth={2} />
-                <span className="hidden lg:inline text-sm">{t('nav.logout')}</span>
-              </button>
+              <div className="navbar-session">
+                <span className="navbar-user" title={user.email || user.name}>
+                  {user.email || user.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="navbar-tool navbar-logout"
+                  title={t('nav.logout')}
+                  aria-label={t('nav.logout')}
+                >
+                  <LogOut size={16} strokeWidth={2} />
+                  <span>{t('nav.logout')}</span>
+                </button>
+              </div>
             </>
           ) : (
-            <a href="/login" className="btn-primary text-sm">
-              {t('nav.signIn')}
-            </a>
+            <div className="navbar-tools">
+              <LangToggle />
+              <a href="/login" className="btn-primary text-sm">
+                {t('nav.signIn')}
+              </a>
+            </div>
           )}
         </div>
 
         <div className="flex md:hidden items-center gap-1.5 ml-auto flex-shrink-0">
           <LangToggle />
           {user && (
-            <button
-              type="button"
-              onClick={openTopUp}
-              className="credit-pill credit-pill-mobile credit-pill-btn"
-              title={t('nav.topUpTitle')}
-              aria-label={t('nav.balanceAria', { balance })}
-            >
-              <span
-                className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: 'var(--color-verified)' }}
-              />
-              <span>{balance}</span>
-              <Plus size={12} className="credit-pill-plus" strokeWidth={2.5} />
-            </button>
+            <>
+              <span className="credit-pill credit-pill-mobile">
+                <span
+                  className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ background: 'var(--color-verified)' }}
+                />
+                <span>{balance}</span>
+              </span>
+              <button
+                type="button"
+                onClick={openTopUp}
+                className="navbar-topup navbar-topup-compact"
+                title={t('nav.topUpTitle')}
+                aria-label={t('nav.topUpTitle')}
+              >
+                <Plus size={20} strokeWidth={2.75} />
+              </button>
+            </>
           )}
           <button
             type="button"

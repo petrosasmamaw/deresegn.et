@@ -1,7 +1,7 @@
-import { Home, History, Plus } from 'lucide-react'
+import { Plus, History, ShieldCheck } from 'lucide-react'
 import { useLocale } from '../i18n/LocaleContext'
 
-export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick }) {
+export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick, onTopUpClick }) {
   const { t } = useLocale()
 
   return (
@@ -14,12 +14,12 @@ export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick 
           <div className="bottom-nav-inner">
             <button
               type="button"
-              onClick={() => onTabChange('home')}
-              className={`bottom-nav-tab${activeTab === 'home' ? ' bottom-nav-tab-active' : ''}`}
-              aria-current={activeTab === 'home' ? 'page' : undefined}
+              onClick={onTopUpClick}
+              className="bottom-nav-tab bottom-nav-tab-gold"
+              aria-label={t('bottom.topupAria')}
             >
-              <Home size={22} strokeWidth={2} />
-              <span>{t('bottom.home')}</span>
+              <Plus size={22} strokeWidth={2.5} />
+              <span>{t('bottom.topup')}</span>
             </button>
 
             <div className="bottom-nav-fab-slot" aria-hidden="true" />
@@ -27,7 +27,7 @@ export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick 
             <button
               type="button"
               onClick={() => onTabChange('history')}
-              className={`bottom-nav-tab${activeTab === 'history' ? ' bottom-nav-tab-active' : ''}`}
+              className={`bottom-nav-tab bottom-nav-tab-gold${activeTab === 'history' ? ' bottom-nav-tab-active' : ''}`}
               aria-current={activeTab === 'history' ? 'page' : undefined}
             >
               <History size={22} strokeWidth={2} />
@@ -41,7 +41,7 @@ export default function BottomNav({ activeTab = 'home', onTabChange, onFabClick 
             className="bottom-nav-fab"
             aria-label={t('bottom.verifyAria')}
           >
-            <Plus size={22} strokeWidth={2.5} />
+            <ShieldCheck size={22} strokeWidth={2.25} />
             <span>{t('bottom.verify')}</span>
           </button>
         </div>

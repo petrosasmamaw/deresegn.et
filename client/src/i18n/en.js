@@ -39,6 +39,7 @@ export const en = {
   // Nav
   'nav.brand': 'Tamagn Check',
   'nav.logoAlt': 'Tamagn Check logo',
+  'nav.topUp': 'Top up',
   'nav.topUpTitle': 'Top up balance',
   'nav.balanceAria': 'Balance {balance} Birr. Click to top up',
   'nav.logout': 'Logout',
@@ -53,6 +54,8 @@ export const en = {
   'bottom.history': 'History',
   'bottom.verify': 'Verify',
   'bottom.verifyAria': 'Verify Receipt',
+  'bottom.topup': 'Topup',
+  'bottom.topupAria': 'Top up balance',
 
   // Session open (boot title)
   'sessionOpen.act1Title': 'Trust the receipt',

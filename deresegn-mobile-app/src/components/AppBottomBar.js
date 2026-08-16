@@ -4,10 +4,8 @@ import { useLocale } from '../i18n/LocaleContext'
 import { colors, space } from '../theme/tokens'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-/**
- * Mirrors client BottomNav: Home | FAB Verify | History
- */
-export default function AppBottomBar({ state, navigation, onFabPress }) {
+/** Top up | Verify FAB | History — matches the web mobile bar. */
+export default function AppBottomBar({ state, navigation, onFabPress, onTopUpPress }) {
   const { t } = useLocale()
   const insets = useSafeAreaInsets()
   const active = state?.routes?.[state.index]?.name
@@ -17,18 +15,12 @@ export default function AppBottomBar({ state, navigation, onFabPress }) {
       <View style={styles.row}>
         <Pressable
           style={styles.tab}
-          onPress={() => navigation.navigate('HomeTab')}
+          onPress={onTopUpPress}
           accessibilityRole="button"
-          accessibilityState={{ selected: active === 'HomeTab' }}
+          accessibilityLabel={t('bottom.topupAria')}
         >
-          <Ionicons
-            name={active === 'HomeTab' ? 'home' : 'home-outline'}
-            size={22}
-            color={active === 'HomeTab' ? colors.foilGold : 'rgba(244,238,220,0.72)'}
-          />
-          <Text style={[styles.label, active === 'HomeTab' && styles.labelActive]}>
-            {t('bottom.home')}
-          </Text>
+          <Ionicons name="add" size={24} color={colors.foilGold} />
+          <Text style={styles.label}>{t('bottom.topup')}</Text>
         </Pressable>
 
         <View style={styles.fabSlot} />
@@ -42,17 +34,15 @@ export default function AppBottomBar({ state, navigation, onFabPress }) {
           <Ionicons
             name={active === 'HistoryTab' ? 'time' : 'time-outline'}
             size={22}
-            color={active === 'HistoryTab' ? colors.foilGold : 'rgba(244,238,220,0.72)'}
+            color={colors.foilGold}
           />
-          <Text style={[styles.label, active === 'HistoryTab' && styles.labelActive]}>
-            {t('bottom.history')}
-          </Text>
+          <Text style={styles.label}>{t('bottom.history')}</Text>
         </Pressable>
       </View>
 
       <View
         pointerEvents="box-none"
-        style={[styles.fabRail, { bottom: Math.max(insets.bottom, 8) + 8 }]}
+        style={[styles.fabRail, { bottom: Math.max(insets.bottom, 8) + 6 }]}
       >
         <Pressable
           style={styles.fab}
@@ -71,7 +61,7 @@ const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.ink,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(198, 162, 78, 0.25)',
+    borderTopColor: 'rgba(244, 238, 220, 0.35)',
     position: 'relative',
   },
   row: {
@@ -90,16 +80,13 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.4,
+    fontWeight: '700',
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: 'rgba(244, 238, 220, 0.72)',
-  },
-  labelActive: {
     color: colors.foilGold,
   },
   fabSlot: {
-    width: 72,
+    width: 88,
   },
   fabRail: {
     position: 'absolute',
@@ -126,7 +113,7 @@ const styles = StyleSheet.create({
   fabLabel: {
     fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
     color: colors.ink,
   },

@@ -56,7 +56,7 @@ function failureFrom(payload, fallback) {
 }
 
 function ClientTabs() {
-  const { openVerify } = useDashboardUi()
+  const { openVerify, openTopUp } = useDashboardUi()
 
   return (
     <Tab.Navigator
@@ -69,6 +69,7 @@ function ClientTabs() {
             }
             openVerify()
           }}
+          onTopUpPress={openTopUp}
         />
       )}
       screenOptions={{

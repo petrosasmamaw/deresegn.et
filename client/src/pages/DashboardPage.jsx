@@ -241,6 +241,7 @@ export default function DashboardPage() {
         activeTab={mobileTab}
         onTabChange={setMobileTab}
         onFabClick={goVerify}
+        onTopUpClick={() => setTopupOpen(true)}
       />
 
       <OnboardingModal

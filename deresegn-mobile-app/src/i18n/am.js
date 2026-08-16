@@ -37,6 +37,7 @@ export const am = {
 
   'nav.brand': 'ታማኝ ቸክ',
   'nav.logoAlt': 'የታማኝ ቸክ አርማ',
+  'nav.topUp': 'ሙላ',
   'nav.topUpTitle': 'ሂሳብ ይሙሉ',
   'nav.balanceAria': 'ቀሪ ሂሳብ {balance} ብር። ለመሙላት ይጫኑ',
   'nav.logout': 'ውጣ',
@@ -48,6 +49,8 @@ export const am = {
   'bottom.history': 'ታሪክ',
   'bottom.verify': 'አረጋግጥ',
   'bottom.verifyAria': 'ደረሰኝ አረጋግጥ',
+  'bottom.topup': 'ሙላ',
+  'bottom.topupAria': 'ሂሳብ ይሙሉ',
 
   'home.logoAlt': 'ታማኝ ቸክ አርማ — የኢትዮጵያ ደረሰኝ ማረጋገጫ',
   'home.title': 'ታማኝ ቸክ',
