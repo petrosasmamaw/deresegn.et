@@ -13,6 +13,9 @@ const SMS_PLACEHOLDERS = {
 You have transferred ETB 60.00 to Receiver Name (2519****4025)...
 https://transactioninfo.ethiotelecom.et/receipt/DFH51OFIED`,
   cbe: `Dear Petiros Asmamaw Abebe You have received ETB 2,000.00 from account 1**0947 (Sender Name) to your account 1**7112. Thanks for Banking with CBE. https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
+  boa: `Dear Petros, your account 2*23 was credited with ETB 200.00.
+Receipt: https://cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
+For help, call 8397 (24/7 Toll-Free). Bank of Abyssinia.`,
 }
 
 const EMPTY_REFERENCE = {
@@ -45,16 +48,19 @@ export default function TopUpModal({
   const methods = useMemo(() => [
     { id: 'telebirr', label: t('method.telebirr'), icon: Smartphone, desc: t('method.telebirrTopupDesc') },
     { id: 'cbe', label: t('method.cbe'), icon: Building2, desc: t('method.cbeTopupDesc') },
+    { id: 'boa', label: t('method.boa'), icon: Building2, desc: t('method.boaTopupDesc') },
   ], [t])
 
   const methodLabels = useMemo(() => ({
     telebirr: t('method.telebirr'),
     cbe: 'CBE',
+    boa: t('method.boa'),
   }), [t])
 
   const referenceDetailByMethod = useMemo(() => ({
     telebirr: t('ref.telebirrDetail'),
     cbe: t('ref.cbeDetail'),
+    boa: t('ref.boaDetail'),
   }), [t])
 
   const referenceFieldsByMethod = useMemo(() => ({
@@ -64,6 +70,10 @@ export default function TopUpModal({
     cbe: [
       { key: 'transactionCode', label: t('ref.cbeToken'), placeholder: 'FT26226GC3H3 or v2-…', hint: t('ref.cbeTokenHint') },
       { key: 'accountSuffix', label: t('ref.cbeAccount'), placeholder: '33687112', hint: t('ref.cbeAccountHintShort'), legacyOnly: true },
+    ],
+    boa: [
+      { key: 'transactionCode', label: t('ref.boaId'), placeholder: 'TT26171RW0YG', hint: t('ref.boaIdHint') },
+      { key: 'accountSuffix', label: t('ref.boaAccount'), placeholder: '246302723', hint: t('ref.boaAccountHint') },
     ],
   }), [t])
 

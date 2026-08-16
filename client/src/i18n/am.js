@@ -164,6 +164,7 @@ export const am = {
   'method.dashenCheckDesc': 'የDashen የVAT ደረሰኝ ከ IPSS ማጣቀሻ ጋር',
   'method.telebirrTopupDesc': 'የሞባይል ቦርሳ ክፍያ',
   'method.cbeTopupDesc': 'የCBE ባንክ ማስተላለፍ',
+  'method.boaTopupDesc': 'የአቢሲኒያ ባንክ ማስተላለፍ',
 
   'check.title': 'ደረሰኝ አረጋግጥ',
   'check.liveStamp': 'ቀጥታ ማረጋገጫ',
@@ -280,7 +281,7 @@ export const am = {
   'topup.failed': 'ሂሳብ መሙላት አልተሳካም',
   'topup.done': 'ተጠናቋል',
   'topup.stepMethod': 'የክፍያ ዘዴ ይምረጡ',
-  'topup.stepMethodHint': 'ሂሳብ መሙላት Telebirr እና CBE ብቻ ይቀበላል',
+  'topup.stepMethodHint': 'ሂሳብ መሙላት Telebirr፣ CBE እና የአቢሲኒያ ባንክ ይቀበላል',
   'topup.stepMode': 'የማረጋገጫ አይነት ይምረጡ',
   'topup.stepModeHint': 'ክፍያው ከታች ወደ የተመዘገበው ሂሳብዎ መላክ አለበት። መጠን፣ የክፍያ መለያ እና የተቀባይ ዝርዝሮችን እናረጋግጣለን።',
   'topup.stepUpload': 'የክፍያ ስክሪንሹት ይስቀሉ',

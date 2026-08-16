@@ -82,6 +82,17 @@ export function accountsMatch(a, b) {
   return false;
 }
 
+export function topUpReceiverAccountsMatch(method, official, expected) {
+  if (accountsMatch(official, expected)) return true;
+  const a = normalizeAccount(official);
+  const b = normalizeAccount(expected);
+  if (!a || !b) return false;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length > b.length ? a : b;
+  if (method === 'boa' && shorter.length >= 5 && longer.endsWith(shorter)) return true;
+  return false;
+}
+
 function amountsMatch(a, b) {
   const p = Number(String(a).replace(/,/g, ''));
   const f = Number(String(b).replace(/,/g, ''));
@@ -190,15 +201,16 @@ export function buildDuplicateTxIssue(txCode) {
 }
 
 /** Top-up via payment ID or SMS: official record receiver must match configured account. */
-export function validateOfficialTopUpReceiver(official, expectedReceiver) {
+export function validateOfficialTopUpReceiver(official, expectedReceiver, method = '') {
   const issues = [];
   const expectedName = expectedReceiver?.receiverName;
   const expectedAccount = expectedReceiver?.receiverAccount;
+  const officialAccount = official?.receiverAccountFull || official?.receiverAccount;
 
-  if (!official?.receiverAccount || !accountsMatch(official.receiverAccount, expectedAccount)) {
+  if (!officialAccount || !topUpReceiverAccountsMatch(method, officialAccount, expectedAccount)) {
     issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
-      `Receiver account error: official record shows "${official?.receiverAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
-      { officialValue: official?.receiverAccount, expectedValue: expectedAccount }));
+      `Receiver account error: official record shows "${officialAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
+      { officialValue: officialAccount, expectedValue: expectedAccount }));
   }
   if (!official?.receiverName || !namesMatch(official.receiverName, expectedName)) {
     issues.push(issue('error', 'RECEIVER_NAME_MISMATCH', 'receiverName',
@@ -220,14 +232,15 @@ function validateTopUpReceiver({
   const expectedName = expectedReceiver.receiverName;
   const expectedAccount = expectedReceiver.receiverAccount;
 
-  const qrAccount = qrFields.receiverAccount;
+  const qrAccount = qrFields.receiverAccountFull || qrFields.receiverAccount;
   const qrName = qrFields.receiverName;
   const shotAccount = extracted?.receiverAccount;
   const shotName = extracted?.receiverName;
+  const matchAccount = (value) => topUpReceiverAccountsMatch(method, value, expectedAccount);
 
   if (screenshotCropped && method === 'telebirr') {
     if (qrFields?.telebirrApiSource) {
-      if (!qrFields.receiverAccount || !accountsMatch(qrFields.receiverAccount, expectedAccount)) {
+      if (!qrFields.receiverAccount || !matchAccount(qrFields.receiverAccount)) {
         issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
           `Receiver account error: official record shows "${qrFields.receiverAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
           { qrValue: qrFields.receiverAccount, expectedValue: expectedAccount }));
@@ -240,7 +253,7 @@ function validateTopUpReceiver({
       return;
     }
 
-    if (!qrAccount || !accountsMatch(qrAccount, expectedAccount)) {
+    if (!qrAccount || !matchAccount(qrAccount)) {
       issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
         `Receiver account error: QR data does not match your registered account "${expectedAccount}".`,
         { qrValue: qrAccount, expectedValue: expectedAccount }));
@@ -259,7 +272,7 @@ function validateTopUpReceiver({
 
   if (screenshotCropped && method === 'cbe') {
     if (qrFields?.cbeApiSource) {
-      if (!qrFields.receiverAccount || !accountsMatch(qrFields.receiverAccount, expectedAccount)) {
+      if (!qrFields.receiverAccount || !matchAccount(qrFields.receiverAccount)) {
         issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
           `Receiver account error: QR data does not match your registered account "${expectedAccount}".`,
           { qrValue: qrFields.receiverAccount, expectedValue: expectedAccount }));
@@ -277,7 +290,40 @@ function validateTopUpReceiver({
         'Could not read receipt screenshot. Upload a clearer image showing receiver details.'));
       return;
     }
-    if (!shotAccount || !accountsMatch(shotAccount, expectedAccount)) {
+    if (!shotAccount || !matchAccount(shotAccount)) {
+      issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
+        `Receiver account error: receipt shows "${shotAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
+        { screenshotValue: shotAccount, expectedValue: expectedAccount }));
+    }
+    if (!shotName || !namesMatch(shotName, expectedName)) {
+      issues.push(issue('error', 'RECEIVER_NAME_MISMATCH', 'receiverName',
+        `Receiver name error: receipt shows "${shotName || 'unknown'}" but top-up must be sent to "${expectedName}".`,
+        { screenshotValue: shotName, expectedValue: expectedName }));
+    }
+    return;
+  }
+
+  if (screenshotCropped && method === 'boa') {
+    if (qrFields?.boaApiSource || qrFields?.boaQrDecrypted) {
+      if (!qrAccount || !matchAccount(qrAccount)) {
+        issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
+          `Receiver account error: official record shows "${qrAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
+          { qrValue: qrAccount, expectedValue: expectedAccount }));
+      }
+      if (qrName && !namesMatch(qrName, expectedName)) {
+        issues.push(issue('error', 'RECEIVER_NAME_MISMATCH', 'receiverName',
+          `Receiver name error: official record shows "${qrName}" but top-up must be sent to "${expectedName}".`,
+          { qrValue: qrName, expectedValue: expectedName }));
+      }
+      return;
+    }
+
+    if (!geminiUsed) {
+      issues.push(issue('error', 'AI_UNAVAILABLE', null,
+        'Could not read receipt screenshot. Upload a clearer image showing receiver details.'));
+      return;
+    }
+    if (!shotAccount || !matchAccount(shotAccount)) {
       issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
         `Receiver account error: receipt shows "${shotAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
         { screenshotValue: shotAccount, expectedValue: expectedAccount }));
@@ -301,13 +347,13 @@ function validateTopUpReceiver({
       `Receiver name error: receipt shows "${shotName || 'unknown'}" but top-up must be sent to "${expectedName}".`,
       { screenshotValue: shotName, expectedValue: expectedName }));
   }
-  if (!shotAccount || !accountsMatch(shotAccount, expectedAccount)) {
+  if (!shotAccount || !matchAccount(shotAccount)) {
     issues.push(issue('error', 'RECEIVER_ACCOUNT_MISMATCH', 'receiverAccount',
       `Receiver account error: receipt shows "${shotAccount || 'unknown'}" but top-up must be sent to "${expectedAccount}".`,
       { screenshotValue: shotAccount, expectedValue: expectedAccount }));
   }
 
-  if (qrAccount && !accountsMatch(qrAccount, expectedAccount)) {
+  if (qrAccount && !matchAccount(qrAccount)) {
     issues.push(issue('error', 'RECEIVER_ACCOUNT_QR_MISMATCH', 'receiverAccount',
       `Receiver account error: QR data does not match your registered account "${expectedAccount}".`,
       { qrValue: qrAccount, expectedValue: expectedAccount }));
@@ -319,7 +365,10 @@ function validateTopUpReceiver({
   }
 
   const acctCross = fieldMismatch('receiverAccount', 'Receiver account', shotAccount, qrAccount, 'screenshot', 'QR code');
-  if (acctCross && shotAccount && qrAccount) issues.push(acctCross);
+  if (acctCross && shotAccount && qrAccount
+    && !(method === 'boa' && matchAccount(shotAccount) && matchAccount(qrAccount))) {
+    issues.push(acctCross);
+  }
   const nameCross = fieldMismatch('receiverName', 'Receiver name', shotName, qrName, 'screenshot', 'QR code');
   if (nameCross && shotName && qrName) issues.push(nameCross);
 }

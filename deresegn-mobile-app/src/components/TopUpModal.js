@@ -28,6 +28,9 @@ You have transferred ETB 60.00 ...
 https://transactioninfo.ethiotelecom.et/receipt/XXXX`,
   cbe: `Dear ... You have received ETB 2,000.00 ... Thanks for Banking with CBE.
 https://mbreciept.cbe.com.et/v2-xxxxxxxx`,
+  boa: `Dear Petros, your account 2*23 was credited with ETB 200.00.
+Receipt: https://cs.bankofabyssinia.com/slip/?trx=TT26171RW0YG02723
+For help, call 8397 (24/7 Toll-Free). Bank of Abyssinia.`,
 }
 
 const EMPTY_REFERENCE = {
@@ -85,6 +88,12 @@ export default function TopUpModal({
         icon: 'business-outline',
         desc: t('method.cbeTopupDesc'),
       },
+      {
+        id: 'boa',
+        label: t('method.boa'),
+        icon: 'business-outline',
+        desc: t('method.boaTopupDesc'),
+      },
     ],
     [t],
   )
@@ -93,6 +102,7 @@ export default function TopUpModal({
     () => ({
       telebirr: t('ref.telebirrDetail'),
       cbe: t('ref.cbeDetail'),
+      boa: t('ref.boaDetail'),
     }),
     [t],
   )
@@ -120,6 +130,20 @@ export default function TopUpModal({
           placeholder: '33687112',
           hint: t('ref.cbeAccountHintShort'),
           legacyOnly: true,
+        },
+      ],
+      boa: [
+        {
+          key: 'transactionCode',
+          label: t('ref.boaId'),
+          placeholder: 'TT26171RW0YG',
+          hint: t('ref.boaIdHint'),
+        },
+        {
+          key: 'accountSuffix',
+          label: t('ref.boaAccount'),
+          placeholder: '246302723',
+          hint: t('ref.boaAccountHint'),
         },
       ],
     }),

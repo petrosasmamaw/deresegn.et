@@ -81,7 +81,7 @@ async function updateTopUpAccount(req, res) {
   try {
     const method = req.params.method?.trim().toLowerCase();
     if (!isTopUpMethod(method)) {
-      return error(res, 'Only Telebirr and CBE accounts can be updated', 400);
+      return error(res, 'Only Telebirr, CBE, and Bank of Abyssinia accounts can be updated', 400);
     }
 
     const { receiverName, receiverAccount } = req.body || {};

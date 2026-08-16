@@ -6,6 +6,7 @@ import { Smartphone, Building2, Save } from 'lucide-react'
 const METHOD_META = {
   telebirr: { label: 'Telebirr', icon: Smartphone },
   cbe: { label: 'CBE', icon: Building2 },
+  boa: { label: 'Bank of Abyssinia', icon: Building2 },
 }
 
 export default function AdminAccountsPanel() {
@@ -72,7 +73,7 @@ export default function AdminAccountsPanel() {
   if (loading) {
     return (
       <div className="card space-y-4">
-        {[...Array(2)].map((_, i) => (
+        {[...Array(3)].map((_, i) => (
           <div key={i} className="skeleton h-32 rounded" />
         ))}
       </div>
@@ -84,14 +85,14 @@ export default function AdminAccountsPanel() {
       <div>
         <h2 className="section-title">Top-Up Receiver Accounts</h2>
         <p className="text-sm text-[var(--color-text-secondary)] mt-2">
-          Clients top up using Telebirr or CBE only. Payments must be sent to these receiver names and accounts.
+          Clients top up using Telebirr, CBE, or Bank of Abyssinia. Payments must be sent to these receiver names and accounts.
         </p>
       </div>
 
       {error && <div className="alert alert-error"><p>{error}</p></div>}
       {success && <div className="alert alert-success"><p>{success}</p></div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {accounts.map((account) => {
           const meta = METHOD_META[account.method] || { label: account.method, icon: Smartphone }
           const Icon = meta.icon

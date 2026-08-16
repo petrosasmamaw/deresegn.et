@@ -175,6 +175,7 @@ export const en = {
   'method.dashenCheckDesc': 'Dashen VAT receipt with IPSS reference',
   'method.telebirrTopupDesc': 'Mobile wallet payment',
   'method.cbeTopupDesc': 'CBE bank transfer',
+  'method.boaTopupDesc': 'Bank of Abyssinia transfer',
 
   // Checker modal
   'check.title': 'Verify Receipt',
@@ -296,7 +297,7 @@ export const en = {
   'topup.failed': 'Top-up failed',
   'topup.done': 'Done',
   'topup.stepMethod': 'Select payment method',
-  'topup.stepMethodHint': 'Top-up accepts Telebirr and CBE only',
+  'topup.stepMethodHint': 'Top-up accepts Telebirr, CBE, and Bank of Abyssinia',
   'topup.stepMode': 'Choose verification type',
   'topup.stepModeHint': 'Payment must be sent to your registered account below. We verify amount, payment ID, and receiver details.',
   'topup.stepUpload': 'Upload payment screenshot',

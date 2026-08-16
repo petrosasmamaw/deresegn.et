@@ -3,8 +3,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocale } from '../i18n/LocaleContext'
 import { buildShareUrl, copyCertLink, shareCertLink } from '../lib/shareCertificate'
-import { colors, radius, space } from '../theme/tokens'
-import { ui } from '../theme/styles'
+import { colors } from '../theme/tokens'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -79,49 +78,65 @@ export default function VerificationCertificate({ check, compact = false, detail
   return (
     <View style={[styles.card, compact && styles.cardCompact]}>
       <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <Ionicons name="shield-checkmark" size={18} color={colors.foilGold} />
-          <Text style={styles.brand}>{t('cert.verifiedBy')}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.paymentTitle}>{t('cert.paymentTitle')}</Text>
+          {check.id != null ? (
+            <Text style={styles.certId}>{t('cert.certificateId', { id: check.id })}</Text>
+          ) : null}
         </View>
         <View style={styles.validStamp}>
           <Text style={styles.validText}>{t('cert.valid')}</Text>
         </View>
       </View>
 
-      {check.id != null ? (
-        <Text style={styles.certId}>{t('cert.certificateId', { id: check.id })}</Text>
-      ) : null}
-      <Text style={styles.paymentTitle}>{t('cert.paymentTitle')}</Text>
+      <View style={styles.body}>
+        <Text style={styles.amountHero}>
+          {displayValue(check.amount)}
+          <Text style={styles.amountUnit}> ETB</Text>
+        </Text>
+        <Text style={styles.txHero}>{displayValue(check.transactionCode)}</Text>
 
-      <Text style={styles.amountHero}>
-        {displayValue(check.amount)}
-        <Text style={styles.amountUnit}> ETB</Text>
-      </Text>
-      <Text style={styles.txHero}>{displayValue(check.transactionCode)}</Text>
+        <View style={styles.grid}>
+          <View style={styles.gridCell}>
+            <Text style={styles.dt}>{t('field.sender')}</Text>
+            <Text style={styles.dd}>{displayValue(check.senderName)}</Text>
+            {details?.senderAccount ? (
+              <Text style={styles.sub}>{displayValue(details.senderAccount)}</Text>
+            ) : null}
+          </View>
+          <View style={styles.gridCell}>
+            <Text style={styles.dt}>{t('field.receiver')}</Text>
+            <Text style={styles.dd}>{displayValue(check.receiverName)}</Text>
+            {details?.receiverAccount ? (
+              <Text style={styles.sub}>{displayValue(details.receiverAccount)}</Text>
+            ) : null}
+          </View>
+          <View style={styles.gridCell}>
+            <Text style={styles.dt}>{t('cert.bankMethod')}</Text>
+            <Text style={styles.dd}>{methodLabel}</Text>
+          </View>
+          <View style={styles.gridCell}>
+            <Text style={styles.dt}>{t('cert.verifiedAt')}</Text>
+            <Text style={styles.dd}>{formatDate(verifiedAt)}</Text>
+          </View>
+        </View>
 
-      <Row label={t('field.sender')} value={displayValue(check.senderName)} />
-      {details?.senderAccount ? <Row label={t('field.senderAccount')} value={displayValue(details.senderAccount)} mono /> : null}
-      <Row label={t('field.receiver')} value={displayValue(check.receiverName)} />
-      {details?.receiverAccount ? <Row label={t('field.receiverAccount')} value={displayValue(details.receiverAccount)} mono /> : null}
-      <Row label={t('cert.bankMethod')} value={methodLabel} />
-      <Row label={t('cert.verifiedAt')} value={formatDate(verifiedAt)} />
-      <Text style={styles.sign}>{t('cert.verifiedBy')}</Text>
+        <Text style={styles.sign}>{t('cert.verifiedBy')}</Text>
+      </View>
 
       {shareUrl ? (
         <View style={styles.actions}>
-          <Pressable style={[ui.btnSecondary, styles.actionBtn]} onPress={handleCopy}>
+          <Pressable style={styles.ghostBtn} onPress={handleCopy}>
             <Ionicons name="link-outline" size={16} color={colors.ink} />
-            <Text style={ui.btnSecondaryText}>
-              {copied ? t('cert.copied') : t('cert.copy')}
-            </Text>
+            <Text style={styles.ghostText}>{copied ? t('cert.copied') : t('cert.copy')}</Text>
           </Pressable>
-          <Pressable style={[ui.btnPrimary, styles.actionBtn]} onPress={handleShare}>
-            <Ionicons name="share-outline" size={16} color={colors.ink} />
-            <Text style={ui.btnPrimaryText}>{t('cert.share')}</Text>
+          <Pressable style={styles.inkBtn} onPress={handleShare}>
+            <Ionicons name="share-outline" size={16} color="#F4EEDC" />
+            <Text style={styles.inkText}>{t('cert.share')}</Text>
           </Pressable>
-          <Pressable style={[ui.btnSecondary, styles.actionBtnFull]} onPress={handleOpen}>
+          <Pressable style={styles.ghostBtn} onPress={handleOpen}>
             <Ionicons name="open-outline" size={16} color={colors.ink} />
-            <Text style={ui.btnSecondaryText}>{t('cert.openWeb')}</Text>
+            <Text style={styles.ghostText}>{t('cert.openWeb')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -131,142 +146,142 @@ export default function VerificationCertificate({ check, compact = false, detail
   )
 }
 
-function Row({ label, value, mono }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, mono && styles.mono]}>{value}</Text>
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.borderAccent,
-    padding: space[4],
+    backgroundColor: '#F4EEDC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(198, 162, 78, 0.4)',
+    overflow: 'hidden',
+    shadowColor: '#0E2420',
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
-  cardCompact: {
-    padding: space[3],
-  },
+  cardCompact: {},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: space[3],
-    gap: space[2],
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 15,
+    backgroundColor: '#1B463A',
   },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  brand: {
-    fontSize: 12,
+  paymentTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: colors.textSecondary,
-    flexShrink: 1,
+    letterSpacing: -0.3,
+    color: '#F4EEDC',
+    lineHeight: 22,
+  },
+  certId: {
+    marginTop: 6,
+    fontSize: 12,
+    color: 'rgba(244, 238, 220, 0.7)',
+    fontVariant: ['tabular-nums'],
   },
   validStamp: {
-    borderWidth: 1.5,
-    borderColor: colors.verified,
-    borderRadius: radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2.5,
+    borderColor: '#3E8F62',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-15deg' }],
   },
   validText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.verified,
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#3E8F62',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  certId: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    marginBottom: 4,
-  },
-  paymentTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.ink,
-    marginBottom: space[3],
+  body: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 16,
   },
   amountHero: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.birrGreen,
+    fontSize: 32,
+    fontWeight: '600',
     letterSpacing: -0.5,
+    color: colors.ink,
   },
   amountUnit: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
     color: colors.textSecondary,
   },
   txHero: {
-    marginTop: 4,
-    marginBottom: space[3],
+    marginTop: 8,
+    marginBottom: 18,
     fontSize: 14,
     fontWeight: '600',
+    color: colors.birrGreen,
+  },
+  grid: { gap: 15 },
+  gridCell: { gap: 3 },
+  dt: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: colors.textSecondary,
+  },
+  dd: {
+    fontSize: 15,
     color: colors.ink,
+    lineHeight: 20,
+  },
+  sub: {
+    marginTop: 2,
+    fontSize: 12,
+    color: colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },
   sign: {
-    marginTop: space[3],
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  stamps: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: space[3],
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  label: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  value: {
+    marginTop: 18,
     fontSize: 13,
     fontWeight: '600',
-    color: colors.ink,
-    flex: 1.3,
-    textAlign: 'right',
-  },
-  mono: {
-    fontVariant: ['tabular-nums'],
+    color: colors.birrGreen,
   },
   actions: {
-    marginTop: space[4],
-    gap: space[2],
-  },
-  actionBtn: {
-    flexDirection: 'row',
+    paddingHorizontal: 18,
+    paddingBottom: 18,
     gap: 8,
-    minHeight: 44,
   },
-  actionBtnFull: {
+  ghostBtn: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     minHeight: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(14, 36, 32, 0.2)',
+    backgroundColor: 'transparent',
   },
+  ghostText: { fontSize: 13, fontWeight: '700', color: colors.ink },
+  inkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 44,
+    borderRadius: 8,
+    backgroundColor: '#0E2420',
+  },
+  inkText: { fontSize: 13, fontWeight: '700', color: '#F4EEDC' },
   shareError: {
-    marginTop: space[2],
+    marginHorizontal: 18,
+    marginBottom: 14,
     fontSize: 12,
     color: colors.maroon,
     fontWeight: '600',
   },
 })
+

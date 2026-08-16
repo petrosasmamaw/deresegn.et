@@ -26,7 +26,7 @@ export async function submitTopUpPayment(req, res) {
 
     const method = req.body.method?.trim().toLowerCase() || 'telebirr';
     if (!isTopUpMethod(method)) {
-      return error(res, 'Top-up only supports Telebirr and CBE', 400);
+      return error(res, 'Top-up only supports Telebirr, CBE, and Bank of Abyssinia', 400);
     }
 
     const result = await submitTopUp({
@@ -55,7 +55,7 @@ export async function submitTopUpReferencePayment(req, res) {
     const accountSuffix = req.body.accountSuffix?.trim() || '';
 
     if (!method || !isTopUpMethod(method)) {
-      return error(res, 'Top-up only supports Telebirr and CBE', 400);
+      return error(res, 'Top-up only supports Telebirr, CBE, and Bank of Abyssinia', 400);
     }
     if (!transactionCode) {
       return error(res, 'Payment reference is required', 400);
@@ -87,7 +87,7 @@ export async function submitTopUpSmsPayment(req, res) {
     const smsText = req.body.smsText || '';
 
     if (!method || !isTopUpMethod(method)) {
-      return error(res, 'Top-up only supports Telebirr and CBE', 400);
+      return error(res, 'Top-up only supports Telebirr, CBE, and Bank of Abyssinia', 400);
     }
 
     const result = await submitTopUpSms({

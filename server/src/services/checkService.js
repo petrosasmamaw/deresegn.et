@@ -1014,7 +1014,7 @@ export async function submitSmsCheck({
 export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' }) {
   const receiverConfig = await getTopUpReceiverAccount(method);
   if (!receiverConfig) {
-    throw new TopUpError('Top-up is only supported for Telebirr and CBE', 400);
+    throw new TopUpError('Top-up is only supported for Telebirr, CBE, and Bank of Abyssinia', 400);
   }
 
   let screenshotUrl = null;
@@ -1096,7 +1096,7 @@ export async function submitTopUpReference({
 }) {
   const receiverConfig = await getTopUpReceiverAccount(method);
   if (!receiverConfig) {
-    throw new TopUpError('Top-up is only supported for Telebirr and CBE', 400);
+    throw new TopUpError('Top-up is only supported for Telebirr, CBE, and Bank of Abyssinia', 400);
   }
 
   try {
@@ -1127,7 +1127,7 @@ export async function submitTopUpReference({
     });
   }
 
-  const receiverIssues = validateOfficialTopUpReceiver(result.official, receiverConfig);
+  const receiverIssues = validateOfficialTopUpReceiver(result.official, receiverConfig, method);
   if (receiverIssues.length) {
     throw new TopUpError(receiverIssues[0].message, 422, { issues: receiverIssues });
   }
@@ -1163,7 +1163,7 @@ export async function submitTopUpSms({
 }) {
   const receiverConfig = await getTopUpReceiverAccount(method);
   if (!receiverConfig) {
-    throw new TopUpError('Top-up is only supported for Telebirr and CBE', 400);
+    throw new TopUpError('Top-up is only supported for Telebirr, CBE, and Bank of Abyssinia', 400);
   }
 
   const trimmed = String(smsText || '').trim();
@@ -1201,7 +1201,7 @@ export async function submitTopUpSms({
     });
   }
 
-  const receiverIssues = validateOfficialTopUpReceiver(result.official, receiverConfig);
+  const receiverIssues = validateOfficialTopUpReceiver(result.official, receiverConfig, method);
   if (receiverIssues.length) {
     throw new TopUpError(receiverIssues[0].message, 422, { issues: receiverIssues });
   }

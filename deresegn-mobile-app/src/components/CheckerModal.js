@@ -483,10 +483,12 @@ export default function CheckerModal({
         <Text style={styles.deskHint}>{t('check.deskHint')}</Text>
       </View>
 
-      <Text style={styles.stepLabel}>
-        <Text style={styles.stepNum}>1 </Text>
-        {t('check.stepMethod')}
-      </Text>
+      <View style={styles.stepLabel}>
+        <View style={styles.stepNumWrap}>
+          <Text style={styles.stepNum}>1</Text>
+        </View>
+        <Text style={styles.stepLabelText}>{t('check.stepMethod')}</Text>
+      </View>
       <View style={styles.bankGrid}>
         {visibleMethods.length === 0 ? (
           <Text style={styles.stepHint}>{t('check.noChannels')}</Text>
@@ -516,10 +518,12 @@ export default function CheckerModal({
 
       {method && enabledModes.length > 0 ? (
         <>
-          <Text style={styles.stepLabel}>
-            <Text style={styles.stepNum}>2 </Text>
-            {t('check.stepMode')}
-          </Text>
+          <View style={styles.stepLabel}>
+            <View style={styles.stepNumWrap}>
+              <Text style={styles.stepNum}>2</Text>
+            </View>
+            <Text style={styles.stepLabelText}>{t('check.stepMode')}</Text>
+          </View>
           <View style={styles.modeGrid}>
             {enabledModes.includes('screenshot') ? (
               <Pressable
@@ -566,22 +570,23 @@ export default function CheckerModal({
   const flow = rejected ? (
     <View style={styles.outcome}>
       <View style={styles.failHero}>
-        <Ionicons name="close-circle" size={32} color={colors.maroon} />
+        <Ionicons name="close-circle" size={28} color="#E4C977" />
         <Text style={styles.outcomeTitle}>{t('result.couldNotVerify')}</Text>
         <Text style={styles.outcomeLead}>{t('result.failedHint')}</Text>
       </View>
       <VerificationFailureList issues={failureIssues} nested />
-      <View style={styles.rowBtns}>
+      <View style={styles.outcomeCta}>
         <Pressable
-          style={[ui.btnSecondary, styles.flexBtn]}
+          style={styles.againBtn}
           onPress={() => {
             dismissLastAttempt()
             setStep(3)
           }}
         >
-          <Text style={ui.btnSecondaryText}>{t('common.tryAgain')}</Text>
+          <Ionicons name="refresh" size={18} color={colors.ink} />
+          <Text style={styles.againText}>{t('common.tryAgain')}</Text>
         </Pressable>
-        <Pressable style={[styles.anotherBtn, styles.flexBtn]} onPress={embedded ? startAnother : handleClose}>
+        <Pressable style={styles.anotherBtn} onPress={embedded ? startAnother : handleClose}>
           <Text style={styles.anotherText}>{embedded ? t('check.another') : t('common.close')}</Text>
         </Pressable>
       </View>
@@ -596,16 +601,18 @@ export default function CheckerModal({
       ) : null}
       {checkForCert ? <VerificationCertificate check={checkForCert} details={summaryDetails} /> : null}
       <VerificationWarningList issues={checkForCert?.validationResult?.issues || []} />
-      <Text style={styles.balanceNote}>
-        {checkForCert?.isRecheck
-          ? t('check.noCharge')
-          : t('check.deducted', {
-              amount: checkForCert?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount),
-            })}
-      </Text>
-      <Pressable style={styles.anotherBtn} onPress={embedded ? startAnother : handleClose}>
-        <Text style={styles.anotherText}>{embedded ? t('check.another') : t('check.complete')}</Text>
-      </Pressable>
+      <View style={styles.outcomeCta}>
+        <Text style={styles.balanceNote}>
+          {checkForCert?.isRecheck
+            ? t('check.noCharge')
+            : t('check.deducted', {
+                amount: checkForCert?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount),
+              })}
+        </Text>
+        <Pressable style={styles.anotherBtn} onPress={embedded ? startAnother : handleClose}>
+          <Text style={styles.anotherText}>{embedded ? t('check.another') : t('check.complete')}</Text>
+        </Pressable>
+      </View>
     </View>
   ) : (
     <View style={styles.flow}>
@@ -625,31 +632,29 @@ export default function CheckerModal({
             {method === 'telebirr' ? t('check.stepUploadHintTelebirr') : t('check.stepUploadHintOther')}
           </Text>
           <Pressable style={[styles.dropZone, preview && styles.dropHas]} onPress={() => pickImage(false)}>
-            <Ionicons name="cloud-upload-outline" size={22} color={colors.birrGreen} />
+            <View style={styles.uploadIcon}>
+              <Ionicons name="cloud-upload-outline" size={20} color="#F4EEDC" />
+            </View>
             <Text style={styles.uploadTitle}>{preview ? t('check.changeFile') : t('check.uploadReceipt')}</Text>
             <Text style={styles.uploadHint}>{preview ? t('check.screenshotUploaded') : t('check.uploadHint')}</Text>
             <Text style={styles.uploadCta}>{preview ? t('check.changeFile') : t('check.uploadBtn')}</Text>
             {preview ? <Image source={{ uri: preview }} style={styles.preview} resizeMode="contain" /> : null}
           </Pressable>
           <View style={styles.pickRow}>
-            <Pressable style={[ui.btnSecondary, styles.flexBtn]} onPress={() => pickImage(false)}>
-              <Text style={ui.btnSecondaryText}>{t('check.uploadBtn')}</Text>
-            </Pressable>
             <Pressable style={[ui.btnSecondary, styles.flexBtn]} onPress={() => pickImage(true)}>
               <Text style={ui.btnSecondaryText}>{t('check.camera')}</Text>
             </Pressable>
           </View>
           {payToMyAccountBlock}
           <Pressable
-            style={[ui.btnPrimary, (!screenshot || loading) && ui.btnDisabled]}
+            style={[ui.btnVerify, (!screenshot || loading) && ui.btnDisabled]}
             disabled={!screenshot || loading}
             onPress={runVerify}
           >
-            {loading ? <ActivityIndicator color={colors.ink} /> : (
-              <Text style={ui.btnPrimaryText}>{t('check.verifyBtn')}</Text>
+            {loading ? <ActivityIndicator color="#F4EEDC" /> : (
+              <Text style={ui.btnVerifyText}>{loading ? t('check.verifying') : t('check.verifyBtn')}</Text>
             )}
           </Pressable>
-          {loading ? <Text style={styles.verifying}>{t('check.verifying')}</Text> : null}
         </>
       ) : null}
 
@@ -678,12 +683,12 @@ export default function CheckerModal({
           ))}
           {payToMyAccountBlock}
           <Pressable
-            style={[ui.btnPrimary, (!referenceReady || loading) && ui.btnDisabled]}
+            style={[ui.btnVerify, (!referenceReady || loading) && ui.btnDisabled]}
             disabled={!referenceReady || loading}
             onPress={runReferenceVerify}
           >
-            {loading ? <ActivityIndicator color={colors.ink} /> : (
-              <Text style={ui.btnPrimaryText}>{t('check.verifyPaymentId')}</Text>
+            {loading ? <ActivityIndicator color="#F4EEDC" /> : (
+              <Text style={ui.btnVerifyText}>{t('check.verifyPaymentId')}</Text>
             )}
           </Pressable>
           <Text style={styles.costHint}>{t('check.costRange')}</Text>
@@ -710,12 +715,12 @@ export default function CheckerModal({
           </Text>
           {payToMyAccountBlock}
           <Pressable
-            style={[ui.btnPrimary, (smsText.trim().length < 40 || loading) && ui.btnDisabled]}
+            style={[ui.btnVerify, (smsText.trim().length < 40 || loading) && ui.btnDisabled]}
             disabled={smsText.trim().length < 40 || loading}
             onPress={runSmsVerify}
           >
-            {loading ? <ActivityIndicator color={colors.ink} /> : (
-              <Text style={ui.btnPrimaryText}>{t('check.verifySms')}</Text>
+            {loading ? <ActivityIndicator color="#F4EEDC" /> : (
+              <Text style={ui.btnVerifyText}>{t('check.verifySms')}</Text>
             )}
           </Pressable>
           <Text style={styles.costHint}>{t('check.costRange')}</Text>
@@ -763,31 +768,57 @@ const styles = StyleSheet.create({
   stage: { gap: space[4] },
   desk: {
     backgroundColor: colors.bgElevated,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: space[4],
-    gap: space[3],
+    padding: 14,
+    gap: 10,
+    shadowColor: '#0E2420',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
   template: { marginBottom: space[2] },
-  deskHead: { gap: 6 },
+  deskHead: { gap: 4, marginBottom: 4 },
   titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  deskTitle: { fontSize: 18, fontWeight: '800', color: colors.ink },
+  deskTitle: { fontSize: 18, fontWeight: '600', color: colors.ink, letterSpacing: -0.3 },
   liveStamp: {
     fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '600',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
     color: colors.verified,
-    backgroundColor: 'rgba(62,143,98,0.12)',
+    borderWidth: 1.5,
+    borderColor: colors.verified,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
     overflow: 'hidden',
-    borderRadius: 999,
+    borderRadius: 2,
   },
-  deskHint: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-  stepLabel: { fontSize: 13, fontWeight: '700', color: colors.ink, marginTop: 4 },
-  stepNum: { color: colors.foilGold },
+  deskHint: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
+  stepLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  stepLabelText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    color: colors.textSecondary,
+  },
+  stepNumWrap: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNum: { color: colors.parchment, fontSize: 10, fontWeight: '700' },
   bankGrid: { flexDirection: 'row', gap: 8 },
   bank: {
     flex: 1,
@@ -853,27 +884,48 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#1B463A',
     borderStyle: 'dashed',
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    padding: space[4],
+    borderRadius: 12,
+    backgroundColor: 'rgba(27, 70, 58, 0.06)',
+    padding: 14,
+    minHeight: 132,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
-  dropHas: { borderStyle: 'solid' },
-  uploadTitle: { fontSize: 14, fontWeight: '700', color: colors.ink, textAlign: 'center' },
-  uploadHint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
+  dropHas: { minHeight: 120 },
+  uploadIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#1B463A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadTitle: { fontSize: 14, fontWeight: '800', color: colors.ink, textAlign: 'center' },
+  uploadHint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', maxWidth: 280 },
   uploadCta: {
     marginTop: 4,
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.ink,
-    backgroundColor: colors.foilGold,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: 36,
+    minWidth: 120,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
     overflow: 'hidden',
-    borderRadius: 4,
+    borderRadius: 8,
+    backgroundColor: '#1B463A',
+    color: '#F4EEDC',
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
   },
-  preview: { width: '100%', height: 160, marginTop: 8, borderRadius: radius.sm },
+  preview: {
+    width: '100%',
+    height: 96,
+    marginTop: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: '#fff',
+  },
   pickRow: { flexDirection: 'row', gap: space[2] },
   verifying: { textAlign: 'center', fontSize: 13, color: colors.textSecondary },
   infoBox: {
@@ -887,21 +939,56 @@ const styles = StyleSheet.create({
   infoBody: { marginTop: 4, fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
   smsInput: { minHeight: 160, textAlignVertical: 'top', fontSize: 13 },
   costHint: { textAlign: 'center', fontSize: 12, color: colors.textSecondary },
-  outcome: { gap: space[3] },
-  failHero: { alignItems: 'center', gap: 8, paddingVertical: space[2] },
-  outcomeTitle: { fontSize: 18, fontWeight: '800', color: colors.maroon, textAlign: 'center' },
-  outcomeLead: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19 },
-  prevLine: { fontSize: 13, fontWeight: '600', color: colors.ink },
+  outcome: { gap: 14 },
+  failHero: {
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 17,
+    borderRadius: 12,
+    backgroundColor: '#7C2A33',
+  },
+  outcomeTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#F4EEDC',
+    letterSpacing: -0.3,
+    lineHeight: 24,
+  },
+  outcomeLead: {
+    fontSize: 14,
+    color: 'rgba(244, 238, 220, 0.78)',
+    lineHeight: 21,
+  },
+  prevLine: { fontSize: 13, color: colors.textSecondary },
+  outcomeCta: { gap: 9, paddingTop: 8 },
   balanceNote: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
   anotherBtn: {
-    backgroundColor: colors.foilGold,
-    borderRadius: radius.sm,
-    minHeight: 48,
+    backgroundColor: '#C6A24E',
+    borderRadius: 8,
+    minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space[5],
+    shadowColor: '#C6A24E',
+    shadowOpacity: 0.55,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-  anotherText: { color: colors.ink, fontWeight: '800', fontSize: 15 },
+  anotherText: { color: '#0E2420', fontWeight: '800', fontSize: 16 },
+  againBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: 'rgba(14, 36, 32, 0.2)',
+    borderRadius: 8,
+    minHeight: 54,
+  },
+  againText: { color: colors.ink, fontWeight: '800', fontSize: 16 },
   rowBtns: { flexDirection: 'row', gap: space[3] },
   flexBtn: { flex: 1 },
   payBox: {

@@ -5,9 +5,10 @@ import { topUpReceiverAccounts } from '../db/schema.js';
 const DEFAULT_ACCOUNTS = [
   { method: 'telebirr', receiverName: 'seifeslaisie asmamaw', receiverAccount: '0989886956' },
   { method: 'cbe', receiverName: 'petiros asmamaw abebe', receiverAccount: '1000333687112' },
+  { method: 'boa', receiverName: 'petros asmamaw abebe', receiverAccount: '246302723' },
 ];
 
-export const TOP_UP_METHODS = ['telebirr', 'cbe'];
+export const TOP_UP_METHODS = ['telebirr', 'cbe', 'boa'];
 
 export function isTopUpMethod(method) {
   return TOP_UP_METHODS.includes(String(method || '').toLowerCase());
@@ -43,7 +44,7 @@ export async function getTopUpReceiverAccount(method) {
 export async function updateTopUpReceiverAccount(method, { receiverName, receiverAccount }) {
   const normalized = String(method || '').toLowerCase();
   if (!isTopUpMethod(normalized)) {
-    throw new Error('Only Telebirr and CBE top-up accounts can be configured');
+    throw new Error('Only Telebirr, CBE, and Bank of Abyssinia top-up accounts can be configured');
   }
 
   const name = String(receiverName || '').trim();
