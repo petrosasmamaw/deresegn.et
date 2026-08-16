@@ -98,6 +98,11 @@ export default function LoginScreen({ navigation }) {
               </Text>
             </Text>
           </View>
+
+          <Text style={styles.whyTitle}>{t('home.whyTitle')}</Text>
+          <Text style={styles.why}>{t('home.why1')}</Text>
+          <Text style={styles.why}>{t('home.why2')}</Text>
+          <Text style={styles.why}>{t('home.why3')}</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -110,5 +115,19 @@ const styles = StyleSheet.create({
     top: space[3],
     right: space[4],
     zIndex: 2,
+  },
+  whyTitle: {
+    marginTop: space[6],
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  why: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 })

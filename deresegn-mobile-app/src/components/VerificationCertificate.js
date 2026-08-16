@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react'
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocale } from '../i18n/LocaleContext'
-import BankStamp from './BankStamp'
-import StatusStamp from './StatusStamp'
 import { buildShareUrl, copyCertLink, shareCertLink } from '../lib/shareCertificate'
 import { colors, radius, space } from '../theme/tokens'
 import { ui } from '../theme/styles'
@@ -26,7 +24,7 @@ function displayValue(value) {
   return String(value).trim() || '—'
 }
 
-export default function VerificationCertificate({ check, compact = false }) {
+export default function VerificationCertificate({ check, compact = false, details = null }) {
   const { t } = useLocale()
   const [copied, setCopied] = useState(false)
   const [shareError, setShareError] = useState(null)
@@ -41,22 +39,11 @@ export default function VerificationCertificate({ check, compact = false }) {
     [t],
   )
 
-  const tierLabels = useMemo(
-    () => ({
-      verified: t('common.verified'),
-      likely_valid: t('history.likelyValid'),
-      suspicious: t('history.suspicious'),
-    }),
-    [t],
-  )
-
   if (!check) return null
 
   const shareUrl = check.shareToken ? buildShareUrl(check.shareToken) : null
   const verifiedAt = check.createdAt || check.verifiedAt
-  const tierKey = check.confidenceTier || 'verified'
   const methodLabel = methodLabels[check.paymentMethod] || check.paymentMethod || '—'
-  const tierLabel = tierLabels[tierKey] || t('common.verified')
 
   const handleCopy = async () => {
     if (!check.shareToken) return
@@ -106,21 +93,19 @@ export default function VerificationCertificate({ check, compact = false }) {
       ) : null}
       <Text style={styles.paymentTitle}>{t('cert.paymentTitle')}</Text>
 
-      <View style={styles.stamps}>
-        <BankStamp method={check.paymentMethod} />
-        <StatusStamp tier={tierKey} />
-      </View>
+      <Text style={styles.amountHero}>
+        {displayValue(check.amount)}
+        <Text style={styles.amountUnit}> ETB</Text>
+      </Text>
+      <Text style={styles.txHero}>{displayValue(check.transactionCode)}</Text>
 
-      <Row label={t('field.paymentId')} value={displayValue(check.transactionCode)} mono />
-      <Row
-        label={t('field.amountShort')}
-        value={check.amount != null && check.amount !== '' ? `${check.amount} ETB` : '—'}
-      />
       <Row label={t('field.sender')} value={displayValue(check.senderName)} />
+      {details?.senderAccount ? <Row label={t('field.senderAccount')} value={displayValue(details.senderAccount)} mono /> : null}
       <Row label={t('field.receiver')} value={displayValue(check.receiverName)} />
+      {details?.receiverAccount ? <Row label={t('field.receiverAccount')} value={displayValue(details.receiverAccount)} mono /> : null}
       <Row label={t('cert.bankMethod')} value={methodLabel} />
-      <Row label={t('cert.confidence')} value={tierLabel} />
       <Row label={t('cert.verifiedAt')} value={formatDate(verifiedAt)} />
+      <Text style={styles.sign}>{t('cert.verifiedBy')}</Text>
 
       {shareUrl ? (
         <View style={styles.actions}>
@@ -209,6 +194,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.ink,
     marginBottom: space[3],
+  },
+  amountHero: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.birrGreen,
+    letterSpacing: -0.5,
+  },
+  amountUnit: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  txHero: {
+    marginTop: 4,
+    marginBottom: space[3],
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.ink,
+    fontVariant: ['tabular-nums'],
+  },
+  sign: {
+    marginTop: space[3],
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   stamps: {
     flexDirection: 'row',

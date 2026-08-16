@@ -1,104 +1,133 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useState } from 'react'
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocale } from '../i18n/LocaleContext'
+import PricingTables from './PricingTables'
 import { colors, radius, space } from '../theme/tokens'
+import { ui } from '../theme/styles'
 
-export default function BalanceCard({ balance = 0, loading = false, onTopUp }) {
+export default function BalanceCard({
+  balance = 0,
+  loading = false,
+  onTopUp,
+  onAccounts,
+  onApi,
+}) {
   const { t } = useLocale()
+  const [pricingOpen, setPricingOpen] = useState(false)
   const amount = Number(balance || 0).toFixed(2)
 
   return (
-    <View style={styles.card}>
-      <View style={styles.top}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.meta}>{t('balance.title')}</Text>
+    <>
+      <View style={styles.strip} accessibilityLabel={t('balance.title')}>
+        <View style={styles.balance}>
           {loading ? (
-            <ActivityIndicator color={colors.foilGold} style={{ marginTop: space[3], alignSelf: 'flex-start' }} />
+            <ActivityIndicator color={colors.foilGold} />
           ) : (
-            <>
-              <Text style={styles.amount}>{amount}</Text>
-              <Text style={styles.available}>{t('balance.available')}</Text>
-            </>
+            <Text style={styles.amount}>{amount}</Text>
           )}
+          <Text style={styles.meta}>{t('balance.available')}</Text>
         </View>
-        <View style={styles.iconWrap}>
-          <Ionicons name="shield-checkmark-outline" size={26} color={colors.foilGold} />
+        <View style={styles.actions}>
+          <Pressable style={styles.topup} onPress={onTopUp}>
+            <Ionicons name="trending-up" size={16} color={colors.ink} />
+            <Text style={styles.topupText}>{t('balance.topUp')}</Text>
+          </Pressable>
+          <Pressable style={styles.link} onPress={() => setPricingOpen(true)}>
+            <Text style={styles.linkText}>{t('balance.pricingTitle')}</Text>
+          </Pressable>
+          <Pressable style={styles.link} onPress={onAccounts}>
+            <Ionicons name="wallet-outline" size={16} color={colors.ink} />
+            <Text style={styles.linkText}>{t('nav.myAccounts')}</Text>
+          </Pressable>
+          <Pressable style={styles.link} onPress={onApi}>
+            <Ionicons name="key-outline" size={16} color={colors.ink} />
+            <Text style={styles.linkText}>{t('nav.getApi')}</Text>
+          </Pressable>
         </View>
       </View>
 
-      <View style={styles.actions}>
-        <Pressable style={styles.topUpBtn} onPress={onTopUp}>
-          <Ionicons name="trending-up" size={18} color={colors.ink} />
-          <Text style={styles.topUpText}>{t('balance.topUp')}</Text>
-        </Pressable>
-      </View>
-    </View>
+      <Modal visible={pricingOpen} animationType="slide" onRequestClose={() => setPricingOpen(false)}>
+        <View style={styles.modal}>
+          <View style={styles.modalHead}>
+            <Text style={styles.modalTitle}>{t('balance.pricingTitle')}</Text>
+            <Pressable onPress={() => setPricingOpen(false)} hitSlop={12}>
+              <Ionicons name="close" size={24} color={colors.ink} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalBody}>
+            <PricingTables />
+            <Pressable
+              style={[ui.btnPrimary, { marginTop: space[4] }]}
+              onPress={() => {
+                setPricingOpen(false)
+                onApi?.()
+              }}
+            >
+              <Text style={ui.btnPrimaryText}>{t('nav.getApi')}</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
+      </Modal>
+    </>
   )
 }
 
 const styles = StyleSheet.create({
-  card: {
+  strip: {
     backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: space[5],
-    shadowColor: colors.ink,
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    padding: space[4],
+    gap: space[3],
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  meta: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: space[2],
-  },
+  balance: { gap: 2 },
   amount: {
-    fontSize: 32,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.ink,
     fontVariant: ['tabular-nums'],
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
-  available: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(198, 162, 78, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: space[3],
-  },
+  meta: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
   actions: {
-    marginTop: space[5],
-    paddingTop: space[4],
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(14, 36, 32, 0.08)',
-  },
-  topUpBtn: {
-    backgroundColor: colors.foilGold,
-    borderRadius: radius.sm,
-    minHeight: 46,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  topUpText: {
-    color: colors.ink,
-    fontWeight: '700',
-    fontSize: 15,
+  topup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.foilGold,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    minHeight: 40,
   },
+  topupText: { fontWeight: '800', color: colors.ink, fontSize: 13 },
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    minHeight: 40,
+    backgroundColor: colors.bgSubtle,
+  },
+  linkText: { fontWeight: '700', color: colors.ink, fontSize: 12 },
+  modal: { flex: 1, backgroundColor: colors.parchment },
+  modalHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: space[5],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.bgElevated,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.ink },
+  modalBody: { padding: space[4], paddingBottom: space[12] },
 })

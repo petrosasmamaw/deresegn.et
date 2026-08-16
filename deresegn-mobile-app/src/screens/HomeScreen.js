@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Pressable,
   RefreshControl,
@@ -19,6 +19,7 @@ import { useLocale } from '../i18n/LocaleContext'
 import BrandLockup from '../components/BrandLockup'
 import LangToggle from '../components/LangToggle'
 import BalanceCard from '../components/BalanceCard'
+import CheckerModal from '../components/CheckerModal'
 import BankStamp from '../components/BankStamp'
 import StatusStamp from '../components/StatusStamp'
 import OnboardingModal from '../components/OnboardingModal'
@@ -31,12 +32,19 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const navigation = useNavigation()
   const dispatch = useDispatch()
-  const user = useSelector((s) => s.auth.user)
   const { current: balance, loading: balanceLoading } = useSelector((s) => s.balance)
-  const { list, lastCheck } = useSelector((s) => s.checks)
-  const { openVerify, openTopUp } = useDashboardUi()
+  const {
+    list,
+    lastCheck,
+    submitting: checkLoading,
+    error: checkError,
+    lastResolvedDetails,
+  } = useSelector((s) => s.checks)
+  const { openVerify, openTopUp, deskTick, verifyHandlers } = useDashboardUi()
   const [refreshing, setRefreshing] = useState(false)
   const [detail, setDetail] = useState(null)
+  const scrollRef = useRef(null)
+  const deskY = useRef(0)
 
   const latest = lastCheck || list?.[0] || null
 
@@ -46,6 +54,14 @@ export default function HomeScreen() {
       dispatch(fetchCheckHistory(20))
     }, [dispatch]),
   )
+
+  useEffect(() => {
+    if (!deskTick) return
+    const id = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(deskY.current - 12, 0), animated: true })
+    }, 80)
+    return () => clearTimeout(id)
+  }, [deskTick])
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -59,7 +75,9 @@ export default function HomeScreen() {
   return (
     <View style={[ui.screen, { paddingTop: insets.top }]}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -72,21 +90,15 @@ export default function HomeScreen() {
         <View style={styles.topBar}>
           <BrandLockup compact />
           <View style={styles.topActions}>
+            <Pressable
+              style={styles.credit}
+              onPress={openTopUp}
+              accessibilityLabel={t('nav.balanceAria', { balance: Number(balance || 0).toFixed(2) })}
+            >
+              <Text style={styles.creditAmt}>{Number(balance || 0).toFixed(0)}</Text>
+              <Text style={styles.creditUnit}>{t('common.birr')}</Text>
+            </Pressable>
             <LangToggle />
-            <Pressable
-              style={styles.logoutBtn}
-              onPress={() => navigation.navigate('MyAccounts')}
-              accessibilityLabel={t('nav.myAccounts')}
-            >
-              <Ionicons name="wallet-outline" size={20} color={colors.ink} />
-            </Pressable>
-            <Pressable
-              style={styles.logoutBtn}
-              onPress={() => navigation.navigate('DeveloperApi')}
-              accessibilityLabel={t('nav.getApi')}
-            >
-              <Ionicons name="key-outline" size={20} color={colors.ink} />
-            </Pressable>
             <Pressable
               style={styles.logoutBtn}
               onPress={() => dispatch(logout())}
@@ -97,40 +109,37 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <Text style={styles.greeting}>
-          {user?.name ? user.name : user?.email || '—'}
-        </Text>
-        <Text style={styles.email}>{user?.email}</Text>
+        <Text style={styles.heroTitle}>{t('hero.title')}</Text>
+        <Text style={styles.heroBody}>{t('hero.body')}</Text>
+        <Text style={styles.heroCoverage}>{t('hero.coverage')}</Text>
+
+        <View
+          onLayout={(e) => {
+            deskY.current = e.nativeEvent.layout.y
+          }}
+        >
+          {verifyHandlers ? (
+            <CheckerModal
+              embedded
+              onSubmit={verifyHandlers.onSubmit}
+              onReferenceSubmit={verifyHandlers.onReferenceSubmit}
+              onSmsSubmit={verifyHandlers.onSmsSubmit}
+              loading={checkLoading}
+              error={checkError}
+              lastResult={lastCheck}
+              lastResolvedDetails={lastResolvedDetails}
+            />
+          ) : null}
+        </View>
 
         <View style={styles.section}>
           <BalanceCard
             balance={balance}
             loading={balanceLoading && balance === 0}
             onTopUp={openTopUp}
+            onAccounts={() => navigation.navigate('MyAccounts')}
+            onApi={() => navigation.navigate('DeveloperApi')}
           />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('dash.quickVerify')}</Text>
-          <Text style={styles.sectionSub}>{t('dash.quickVerifyDesc')}</Text>
-          <Pressable style={[ui.btnPrimary, styles.verifyBtn]} onPress={openVerify}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={colors.ink} />
-            <Text style={ui.btnPrimaryText}>{t('dash.verifyReceipt')}</Text>
-          </Pressable>
-          <Pressable
-            style={[ui.btnSecondary, styles.apiBtn]}
-            onPress={() => navigation.navigate('MyAccounts')}
-          >
-            <Ionicons name="wallet-outline" size={18} color={colors.ink} />
-            <Text style={ui.btnSecondaryText}>{t('nav.myAccounts')}</Text>
-          </Pressable>
-          <Pressable
-            style={[ui.btnSecondary, styles.apiBtn]}
-            onPress={() => navigation.navigate('DeveloperApi')}
-          >
-            <Ionicons name="key-outline" size={18} color={colors.ink} />
-            <Text style={ui.btnSecondaryText}>{t('nav.getApi')}</Text>
-          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -146,9 +155,7 @@ export default function HomeScreen() {
               </Text>
               <View style={styles.lastMeta}>
                 <Text style={styles.metaText}>
-                  {latest.createdAt
-                    ? new Date(latest.createdAt).toLocaleString()
-                    : '—'}
+                  {latest.createdAt ? new Date(latest.createdAt).toLocaleString() : '—'}
                 </Text>
                 {latest.amount != null && (
                   <Text style={styles.amount}>{latest.amount} ETB</Text>
@@ -178,8 +185,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   scroll: {
-    paddingHorizontal: space[5],
-    paddingBottom: space[10],
+    paddingHorizontal: space[4],
+    paddingBottom: space[12],
   },
   topBar: {
     flexDirection: 'row',
@@ -193,6 +200,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space[2],
   },
+  credit: {
+    minHeight: 40,
+    paddingHorizontal: 10,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.foilGold,
+    backgroundColor: 'rgba(198,162,78,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  creditAmt: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.ink,
+    fontVariant: ['tabular-nums'],
+  },
+  creditUnit: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.birrGreen,
+    textTransform: 'uppercase',
+  },
   logoutBtn: {
     width: 40,
     height: 40,
@@ -203,41 +232,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  greeting: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.ink,
-    letterSpacing: -0.3,
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.birrGreen,
+    letterSpacing: -0.4,
+    marginBottom: 8,
   },
-  email: {
-    marginTop: 2,
-    fontSize: 13,
+  heroBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.ink,
+    marginBottom: 6,
+  },
+  heroCoverage: {
+    fontSize: 12,
+    fontWeight: '700',
     color: colors.textSecondary,
-    marginBottom: space[5],
+    marginBottom: space[4],
   },
   section: {
-    marginBottom: space[6],
+    marginTop: space[5],
+    marginBottom: space[2],
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.ink,
-    marginBottom: space[1],
-  },
-  sectionSub: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 19,
-    marginBottom: space[3],
-  },
-  verifyBtn: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  apiBtn: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: space[2],
+    marginBottom: space[2],
   },
   lastCard: {
     backgroundColor: colors.bgElevated,

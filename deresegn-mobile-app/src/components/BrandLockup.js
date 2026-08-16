@@ -8,7 +8,7 @@ const logo = require('../../assets/deresegn-logo.png')
 export default function BrandLockup({ dark = true, compact = false }) {
   const { t, locale } = useLocale()
   const brandTitle = locale === 'am' ? t('home.titleAm') : t('auth.brand')
-  const brandAlt = locale === 'am' ? 'Tamagn Tech' : t('home.titleAm')
+  const brandAlt = locale === 'am' ? 'Tamagn Check' : t('home.titleAm')
 
   if (compact) {
     return (

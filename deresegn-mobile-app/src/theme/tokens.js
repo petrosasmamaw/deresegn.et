@@ -1,5 +1,5 @@
 /**
- * Tamagn Tech brand tokens — ported from client/src/styles/tokens.css
+ * Tamagn Check brand tokens — ported from client/src/styles/tokens.css
  */
 export const colors = {
   ink: '#0E2420',

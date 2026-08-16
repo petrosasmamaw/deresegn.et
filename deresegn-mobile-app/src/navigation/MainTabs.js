@@ -1,9 +1,9 @@
+import { useEffect } from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useDispatch, useSelector } from 'react-redux'
 import { DashboardUiProvider, useDashboardUi } from '../context/DashboardUiContext'
 import AppBottomBar from '../components/AppBottomBar'
-import CheckerModal from '../components/CheckerModal'
 import TopUpModal from '../components/TopUpModal'
 import HomeScreen from '../screens/HomeScreen'
 import HistoryScreen from '../screens/HistoryScreen'
@@ -28,13 +28,13 @@ const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
 
 function successCheck(result) {
-  const { check, resolvedDetails } = result.payload
+  const { check, resolvedDetails, previousVerification } = result.payload
   return {
     success: true,
     resolvedDetails,
     check: {
       ...check,
-      previousVerification: check?.previousVerification || null,
+      previousVerification: check?.previousVerification || previousVerification || null,
     },
   }
 }
@@ -60,7 +60,17 @@ function ClientTabs() {
 
   return (
     <Tab.Navigator
-      tabBar={(props) => <AppBottomBar {...props} onFabPress={openVerify} />}
+      tabBar={(props) => (
+        <AppBottomBar
+          {...props}
+          onFabPress={() => {
+            if (props.state?.routes?.[props.state.index]?.name !== 'HomeTab') {
+              props.navigation.navigate('HomeTab')
+            }
+            openVerify()
+          }}
+        />
+      )}
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: colors.parchment },
@@ -75,13 +85,7 @@ function ClientTabs() {
 function MainWithModals() {
   const { t } = useLocale()
   const dispatch = useDispatch()
-  const { verifyOpen, closeVerify, topUpOpen, closeTopUp } = useDashboardUi()
-  const {
-    submitting: checkSubmitting,
-    error: checkError,
-    lastCheck,
-    lastResolvedDetails,
-  } = useSelector((s) => s.checks)
+  const { topUpOpen, closeTopUp, setVerifyHandlers } = useDashboardUi()
   const { submitting: topUpSubmitting, error: topUpError } = useSelector((s) => s.balance)
 
   const handleCheckSubmit = async ({ screenshot, method, form, withDetails, matchMyAccount }) => {
@@ -145,6 +149,14 @@ function MainWithModals() {
     return failureFrom(result.payload, t('topup.failed'))
   }
 
+  useEffect(() => {
+    setVerifyHandlers({
+      onSubmit: handleCheckSubmit,
+      onReferenceSubmit: handleReferenceCheckSubmit,
+      onSmsSubmit: handleSmsCheckSubmit,
+    })
+  }, [setVerifyHandlers, t])
+
   return (
     <>
       <Stack.Navigator
@@ -159,17 +171,6 @@ function MainWithModals() {
         <Stack.Screen name="MyAccounts" component={MyAccountsScreen} />
       </Stack.Navigator>
 
-      <CheckerModal
-        visible={verifyOpen}
-        onClose={closeVerify}
-        onSubmit={handleCheckSubmit}
-        onReferenceSubmit={handleReferenceCheckSubmit}
-        onSmsSubmit={handleSmsCheckSubmit}
-        loading={checkSubmitting}
-        error={checkError}
-        lastResult={lastCheck}
-        lastResolvedDetails={lastResolvedDetails}
-      />
       <TopUpModal
         visible={topUpOpen}
         onClose={closeTopUp}

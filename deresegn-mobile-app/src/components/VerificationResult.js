@@ -81,13 +81,13 @@ function VisualDiff({ item }) {
   )
 }
 
-export function VerificationFailureList({ issues = [], title }) {
+export function VerificationFailureList({ issues = [], title, nested = false }) {
   const { t } = useLocale()
   if (!issues.length) return null
 
   return (
-    <View style={styles.fail}>
-      <Text style={styles.failTitle}>{title || t('result.couldNotVerify')}</Text>
+    <View style={[styles.fail, nested && styles.failNested]}>
+      {!nested ? <Text style={styles.failTitle}>{title || t('result.couldNotVerify')}</Text> : null}
       {issues.map((item, idx) => (
         <View key={`${item.code || 'i'}-${item.field || 'f'}-${idx}`} style={styles.issue}>
           <Text style={styles.issueLabel}>{issueLabel(t, item)}</Text>
@@ -131,6 +131,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(124, 42, 51, 0.25)',
     padding: space[4],
+  },
+  failNested: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0,
   },
   failTitle: {
     fontSize: 15,

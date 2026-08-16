@@ -16,7 +16,7 @@ export default function CheckDetailModal({ check, visible, onClose }) {
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, space[4]) + space[4] }]}>
           <Text style={styles.title}>{t('dash.historyTitle')}</Text>
           <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
-            <VerificationCertificate check={check} compact />
+            <VerificationCertificate check={check} compact details={check} />
           </ScrollView>
           <Pressable style={[ui.btnPrimary, { marginTop: space[4] }]} onPress={onClose}>
             <Text style={ui.btnPrimaryText}>{t('common.close')}</Text>

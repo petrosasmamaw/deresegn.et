@@ -9,6 +9,8 @@ import {
   clearSessionCookie,
 } from './sessionStore'
 
+const REQUEST_TIMEOUT_MS = 25000
+
 /** Better Auth needs a trusted website Origin; installed APK sends null without this. */
 function clientOriginHeaders() {
   const web = getWebBaseUrl()
@@ -57,59 +59,74 @@ function authErrorMessage(body, fallback) {
   return body.message || body.error || body.error?.message || fallback
 }
 
+function networkError(err, fallback) {
+  const msg = String(err?.message || '')
+  if (
+    err?.code === 'ECONNABORTED' ||
+    err?.code === 'ERR_NETWORK' ||
+    /timeout|network request failed|network error/i.test(msg)
+  ) {
+    return new Error(
+      'Cannot reach the API. On the emulator use http://10.0.2.2:5000 and keep npm run dev running in server/.',
+    )
+  }
+  return new Error(msg || fallback)
+}
+
+async function authPost(path, payload, fallback) {
+  try {
+    const res = await axios.post(`${getAuthBaseUrl()}${path}`, payload, {
+      headers: await withSessionHeaders({}, { includeCookie: false }),
+      validateStatus: () => true,
+      timeout: REQUEST_TIMEOUT_MS,
+    })
+    await captureCookies(res, res.data)
+    if (res.status >= 400) {
+      throw new Error(authErrorMessage(res.data, fallback))
+    }
+    const user = res.data?.user || res.data?.data?.user
+    if (!user) throw new Error(`${fallback} — no user returned`)
+    return user
+  } catch (err) {
+    if (err instanceof Error && err.message && err.name !== 'AxiosError') throw err
+    throw networkError(err, fallback)
+  }
+}
+
 /**
  * better-auth + app API client for React Native.
  */
 export const authApi = {
   async signInEmail({ email, password }) {
     await clearSessionCookie()
-    const url = `${getAuthBaseUrl()}/sign-in/email`
-    const res = await axios.post(
-      url,
-      { email, password },
-      { headers: await withSessionHeaders({}, { includeCookie: false }), validateStatus: () => true },
-    )
-    await captureCookies(res, res.data)
-    if (res.status >= 400) {
-      throw new Error(authErrorMessage(res.data, 'Login failed'))
-    }
-    const user = res.data?.user || res.data?.data?.user
-    if (!user) throw new Error('Login failed — no user returned')
-    return user
+    return authPost('/sign-in/email', { email, password }, 'Login failed')
   },
 
   async signUpEmail({ email, password, name }) {
     await clearSessionCookie()
-    const url = `${getAuthBaseUrl()}/sign-up/email`
-    const res = await axios.post(
-      url,
-      { email, password, name },
-      { headers: await withSessionHeaders({}, { includeCookie: false }), validateStatus: () => true },
-    )
-    await captureCookies(res, res.data)
-    if (res.status >= 400) {
-      throw new Error(authErrorMessage(res.data, 'Signup failed'))
-    }
-    const user = res.data?.user || res.data?.data?.user
-    if (!user) throw new Error('Signup failed — no user returned')
-    return user
+    return authPost('/sign-up/email', { email, password, name }, 'Signup failed')
   },
 
   async getSession() {
     const cookie = await getSessionCookie()
     if (!cookie) return null
 
-    const sessionUrl = `${getApiBaseUrl()}/auth/get-session`
-    const res = await axios.get(sessionUrl, {
-      headers: await withSessionHeaders(),
-      validateStatus: () => true,
-    })
-    await captureCookies(res, res.data)
-    if (res.status >= 400 || !res.data?.user) {
-      await clearSessionCookie()
+    try {
+      const sessionUrl = `${getApiBaseUrl()}/auth/get-session`
+      const res = await axios.get(sessionUrl, {
+        headers: await withSessionHeaders(),
+        validateStatus: () => true,
+        timeout: REQUEST_TIMEOUT_MS,
+      })
+      await captureCookies(res, res.data)
+      if (res.status >= 400 || !res.data?.user) {
+        await clearSessionCookie()
+        return null
+      }
+      return res.data?.user ? res.data : null
+    } catch {
       return null
     }
-    return res.data?.user ? res.data : null
   },
 
   async signOut() {
@@ -119,7 +136,11 @@ export const authApi = {
         await axios.post(
           `${getAuthBaseUrl()}/sign-out`,
           {},
-          { headers: await withSessionHeaders(), validateStatus: () => true },
+          {
+            headers: await withSessionHeaders(),
+            validateStatus: () => true,
+            timeout: REQUEST_TIMEOUT_MS,
+          },
         )
       }
     } finally {
@@ -128,10 +149,14 @@ export const authApi = {
   },
 }
 
+function withTimeout(config = {}) {
+  return { timeout: REQUEST_TIMEOUT_MS, ...config }
+}
+
 export const api = {
   async get(path, config = {}) {
     const res = await axios.get(`${getApiBaseUrl()}${path}`, {
-      ...config,
+      ...withTimeout(config),
       headers: await withSessionHeaders(config.headers),
       validateStatus: () => true,
     })
@@ -149,7 +174,7 @@ export const api = {
     }
 
     const res = await axios.post(`${getApiBaseUrl()}${path}`, data, {
-      ...config,
+      ...withTimeout(config),
       headers: sessionHeaders,
       validateStatus: () => true,
     })
@@ -159,7 +184,7 @@ export const api = {
 
   async put(path, data, config = {}) {
     const res = await axios.put(`${getApiBaseUrl()}${path}`, data, {
-      ...config,
+      ...withTimeout(config),
       headers: await withSessionHeaders(config.headers),
       validateStatus: () => true,
     })
@@ -169,7 +194,7 @@ export const api = {
 
   async delete(path, config = {}) {
     const res = await axios.delete(`${getApiBaseUrl()}${path}`, {
-      ...config,
+      ...withTimeout(config),
       headers: await withSessionHeaders(config.headers),
       validateStatus: () => true,
     })

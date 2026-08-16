@@ -59,7 +59,8 @@ export default function AppBottomBar({ state, navigation, onFabPress }) {
           onPress={onFabPress}
           accessibilityLabel={t('bottom.verifyAria')}
         >
-          <Ionicons name="add" size={28} color={colors.ink} />
+          <Ionicons name="shield-checkmark" size={22} color={colors.ink} />
+          <Text style={styles.fabLabel}>{t('bottom.verify')}</Text>
         </Pressable>
       </View>
     </View>
@@ -107,9 +108,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.foilGold,
     alignItems: 'center',
     justifyContent: 'center',
@@ -120,5 +121,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
+    gap: 1,
+  },
+  fabLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    color: colors.ink,
   },
 })

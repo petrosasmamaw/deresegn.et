@@ -29,6 +29,7 @@ import { isTrustedOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
 import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
 import { normalizeNativeClientOrigin } from './middleware/normalizeNativeClientOrigin.js'
+import { fromNodeHeaders } from 'better-auth/node'
 
 dotenv.config()
 
@@ -71,10 +72,11 @@ async function mountAuthHandler() {
     app.get('/api/auth/get-session', async (req, res) => {
       try {
         const session = await mod.auth.api.getSession({
-          headers: new Headers(req.headers),
+          headers: fromNodeHeaders(req.headers),
         })
         res.json(session || null)
       } catch (error) {
+        console.error('[auth] get-session failed:', error.message)
         res.status(500).json({ error: 'Failed to get session' })
       }
     })
@@ -150,9 +152,10 @@ async function start() {
     }
   }
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`)
     console.log(`📡 API available at http://localhost:${PORT}/api`)
+    console.log(`📱 Android emulator: http://10.0.2.2:${PORT}/api`)
     if (process.env.NODE_ENV === 'production') {
       startBankConnectivityMonitor()
     }

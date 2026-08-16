@@ -5,19 +5,24 @@ const DashboardUiContext = createContext(null)
 export function DashboardUiProvider({ children }) {
   const [verifyOpen, setVerifyOpen] = useState(false)
   const [topUpOpen, setTopUpOpen] = useState(false)
+  const [deskTick, setDeskTick] = useState(0)
+  const [verifyHandlers, setVerifyHandlers] = useState(null)
 
   const value = useMemo(
     () => ({
       verifyOpen,
       setVerifyOpen,
-      openVerify: () => setVerifyOpen(true),
+      openVerify: () => setDeskTick((n) => n + 1),
       closeVerify: () => setVerifyOpen(false),
+      deskTick,
       topUpOpen,
       setTopUpOpen,
       openTopUp: () => setTopUpOpen(true),
       closeTopUp: () => setTopUpOpen(false),
+      verifyHandlers,
+      setVerifyHandlers,
     }),
-    [verifyOpen, topUpOpen],
+    [verifyOpen, topUpOpen, deskTick, verifyHandlers],
   )
 
   return (

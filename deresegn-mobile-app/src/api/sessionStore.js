@@ -81,21 +81,35 @@ function parseCookieHeader(header) {
  */
 export function extractSetCookieList(headers) {
   if (!headers) return []
-  const get = (name) => {
-    if (typeof headers.get === 'function') return headers.get(name)
-    return headers[name] ?? headers[name.toLowerCase()]
+  const collected = []
+
+  const push = (value) => {
+    if (!value) return
+    if (Array.isArray(value)) {
+      value.forEach(push)
+      return
+    }
+    if (typeof value === 'string' && value) collected.push(value)
   }
 
-  const multi = get('set-cookie')
-  if (Array.isArray(multi)) return multi
-  if (typeof multi === 'string' && multi) return [multi]
+  if (typeof headers.get === 'function') {
+    push(headers.get('set-cookie'))
+    push(headers.get('Set-Cookie'))
+  }
+  if (typeof headers.getSetCookie === 'function') {
+    push(headers.getSetCookie())
+  }
 
-  // Some RN stacks only expose via raw
-  const raw = headers['set-cookie'] || headers['Set-Cookie']
-  if (Array.isArray(raw)) return raw
-  if (typeof raw === 'string' && raw) return [raw]
+  push(headers['set-cookie'])
+  push(headers['Set-Cookie'])
 
-  return []
+  const raw = typeof headers.raw === 'function' ? headers.raw() : null
+  if (raw) {
+    push(raw['set-cookie'])
+    push(raw['Set-Cookie'])
+  }
+
+  return collected
 }
 
 /**
@@ -104,14 +118,15 @@ export function extractSetCookieList(headers) {
 export function cookieFromAuthBody(data, existing = '') {
   const token =
     data?.token ||
+    data?.data?.token ||
     data?.session?.token ||
     data?.session?.sessionToken ||
     data?.sessionToken
   if (!token) return existing || ''
 
   const jar = parseCookieHeader(existing)
-  // Common better-auth cookie names
   jar['better-auth.session_token'] = token
+  jar['__Secure-better-auth.session_token'] = token
   return Object.entries(jar)
     .map(([k, v]) => `${k}=${v}`)
     .join('; ')
