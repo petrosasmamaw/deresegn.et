@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useDispatch, useSelector } from 'react-redux'
 import { clearError, login } from '../features/auth/authSlice'
+import { displayAuthError } from '../lib/errors'
 import { useLocale } from '../i18n/LocaleContext'
 import BrandLockup from '../components/BrandLockup'
 import LangToggle from '../components/LangToggle'
@@ -50,7 +51,7 @@ export default function LoginScreen({ navigation }) {
           <View style={ui.card}>
             {error ? (
               <View style={ui.errorBox}>
-                <Text style={ui.errorText}>{error}</Text>
+                <Text style={ui.errorText}>{displayAuthError(error, t)}</Text>
               </View>
             ) : null}
 

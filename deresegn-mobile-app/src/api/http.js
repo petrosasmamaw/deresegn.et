@@ -8,6 +8,7 @@ import {
   setSessionCookie,
   clearSessionCookie,
 } from './sessionStore'
+import { notifyUnauthorized } from './sessionExpired'
 
 const REQUEST_TIMEOUT_MS = 25000
 
@@ -66,9 +67,7 @@ function networkError(err, fallback) {
     err?.code === 'ERR_NETWORK' ||
     /timeout|network request failed|network error/i.test(msg)
   ) {
-    return new Error(
-      'Cannot reach the API. On the emulator use http://10.0.2.2:5000 and keep npm run dev running in server/.',
-    )
+    return new Error('NETWORK_UNREACHABLE')
   }
   return new Error(msg || fallback)
 }
@@ -149,6 +148,12 @@ export const authApi = {
   },
 }
 
+async function maybeUnauthorized(res) {
+  if (res?.status !== 401) return
+  await clearSessionCookie()
+  notifyUnauthorized()
+}
+
 function withTimeout(config = {}) {
   return { timeout: REQUEST_TIMEOUT_MS, ...config }
 }
@@ -161,6 +166,7 @@ export const api = {
       validateStatus: () => true,
     })
     await captureCookies(res, res.data)
+    await maybeUnauthorized(res)
     return res
   },
 
@@ -179,6 +185,7 @@ export const api = {
       validateStatus: () => true,
     })
     await captureCookies(res, res.data)
+    await maybeUnauthorized(res)
     return res
   },
 
@@ -189,6 +196,7 @@ export const api = {
       validateStatus: () => true,
     })
     await captureCookies(res, res.data)
+    await maybeUnauthorized(res)
     return res
   },
 
@@ -199,6 +207,7 @@ export const api = {
       validateStatus: () => true,
     })
     await captureCookies(res, res.data)
+    await maybeUnauthorized(res)
     return res
   },
 }

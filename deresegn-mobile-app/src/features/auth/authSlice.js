@@ -79,6 +79,12 @@ const slice = createSlice({
     clearError(state) {
       state.error = null
     },
+    sessionExpired(state) {
+      state.user = null
+      state.error = null
+      state.submitting = false
+      state.initializing = false
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -137,5 +143,5 @@ const slice = createSlice({
   },
 })
 
-export const { clearError } = slice.actions
+export const { clearError, sessionExpired } = slice.actions
 export default slice.reducer

@@ -108,7 +108,7 @@ function MainWithModals() {
       dispatch(fetchCheckHistory())
       return successCheck(result)
     }
-    return failureFrom(result.payload, 'Payment ID could not be verified')
+    return failureFrom(result.payload, t('check.paymentIdFailed'))
   }
 
   const handleSmsCheckSubmit = async ({ method, smsText, matchMyAccount }) => {
@@ -118,7 +118,7 @@ function MainWithModals() {
       dispatch(fetchCheckHistory())
       return successCheck(result)
     }
-    return failureFrom(result.payload, 'SMS could not be verified')
+    return failureFrom(result.payload, t('check.smsFailed'))
   }
 
   const handleTopUpSubmit = async ({ screenshot, method }) => {

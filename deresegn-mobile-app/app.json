@@ -3,6 +3,12 @@
     "name": "Tamagn Check",
     "slug": "deresegn-mobile-app",
     "version": "1.0.1",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ec8ccc17-7c68-4eb6-a87c-7ca759d109f4"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -25,7 +31,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": [
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -35,6 +41,7 @@
     "plugins": [
       "expo-secure-store",
       "expo-font",
+      "expo-updates",
       [
         "expo-splash-screen",
         {
@@ -48,7 +55,8 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow Tamagn Check to access receipt photos for verification.",
-          "cameraPermission": "Allow Tamagn Check to photograph receipts for verification."
+          "cameraPermission": "Allow Tamagn Check to photograph receipts for verification.",
+          "microphonePermission": false
         }
       ],
       [

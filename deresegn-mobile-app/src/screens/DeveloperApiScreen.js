@@ -67,15 +67,15 @@ export default function DeveloperApiScreen() {
     try {
       const res = await api.get('/developer/keys')
       if (res.status >= 400) {
-        throw new Error(res.data?.message || 'Failed to load API keys')
+        throw new Error(res.data?.message || t('dev.loadFailed'))
       }
       const data = unwrap(res)
       setKeys(data.keys || [])
       setPricing(data.pricing || null)
     } catch (err) {
-      setError(err.message || 'Failed to load API keys')
+      setError(err.message || t('dev.loadFailed'))
     }
-  }, [])
+  }, [t])
 
   useFocusEffect(
     useCallback(() => {
@@ -105,7 +105,7 @@ export default function DeveloperApiScreen() {
       setCopied(id)
       setTimeout(() => setCopied(''), 1800)
     } catch {
-      setError('Could not copy — select and copy manually')
+      setError(t('dev.copyFailed'))
     }
   }
 
@@ -121,7 +121,7 @@ export default function DeveloperApiScreen() {
         : await api.post('/developer/keys', { packageId: selectedPackage })
 
       if (res.status >= 400) {
-        const msg = res.data?.message || 'Purchase failed'
+        const msg = res.data?.message || t('dev.purchaseFailed')
         setError(msg)
         return
       }
@@ -136,7 +136,7 @@ export default function DeveloperApiScreen() {
       setRenewForId(null)
       await load()
     } catch (err) {
-      setError(err.message || 'Purchase failed')
+      setError(err.message || t('dev.purchaseFailed'))
     } finally {
       setBusy(false)
     }
@@ -144,18 +144,18 @@ export default function DeveloperApiScreen() {
 
   const revoke = (id) => {
     Alert.alert(
-      'Revoke API key?',
-      'External apps using this key will stop working.',
+      t('dev.revokeTitle'),
+      t('dev.revokeBody'),
       [
         { text: t('common.close'), style: 'cancel' },
         {
-          text: 'Revoke',
+          text: t('dev.revoke'),
           style: 'destructive',
           onPress: async () => {
             setBusy(true)
             try {
               const res = await api.post(`/developer/keys/${id}/revoke`)
-              if (res.status >= 400) throw new Error(res.data?.message || 'Revoke failed')
+              if (res.status >= 400) throw new Error(res.data?.message || t('dev.revokeFailed'))
               setRevealedKeys((prev) => {
                 const next = { ...prev }
                 delete next[id]
@@ -168,7 +168,7 @@ export default function DeveloperApiScreen() {
               })
               await load()
             } catch (err) {
-              setError(err.message || 'Revoke failed')
+              setError(err.message || t('dev.revokeFailed'))
             } finally {
               setBusy(false)
             }
@@ -194,9 +194,7 @@ export default function DeveloperApiScreen() {
       return
     }
     if (!k.canReveal) {
-      setError(
-        'This older key cannot be recovered. Buy a new API key — you can reveal it anytime with the eye icon.',
-      )
+      setError(t('dev.cannotRecover'))
       return
     }
 
@@ -204,13 +202,13 @@ export default function DeveloperApiScreen() {
     setError(null)
     try {
       const res = await api.post(`/developer/keys/${id}/reveal`)
-      if (res.status >= 400) throw new Error(res.data?.message || 'Could not reveal API key')
+      if (res.status >= 400) throw new Error(res.data?.message || t('dev.revealFailed'))
       const data = unwrap(res)
-      if (!data?.apiKey) throw new Error('No key returned')
+      if (!data?.apiKey) throw new Error(t('dev.noKeyReturned'))
       setRevealedKeys((prev) => ({ ...prev, [id]: data.apiKey }))
       setVisibleKeyIds((prev) => ({ ...prev, [id]: true }))
     } catch (err) {
-      setError(err.message || 'Could not reveal API key')
+      setError(err.message || t('dev.revealFailed'))
     } finally {
       setRevealBusyId(null)
     }
@@ -226,7 +224,7 @@ export default function DeveloperApiScreen() {
         >
           <Ionicons name="arrow-back" size={20} color={colors.ink} />
         </Pressable>
-        <Text style={styles.navTitle}>Paid Verify API</Text>
+        <Text style={styles.navTitle}>{t('dev.title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -241,13 +239,10 @@ export default function DeveloperApiScreen() {
           />
         }
       >
-        <Text style={styles.lead}>
-          Buy capacity with your balance. Capacity meters the sum of verified payment
-          amounts — when it runs out, renew after topping up.
-        </Text>
+        <Text style={styles.lead}>{t('dev.lead')}</Text>
 
         <View style={styles.wallet}>
-          <Text style={styles.walletLabel}>Wallet</Text>
+          <Text style={styles.walletLabel}>{t('dev.wallet')}</Text>
           <Text style={styles.walletAmount}>{Number(balance || 0).toFixed(2)}</Text>
           <Text style={styles.walletMeta}>{t('balance.available')}</Text>
           <Pressable style={[ui.btnSecondary, { marginTop: space[3] }]} onPress={openTopUp}>
@@ -258,7 +253,7 @@ export default function DeveloperApiScreen() {
         {error ? (
           <View style={ui.errorBox}>
             <Text style={ui.errorText}>{error}</Text>
-            {/top up|insufficient/i.test(error) ? (
+            {/top up|insufficient|በቂ|ሙላ/i.test(error) ? (
               <Pressable style={[ui.btnPrimary, { marginTop: space[3] }]} onPress={openTopUp}>
                 <Text style={ui.btnPrimaryText}>{t('balance.topUp')}</Text>
               </Pressable>
@@ -268,10 +263,8 @@ export default function DeveloperApiScreen() {
 
         {freshSecret ? (
           <View style={styles.secretBox}>
-            <Text style={styles.secretTitle}>Your new API key</Text>
-            <Text style={styles.secretHint}>
-              Store it in your app. You can also reveal it later with the eye icon.
-            </Text>
+            <Text style={styles.secretTitle}>{t('dev.newKeyTitle')}</Text>
+            <Text style={styles.secretHint}>{t('dev.newKeyHint')}</Text>
             <View style={styles.secretRow}>
               <Text style={styles.secretKey} selectable>
                 {freshSecret}
@@ -288,11 +281,9 @@ export default function DeveloperApiScreen() {
         ) : null}
 
         <Text style={styles.sectionTitle}>
-          {renewForId ? 'Choose package to renew' : 'Choose an API package'}
+          {renewForId ? t('dev.chooseRenew') : t('dev.choosePackage')}
         </Text>
-        <Text style={styles.sectionSub}>
-          Price from wallet. Capacity is verified receipt amounts (not in-app per-check fees).
-        </Text>
+        <Text style={styles.sectionSub}>{t('dev.packageHint')}</Text>
 
         <View style={styles.pkgGrid}>
           {packages.map((pkg) => {
@@ -311,11 +302,15 @@ export default function DeveloperApiScreen() {
                   },
                 ]}
               >
-                <Text style={[styles.pkgLabel, { color: accent }]}>{pkg.label}</Text>
+                <Text style={[styles.pkgLabel, { color: accent }]}>
+                  {t(`pricing.pkg.${pkg.id}`) !== `pricing.pkg.${pkg.id}`
+                    ? t(`pricing.pkg.${pkg.id}`)
+                    : pkg.label}
+                </Text>
                 <Text style={styles.pkgPrice}>{pkg.priceBirr}</Text>
-                <Text style={styles.pkgUnit}>Birr</Text>
+                <Text style={styles.pkgUnit}>{t('common.birr')}</Text>
                 <Text style={[styles.pkgCap, { color: accent }]}>
-                  → {pkg.capacityBirr} Birr verify
+                  {t('dev.pkgCap', { amount: pkg.capacityBirr })}
                 </Text>
                 {pkg.note ? <Text style={styles.pkgNote}>{pkg.note}</Text> : null}
               </Pressable>
@@ -332,7 +327,7 @@ export default function DeveloperApiScreen() {
             <ActivityIndicator color={colors.ink} />
           ) : (
             <Text style={ui.btnPrimaryText}>
-              {renewForId ? 'Renew with selected package' : 'Buy API key'}
+              {renewForId ? t('dev.renewWithPackage') : t('dev.buy')}
             </Text>
           )}
         </Pressable>
@@ -341,13 +336,13 @@ export default function DeveloperApiScreen() {
             style={[ui.btnSecondary, { marginTop: space[2] }]}
             onPress={() => setRenewForId(null)}
           >
-            <Text style={ui.btnSecondaryText}>Cancel renew</Text>
+            <Text style={ui.btnSecondaryText}>{t('dev.cancelRenew')}</Text>
           </Pressable>
         ) : null}
 
         <View style={styles.connectBox}>
-          <Text style={styles.sectionTitle}>Connect</Text>
-          <Text style={styles.sectionSub}>Reference verify endpoint</Text>
+          <Text style={styles.sectionTitle}>{t('dev.connect')}</Text>
+          <Text style={styles.sectionSub}>{t('dev.connectHint')}</Text>
           <View style={styles.urlRow}>
             <Text style={styles.url} selectable>
               {verifyUrl}
@@ -360,16 +355,14 @@ export default function DeveloperApiScreen() {
               />
             </Pressable>
           </View>
-          <Text style={styles.curlHint}>
-            Header: X-API-Key: dk_live_…
-          </Text>
+          <Text style={styles.curlHint}>{t('dev.headerHint')}</Text>
         </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: space[6] }]}>Your keys</Text>
+        <Text style={[styles.sectionTitle, { marginTop: space[6] }]}>{t('dev.yourKeys')}</Text>
         {loading ? (
           <ActivityIndicator color={colors.foilGold} style={{ marginTop: space[4] }} />
         ) : keys.length === 0 ? (
-          <Text style={styles.empty}>No API keys yet. Buy a package above.</Text>
+          <Text style={styles.empty}>{t('dev.empty')}</Text>
         ) : (
           keys.map((k) => {
             const used = Number(k.usedAmount || 0)
@@ -388,7 +381,7 @@ export default function DeveloperApiScreen() {
             return (
               <View key={k.id} style={styles.keyCard}>
                 <View style={styles.keyTop}>
-                  <Text style={styles.keyName}>{k.name || 'API key'}</Text>
+                  <Text style={styles.keyName}>{k.name || t('dev.keyFallback')}</Text>
                   <Text style={[styles.keyStatus, { color: statusColor }]}>
                     {String(k.status || 'active').toUpperCase()}
                   </Text>
@@ -427,8 +420,11 @@ export default function DeveloperApiScreen() {
                   <View style={[styles.meterFill, { width: `${pct}%` }]} />
                 </View>
                 <Text style={styles.meterMeta}>
-                  {used.toFixed(0)} / {cap.toFixed(0)} Birr capacity · remaining{' '}
-                  {Number(k.remainingAmount ?? cap - used).toFixed(0)}
+                  {t('dev.capacityMeta', {
+                    used: used.toFixed(0),
+                    cap: cap.toFixed(0),
+                    remaining: Number(k.remainingAmount ?? cap - used).toFixed(0),
+                  })}
                 </Text>
 
                 {k.status === 'active' ? (
@@ -438,7 +434,7 @@ export default function DeveloperApiScreen() {
                       onPress={() => setRenewForId(k.id)}
                       disabled={busy}
                     >
-                      <Text style={ui.btnSecondaryText}>Renew</Text>
+                      <Text style={ui.btnSecondaryText}>{t('dev.renew')}</Text>
                     </Pressable>
                     <Pressable
                       style={[ui.btnSecondary, styles.keyActionBtn]}
@@ -446,7 +442,7 @@ export default function DeveloperApiScreen() {
                       disabled={busy}
                     >
                       <Text style={[ui.btnSecondaryText, { color: colors.maroon }]}>
-                        Revoke
+                        {t('dev.revoke')}
                       </Text>
                     </Pressable>
                   </View>

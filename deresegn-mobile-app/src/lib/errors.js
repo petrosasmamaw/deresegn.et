@@ -13,7 +13,8 @@ export function friendlyErrorMessage(err, t, fallback = 'Request failed') {
     code === 'ECONNABORTED' ||
     code === 'ETIMEDOUT' ||
     msg.includes('timeout') ||
-    msg.includes('network request failed')
+    msg.includes('network request failed') ||
+    msg.includes('network_unreachable')
   ) {
     return t?.('common.networkError') || 'Network error. Check your connection and try again.'
   }
@@ -21,7 +22,14 @@ export function friendlyErrorMessage(err, t, fallback = 'Request failed') {
   if (typeof err === 'string') return err
   return (
     err.response?.data?.message ||
+    (err.message === 'NETWORK_UNREACHABLE' ? (t?.('common.networkError') || fallback) : null) ||
     err.message ||
     (typeof fallback === 'string' ? fallback : t?.('common.tryAgain') || 'Request failed')
   )
+}
+
+export function displayAuthError(error, t) {
+  if (!error) return ''
+  if (error === 'NETWORK_UNREACHABLE') return t('common.networkError')
+  return error
 }

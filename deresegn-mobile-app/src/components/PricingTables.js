@@ -2,26 +2,49 @@ import { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { api } from '../api/http'
 import { unwrap } from '../api/unwrap'
+import { useLocale } from '../i18n/LocaleContext'
 import { colors, radius, space } from '../theme/tokens'
 
 const FALLBACK = {
   verifyFees: [
-    { range: 'Under 100 ETB', costBirr: 2 },
-    { range: '100 – 999 ETB', costBirr: 5 },
-    { range: '1,000 – 4,999 ETB', costBirr: 10 },
-    { range: '5,000 – 9,999 ETB', costBirr: 15 },
-    { range: '10,000+ ETB', costBirr: 20 },
+    { rangeKey: 'balance.tierUnder100', costBirr: 2 },
+    { rangeKey: 'balance.tier100', costBirr: 5 },
+    { rangeKey: 'balance.tier1000', costBirr: 10 },
+    { rangeKey: 'balance.tier5000', costBirr: 15 },
+    { rangeKey: 'balance.tier10000', costBirr: 20 },
   ],
   apiPackages: [
-    { id: 'starter', label: 'Starter', priceBirr: 100, capacityBirr: 150 },
-    { id: 'growth', label: 'Growth', priceBirr: 500, capacityBirr: 850 },
-    { id: 'pro', label: 'Pro', priceBirr: 1000, capacityBirr: 2000 },
-    { id: 'business', label: 'Business', priceBirr: 2000, capacityBirr: 5000 },
-    { id: 'enterprise', label: 'Enterprise', priceBirr: 5000, capacityBirr: 15000 },
+    { id: 'starter', priceBirr: 100, capacityBirr: 150 },
+    { id: 'growth', priceBirr: 500, capacityBirr: 850 },
+    { id: 'pro', priceBirr: 1000, capacityBirr: 2000 },
+    { id: 'business', priceBirr: 2000, capacityBirr: 5000 },
+    { id: 'enterprise', priceBirr: 5000, capacityBirr: 15000 },
   ],
 }
 
+const FEE_RANGE_BY_COST = {
+  2: 'balance.tierUnder100',
+  5: 'balance.tier100',
+  10: 'balance.tier1000',
+  15: 'balance.tier5000',
+  20: 'balance.tier10000',
+}
+
+function feeRangeLabel(row, t) {
+  const key = row.rangeKey || FEE_RANGE_BY_COST[Number(row.costBirr)]
+  if (key) return t(key)
+  return row.range || ''
+}
+
+function packageLabel(pkg, t) {
+  const key = `pricing.pkg.${pkg.id}`
+  const translated = t(key)
+  if (translated && translated !== key) return translated
+  return pkg.label || pkg.id
+}
+
 export default function PricingTables() {
+  const { t } = useLocale()
   const [pricing, setPricing] = useState(FALLBACK)
 
   useEffect(() => {
@@ -40,31 +63,31 @@ export default function PricingTables() {
     <View style={styles.wrap}>
       <View style={styles.card}>
         <View style={styles.head}>
-          <Text style={styles.headTitle}>In-app verify fees</Text>
-          <Text style={styles.headSub}>Charged from wallet per successful check</Text>
+          <Text style={styles.headTitle}>{t('pricing.verifyTitle')}</Text>
+          <Text style={styles.headSub}>{t('pricing.verifySub')}</Text>
         </View>
         {verifyFees.map((row) => (
-          <View key={row.range} style={styles.row}>
-            <Text style={styles.cell}>{row.range}</Text>
-            <Text style={styles.fee}>{row.costBirr} Birr</Text>
+          <View key={row.range || row.costBirr} style={styles.row}>
+            <Text style={styles.cell}>{feeRangeLabel(row, t)}</Text>
+            <Text style={styles.fee}>{t('pricing.feeBirr', { cost: row.costBirr })}</Text>
           </View>
         ))}
-        <Text style={styles.foot}>Re-checks of the same payment ID within 24 hours are free.</Text>
+        <Text style={styles.foot}>{t('pricing.verifyFoot')}</Text>
       </View>
 
       <View style={styles.card}>
         <View style={[styles.head, styles.headApi]}>
-          <Text style={styles.headTitle}>Paid API packages</Text>
-          <Text style={styles.headSub}>URL + API key for external software</Text>
+          <Text style={styles.headTitle}>{t('pricing.apiTitle')}</Text>
+          <Text style={styles.headSub}>{t('pricing.apiSub')}</Text>
         </View>
         {apiPackages.map((pkg) => (
           <View key={pkg.id || pkg.label} style={styles.row}>
-            <Text style={styles.cell}>{pkg.label}</Text>
-            <Text style={styles.mono}>{pkg.priceBirr} Birr</Text>
-            <Text style={styles.cap}>{pkg.capacityBirr} Birr</Text>
+            <Text style={styles.cell}>{packageLabel(pkg, t)}</Text>
+            <Text style={styles.mono}>{t('pricing.feeBirr', { cost: pkg.priceBirr })}</Text>
+            <Text style={styles.cap}>{t('pricing.feeBirr', { cost: pkg.capacityBirr })}</Text>
           </View>
         ))}
-        <Text style={styles.foot}>Capacity = sum of verified payment amounts. When empty, renew after topping up.</Text>
+        <Text style={styles.foot}>{t('pricing.apiFoot')}</Text>
       </View>
     </View>
   )
