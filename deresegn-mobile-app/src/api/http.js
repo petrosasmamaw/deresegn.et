@@ -106,6 +106,32 @@ export const authApi = {
     return authPost('/sign-up/email', { email, password, name }, 'Signup failed')
   },
 
+  /**
+   * Request a password reset email. The email link opens the web reset page
+   * (redirectTo) where the user chooses a new password.
+   */
+  async requestPasswordReset({ email, redirectTo }) {
+    const fallback = 'Could not send reset email'
+    try {
+      const res = await axios.post(
+        `${getAuthBaseUrl()}/request-password-reset`,
+        { email, redirectTo },
+        {
+          headers: await withSessionHeaders({}, { includeCookie: false }),
+          validateStatus: () => true,
+          timeout: REQUEST_TIMEOUT_MS,
+        },
+      )
+      if (res.status >= 400) {
+        throw new Error(authErrorMessage(res.data, fallback))
+      }
+      return res.data || { status: true }
+    } catch (err) {
+      if (err instanceof Error && err.message && err.name !== 'AxiosError') throw err
+      throw networkError(err, fallback)
+    }
+  },
+
   async getSession() {
     const cookie = await getSessionCookie()
     if (!cookie) return null

@@ -152,13 +152,29 @@ async function start() {
     }
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`)
     console.log(`📡 API available at http://localhost:${PORT}/api`)
     console.log(`📱 Android emulator: http://10.0.2.2:${PORT}/api`)
     if (process.env.NODE_ENV === 'production') {
       startBankConnectivityMonitor()
     }
+  })
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `\n❌ Port ${PORT} is already in use — another server instance is still running.\n` +
+          `   Stop it, then start again. To find and kill it:\n` +
+          `   • Windows (PowerShell): Get-NetTCPConnection -LocalPort ${PORT} -State Listen | ` +
+          `ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\n` +
+          `   • macOS/Linux:          lsof -ti tcp:${PORT} | xargs kill -9\n` +
+          `   • Or set a different port: PORT=5001 npm run dev\n`,
+      )
+      process.exit(1)
+    }
+    console.error('Server error:', err)
+    process.exit(1)
   })
 }
 

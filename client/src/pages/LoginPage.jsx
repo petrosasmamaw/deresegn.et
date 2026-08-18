@@ -92,6 +92,11 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   required
                 />
+                <div className="text-right mt-1.5">
+                  <Link to="/forgot-password" className="text-sm font-medium" style={{ color: 'var(--color-birr-green)' }}>
+                    {t('auth.forgotLink')}
+                  </Link>
+                </div>
               </div>
 
               <button

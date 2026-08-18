@@ -8,9 +8,32 @@ import { ensureRegistrationBonus } from "./src/services/balanceLedgerService.js"
 import { getTrustedOrigins } from "./src/config/clientOrigins.js";
 import { validateAuthEnv } from "./src/config/validateAuthEnv.js";
 import { resolveAuthBaseUrl, getAuthCookieAttributes } from "./src/config/authBaseUrl.js";
+import { sendPasswordResetEmail } from "./src/services/emailService.js";
 
 dotenv.config();
 validateAuthEnv();
+
+/**
+ * Build the link the user clicks to choose a new password. Prefer the caller's
+ * `redirectTo` (embedded by Better Auth in `url` as `callbackURL`) so web and
+ * mobile land on the right reset page; fall back to env / CLIENT_URL.
+ */
+function buildPasswordResetUrl(url, token) {
+  const fallbackBase =
+    process.env.PASSWORD_RESET_URL ||
+    `${(process.env.CLIENT_URL || "http://localhost:5173").replace(/\/+$/, "")}/reset-password`;
+  try {
+    const parsed = new URL(url);
+    const cb = parsed.searchParams.get("callbackURL");
+    const base = cb || fallbackBase;
+    const target = new URL(base);
+    target.searchParams.set("token", token);
+    return target.toString();
+  } catch {
+    const sep = fallbackBase.includes("?") ? "&" : "?";
+    return `${fallbackBase}${sep}token=${encodeURIComponent(token)}`;
+  }
+}
 
 const authBaseURL = resolveAuthBaseUrl();
 const isProduction = process.env.NODE_ENV === "production";
@@ -63,6 +86,26 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     autoSignIn: true,
     requireEmailVerification: false,
+    resetPasswordTokenExpiresIn: 3600,
+    sendResetPassword: async ({ user, url, token }) => {
+      const resetUrl = buildPasswordResetUrl(url, token);
+      const result = await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl,
+      });
+      // Do not throw on delivery failure: the endpoint returns a generic
+      // success either way (prevents email enumeration). Failures are logged
+      // inside emailService so setup/config issues are visible in server logs.
+      if (!result.ok) {
+        console.error(
+          `[auth] Password reset email not delivered to ${user.email}: ${result.error || "unknown error"}`,
+        );
+      }
+    },
+    onPasswordReset: async ({ user }) => {
+      console.log(`🔑 Password reset completed for user=${user.id}`);
+    },
   },
   databaseHooks: {
     user: {

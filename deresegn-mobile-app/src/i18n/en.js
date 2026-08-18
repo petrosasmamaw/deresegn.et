@@ -105,6 +105,16 @@ export const en = {
   'auth.createAccount': 'Create Account',
   'auth.registering': 'Registering...',
   'auth.haveAccount': 'Already have an account?',
+  'auth.forgotLink': 'Forgot password?',
+  'auth.forgotTitle': 'Reset your password',
+  'auth.forgotSubtitle': 'We’ll email you a secure reset link',
+  'auth.forgotHelp': 'Enter the email linked to your account and we’ll send a link to reset your password.',
+  'auth.sendResetLink': 'Send reset link',
+  'auth.resetSentTitle': 'Check your email',
+  'auth.resetSentBody': 'If an account exists for {email}, a password reset link is on its way. The link expires in 1 hour.',
+  'auth.resetSentHint': 'Open the link on this device or any browser to choose a new password, then sign in again.',
+  'auth.resetRequestFailed': 'Could not send reset email. Please try again.',
+  'auth.backToLogin': '← Back to login',
   'auth.seo': 'Tamagn Check (ታማኝ ቸክ) — Ethiopian payment receipt verification online. Verify Telebirr, CBE, Dashen, and Bank of Abyssinia payments in seconds. Register free, login, or get the Paid Verify API.',
 
   // Dashboard

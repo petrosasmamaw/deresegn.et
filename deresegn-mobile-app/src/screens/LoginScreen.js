@@ -78,6 +78,10 @@ export default function LoginScreen({ navigation }) {
               placeholderTextColor={colors.textTertiary}
             />
 
+            <Text style={styles.forgot} onPress={() => navigation.navigate('ForgotPassword')}>
+              {t('auth.forgotLink')}
+            </Text>
+
             <Pressable
               onPress={onSubmit}
               disabled={submitting || !email || !password}
@@ -116,6 +120,14 @@ const styles = StyleSheet.create({
     top: space[3],
     right: space[4],
     zIndex: 2,
+  },
+  forgot: {
+    alignSelf: 'flex-end',
+    marginTop: space[2],
+    marginBottom: space[1],
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.birrGreen,
   },
   whyTitle: {
     marginTop: space[6],

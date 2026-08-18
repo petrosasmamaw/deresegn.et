@@ -6,6 +6,7 @@ import { fetchSession } from '../features/auth/authSlice'
 import SplashScreen from '../screens/SplashScreen'
 import LoginScreen from '../screens/LoginScreen'
 import RegisterScreen from '../screens/RegisterScreen'
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen'
 import AdminHomeScreen from '../screens/AdminHomeScreen'
 import MainTabs from './MainTabs'
 import { colors } from '../theme/tokens'
@@ -42,6 +43,7 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         ) : user.role === 'admin' ? (
           <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
