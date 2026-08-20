@@ -9,6 +9,8 @@ import { getTrustedOrigins } from "./src/config/clientOrigins.js";
 import { validateAuthEnv } from "./src/config/validateAuthEnv.js";
 import { resolveAuthBaseUrl, getAuthCookieAttributes } from "./src/config/authBaseUrl.js";
 import { sendPasswordResetEmail } from "./src/services/emailService.js";
+import { validateEmailForRegistration } from "./src/utils/emailValidator.js";
+import { APIError } from "better-auth/api";
 
 dotenv.config();
 validateAuthEnv();
@@ -110,6 +112,17 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        before: async (user) => {
+          if (user?.email) {
+            const validation = await validateEmailForRegistration(user.email);
+            if (!validation.valid) {
+              throw new APIError("BAD_REQUEST", {
+                message: validation.message,
+              });
+            }
+          }
+          return { data: user };
+        },
         after: async (user) => {
           try {
             const result = await ensureRegistrationBonus(user.id);

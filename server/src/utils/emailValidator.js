@@ -3,13 +3,46 @@ import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 let disposableSet = new Set();
+const EXTRA_DISPOSABLE_DOMAINS = [
+  'tempmail.com',
+  'temp-mail.org',
+  'temp-mail.io',
+  'tempmailo.com',
+  'dispostable.com',
+  'fakemailgenerator.com',
+  'generator.email',
+  'emailondeck.com',
+  'yopmail.com',
+  'yopmail.net',
+  'yopmail.fr',
+  'sharklasers.com',
+  'guerrillamailblock.com',
+  'guerrillamail.net',
+  'guerrillamail.biz',
+  'guerrillamail.org',
+  'grr.la',
+  'getairmail.com',
+  'throwawaymail.com',
+  'mohmal.com',
+  'mytemp.email',
+  'crazymailing.com',
+  'nada.ltd',
+  'inboxkitten.com',
+  'burnermail.io',
+  'minutemailbox.com',
+];
+
 try {
   const disposableDomains = require('disposable-email-domains');
   if (Array.isArray(disposableDomains)) {
-    disposableSet = new Set(disposableDomains.map((d) => String(d).toLowerCase().trim()));
+    disposableSet = new Set([
+      ...disposableDomains.map((d) => String(d).toLowerCase().trim()),
+      ...EXTRA_DISPOSABLE_DOMAINS,
+    ]);
   }
 } catch (err) {
   console.warn('[emailValidator] Could not load disposable-email-domains package:', err.message);
+  disposableSet = new Set(EXTRA_DISPOSABLE_DOMAINS);
 }
 
 // Fast-path known trusted email providers to eliminate DNS lookups (0ms latency)
