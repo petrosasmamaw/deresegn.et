@@ -12,6 +12,7 @@ import BirrVerifyHero from '../components/BirrVerifyHero'
 import OnboardingModal from '../components/OnboardingModal'
 import { useDashboardUi } from '../context/DashboardUiContext'
 import { useLocale } from '../i18n/LocaleContext'
+import { useToast } from '../components/Toast'
 
 function scrollToVerify() {
   document.getElementById('verify-desk')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -20,8 +21,9 @@ function scrollToVerify() {
 export default function DashboardPage() {
   const dispatch = useDispatch()
   const { t } = useLocale()
-  const { current: balance, submitting: topupLoading, error: balanceError } = useSelector(s => s.balance)
-  const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, lastCheck, lastResolvedDetails } = useSelector(s => s.checks)
+  const toast = useToast()
+  const { current: balance, submitting: topupLoading, error: balanceError, loadError: balanceLoadError } = useSelector(s => s.balance)
+  const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, loadError: historyLoadError, lastCheck, lastResolvedDetails } = useSelector(s => s.checks)
   const { topupOpen, setTopupOpen, setCheckerOpen } = useDashboardUi()
   const [mobileTab, setMobileTab] = useState('home')
   const [onboardingOpen, setOnboardingOpen] = useState(false)
@@ -34,6 +36,15 @@ export default function DashboardPage() {
       setOnboardingOpen(true)
     }
   }, [dispatch])
+
+  // Surface background read-path failures (previously silent) as toasts.
+  useEffect(() => {
+    if (balanceLoadError) toast.error(t('errors.loadBalance'))
+  }, [balanceLoadError, toast, t])
+
+  useEffect(() => {
+    if (historyLoadError) toast.error(t('errors.loadHistory'))
+  }, [historyLoadError, toast, t])
 
   useEffect(() => {
     setCheckerOpen(false)
@@ -196,7 +207,12 @@ export default function DashboardPage() {
         </button>
       </div>
       <div className="card overflow-hidden">
-        <CheckHistory checks={checks} loading={checksLoading} />
+        <CheckHistory
+          checks={checks}
+          loading={checksLoading}
+          error={historyLoadError}
+          onRetry={() => dispatch(fetchCheckHistory())}
+        />
       </div>
     </section>
   )
@@ -210,7 +226,7 @@ export default function DashboardPage() {
       <div className={mobileTab === 'history' ? 'hidden md:block dash-shell' : 'dash-shell'}>
         <div className="dash-stage">
           {verifyPanel}
-          <BalanceCard balance={balance} onTopUpClick={() => setTopupOpen(true)} />
+          <BalanceCard balance={balance} error={balanceLoadError} onTopUpClick={() => setTopupOpen(true)} />
         </div>
         <div className="hidden md:block">
           {historySection}
@@ -223,7 +239,12 @@ export default function DashboardPage() {
             <h1 className="mobile-page-title">{t('dash.mobileHistory')}</h1>
             <p className="mobile-page-subtitle">{t('dash.mobileHistorySub')}</p>
           </header>
-          <CheckHistory checks={checks} loading={checksLoading} />
+          <CheckHistory
+            checks={checks}
+            loading={checksLoading}
+            error={historyLoadError}
+            onRetry={() => dispatch(fetchCheckHistory())}
+          />
         </div>
       )}
 

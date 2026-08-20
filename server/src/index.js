@@ -1,6 +1,7 @@
 import express from 'express'
 import dotenv from 'dotenv'
 import cors from 'cors'
+import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import path from 'path'
 import { pathToFileURL } from 'url'
@@ -21,14 +22,17 @@ import {
   topUpRateLimiter,
   apiV1RateLimiter,
 } from './middleware/rateLimiters.js'
-import { testConnection } from './db/index.js'
+import { testConnection, closePool } from './db/index.js'
 import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
 import { ensureUserPaymentAccountsTable } from './services/userPaymentAccountService.js'
+import { ensureApiKeysTable } from './services/apiKeyService.js'
 import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerService.js'
 import { isTrustedOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
 import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
 import { normalizeNativeClientOrigin } from './middleware/normalizeNativeClientOrigin.js'
+import { requestId } from './middleware/requestId.js'
+import { logger } from './config/logger.js'
 import { fromNodeHeaders } from 'better-auth/node'
 
 dotenv.config()
@@ -36,6 +40,18 @@ dotenv.config()
 const app = express()
 
 app.set('trust proxy', 1)
+
+// Security headers. This is a JSON API (no server-rendered HTML), so CSP and
+// cross-origin embedder policies are disabled to avoid interfering with CORS,
+// image delivery, or the Better Auth redirect flow. HSTS activates on HTTPS.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
+}))
+
+// Correlate logs per request; echoes X-Request-Id back to the caller.
+app.use(requestId)
 
 app.use(cors({
   origin(origin, callback) {
@@ -176,6 +192,37 @@ async function start() {
     console.error('Server error:', err)
     process.exit(1)
   })
+
+  setupGracefulShutdown(server)
+}
+
+/**
+ * Drain in-flight requests and close the DB pool on Render/host restarts
+ * (SIGTERM) or local Ctrl+C (SIGINT). Forces exit if shutdown stalls.
+ */
+function setupGracefulShutdown(server) {
+  let shuttingDown = false
+  const shutdown = (signal) => {
+    if (shuttingDown) return
+    shuttingDown = true
+    logger.info(`Received ${signal} — shutting down gracefully`)
+
+    const forceTimer = setTimeout(() => {
+      logger.error('Shutdown timed out — forcing exit')
+      process.exit(1)
+    }, 10000)
+    forceTimer.unref?.()
+
+    server.close(async () => {
+      await closePool()
+      logger.info('Shutdown complete')
+      clearTimeout(forceTimer)
+      process.exit(0)
+    })
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 start().catch(err => {

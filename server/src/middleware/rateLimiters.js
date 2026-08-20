@@ -1,4 +1,5 @@
 import rateLimit from 'express-rate-limit';
+import { makeRateLimitStore } from '../config/rateLimitStore.js';
 
 /** Shared IP key (Render / proxies). */
 function ipKey(req) {
@@ -22,6 +23,7 @@ export const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: ipKey,
+  store: makeRateLimitStore(),
   handler: limitJson('Too many auth attempts. Wait 15 minutes and try again.'),
 });
 
@@ -32,6 +34,7 @@ export const signupRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: ipKey,
+  store: makeRateLimitStore(),
   handler: limitJson('Too many new accounts from this network. Try again later.'),
   skip: (req) => !/sign-up|signup|register/i.test(req.path + (req.originalUrl || '')),
 });
@@ -43,6 +46,7 @@ export const verifyRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => `${ipKey(req)}:${req.userId || 'anon'}`,
+  store: makeRateLimitStore(),
   handler: limitJson('Too many verifications. Slow down and try again shortly.'),
 });
 
@@ -53,6 +57,7 @@ export const topUpRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => `${ipKey(req)}:${req.userId || 'anon'}`,
+  store: makeRateLimitStore(),
   handler: limitJson('Too many top-up attempts. Wait and try again.'),
 });
 
@@ -66,6 +71,7 @@ export const apiV1RateLimiter = rateLimit({
     const key = req.headers['x-api-key'] || req.headers.authorization || '';
     return `${ipKey(req)}:${String(key).slice(0, 24)}`;
   },
+  store: makeRateLimitStore(),
   handler: limitJson('API rate limit exceeded. Wait a minute and retry.'),
 });
 
@@ -76,5 +82,6 @@ export const globalApiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: ipKey,
+  store: makeRateLimitStore(),
   handler: limitJson('Too many requests. Please slow down.'),
 });

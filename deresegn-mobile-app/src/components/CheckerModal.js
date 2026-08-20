@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import {
   ActivityIndicator,
@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
 import { useLocale } from '../i18n/LocaleContext'
+import useIsOnline from '../hooks/useIsOnline'
+import { alertIfOffline } from '../lib/guardOnline'
 import VerificationCertificate from './VerificationCertificate'
 import VerificationFormatGuide from './VerificationFormatGuide'
 import {
@@ -105,6 +107,7 @@ export default function CheckerModal({
   const { t } = useLocale()
   const dispatch = useDispatch()
   const insets = useSafeAreaInsets()
+  const online = useIsOnline()
   const navigation = useNavigation()
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState('')
@@ -248,9 +251,25 @@ export default function CheckerModal({
     setFailureIssues([])
   }, [active, dispatch])
 
+  // Track whether the user manually flipped the switch for the current bank.
+  // Auto-default ON only when a saved account first becomes available — never
+  // re-force ON after the user turns it off.
+  const matchUserOverrideRef = useRef(false)
+
   useEffect(() => {
-    setMatchMyAccount(canMatchMyAccount)
-  }, [canMatchMyAccount, method])
+    matchUserOverrideRef.current = false
+    setMatchMyAccount(Boolean(canMatchMyAccount))
+  }, [method])
+
+  useEffect(() => {
+    if (!canMatchMyAccount) {
+      setMatchMyAccount(false)
+      return
+    }
+    if (!matchUserOverrideRef.current) {
+      setMatchMyAccount(true)
+    }
+  }, [canMatchMyAccount])
 
   const referenceFields = useMemo(() => {
     const fields = referenceFieldsByMethod[method] || []
@@ -348,6 +367,7 @@ export default function CheckerModal({
   }
 
   const runVerify = async () => {
+    if (!alertIfOffline(online, t)) return
     if (!screenshot) {
       setFailureIssues([{ code: 'SCREENSHOT_REQUIRED', field: 'screenshot', message: t('check.screenshotRequired') }])
       setRejected(true)
@@ -369,6 +389,7 @@ export default function CheckerModal({
   }
 
   const runReferenceVerify = async () => {
+    if (!alertIfOffline(online, t)) return
     setRejected(false)
     setFailureIssues([])
     const result = await onReferenceSubmit({
@@ -390,6 +411,7 @@ export default function CheckerModal({
   }
 
   const runSmsVerify = async () => {
+    if (!alertIfOffline(online, t)) return
     setRejected(false)
     setFailureIssues([])
     const result = await onSmsSubmit({ method, smsText, matchMyAccount })
@@ -414,7 +436,11 @@ export default function CheckerModal({
     <View style={[styles.payBox, matchMyAccount && styles.payBoxOn, !canMatchMyAccount && styles.payBoxLocked]}>
       <Pressable
         disabled={!canMatchMyAccount}
-        onPress={() => canMatchMyAccount && setMatchMyAccount((v) => !v)}
+        onPress={() => {
+          if (!canMatchMyAccount) return
+          matchUserOverrideRef.current = true
+          setMatchMyAccount((v) => !v)
+        }}
         style={styles.payRow}
         accessibilityRole="switch"
         accessibilityState={{ checked: matchMyAccount, disabled: !canMatchMyAccount }}

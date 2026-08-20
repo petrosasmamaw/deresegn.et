@@ -105,12 +105,22 @@ export const fetchCheckHistory = createAsyncThunk(
   }
 )
 
+function errMessage(payload) {
+  if (!payload) return null
+  return typeof payload === 'object' ? (payload.message || null) : String(payload)
+}
+
 const slice = createSlice({
   name: 'checks',
-  initialState: { list: [], loading: false, error: null, submitting: false, lastCheck: null, lastResolvedDetails: null },
+  // `error` drives the verify panel (submit failures); `loadError` is the
+  // separate history read-path failure surfaced on the dashboard.
+  initialState: { list: [], loading: false, error: null, loadError: null, submitting: false, lastCheck: null, lastResolvedDetails: null },
   reducers: {
     clearError(state) {
       state.error = null
+    },
+    clearLoadError(state) {
+      state.loadError = null
     },
   },
   extraReducers: (builder) => {
@@ -148,11 +158,11 @@ const slice = createSlice({
       })
       .addCase(performSmsCheck.rejected, (s, a) => { s.submitting = false; s.error = a.payload })
 
-      .addCase(fetchCheckHistory.pending, (s) => { s.loading = true; s.error = null })
+      .addCase(fetchCheckHistory.pending, (s) => { s.loading = true; s.loadError = null })
       .addCase(fetchCheckHistory.fulfilled, (s, a) => { s.loading = false; s.list = a.payload })
-      .addCase(fetchCheckHistory.rejected, (s, a) => { s.loading = false; s.error = a.payload })
+      .addCase(fetchCheckHistory.rejected, (s, a) => { s.loading = false; s.loadError = errMessage(a.payload) })
   },
 })
 
-export const { clearError } = slice.actions
+export const { clearError, clearLoadError } = slice.actions
 export default slice.reducer

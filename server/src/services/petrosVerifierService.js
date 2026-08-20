@@ -1,6 +1,7 @@
 import { outboundFetch } from '../utils/outboundFetch.js';
 import { normalizeTelebirrInvoiceId } from '../utils/telebirrInvoice.js';
 import { normalizeTxCode } from '../utils/txCode.js';
+import { reportPetrosFailure } from '../config/petrosMonitor.js';
 
 const PETROS_BASE_URL = String(process.env.PETROS_VERIFIER_BASE_URL || '')
   .trim()
@@ -193,6 +194,12 @@ export async function fetchTelebirrViaPetros(invoiceId) {
     }
   }
 
+  reportPetrosFailure({
+    bank: 'telebirr',
+    reference: id,
+    reason: 'all attempts exhausted',
+    durationMs: Date.now() - started,
+  });
   return null;
 }
 
@@ -291,5 +298,11 @@ export async function fetchCbeViaPetros(reference, accountSuffix) {
     }
   }
 
+  reportPetrosFailure({
+    bank: 'cbe',
+    reference: logId,
+    reason: 'all attempts exhausted',
+    durationMs: Date.now() - started,
+  });
   return null;
 }

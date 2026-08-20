@@ -76,22 +76,32 @@ export const submitTopUpSms = createAsyncThunk(
   }
 )
 
+function errMessage(payload) {
+  if (!payload) return null
+  return typeof payload === 'object' ? (payload.message || null) : String(payload)
+}
+
 const slice = createSlice({
   name: 'balance',
-  initialState: { current: 0, loading: false, error: null, submitting: false },
+  // `error` drives the top-up modal (submit failures); `loadError` is the
+  // separate read-path failure surfaced on the dashboard.
+  initialState: { current: 0, loading: false, error: null, loadError: null, submitting: false },
   reducers: {
     clearError(state) {
       state.error = null
     },
+    clearLoadError(state) {
+      state.loadError = null
+    },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchBalance.pending, (s) => { s.loading = true; s.error = null })
+      .addCase(fetchBalance.pending, (s) => { s.loading = true; s.loadError = null })
       .addCase(fetchBalance.fulfilled, (s, a) => {
         s.loading = false
         s.current = parseFloat(a.payload) || 0
       })
-      .addCase(fetchBalance.rejected, (s, a) => { s.loading = false; s.error = a.payload })
+      .addCase(fetchBalance.rejected, (s, a) => { s.loading = false; s.loadError = errMessage(a.payload) })
 
       .addCase(submitTopUp.pending, (s) => { s.submitting = true; s.error = null })
       .addCase(submitTopUp.fulfilled, (s, a) => {
@@ -116,5 +126,5 @@ const slice = createSlice({
   },
 })
 
-export const { clearError } = slice.actions
+export const { clearError, clearLoadError } = slice.actions
 export default slice.reducer

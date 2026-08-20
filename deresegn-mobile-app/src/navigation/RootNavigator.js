@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import NetInfo from '@react-native-community/netinfo'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchSession } from '../features/auth/authSlice'
 import SplashScreen from '../screens/SplashScreen'
@@ -15,23 +16,42 @@ const Stack = createNativeStackNavigator()
 
 export default function RootNavigator() {
   const dispatch = useDispatch()
-  const { user, initializing } = useSelector((s) => s.auth)
+  const { user, initializing, sessionNetworkError } = useSelector((s) => s.auth)
   const [gateOpen, setGateOpen] = useState(true)
 
   useEffect(() => {
     dispatch(fetchSession())
   }, [dispatch])
 
+  // Retry session restore when connectivity returns after a transient boot failure.
+  useEffect(() => {
+    if (!sessionNetworkError) return undefined
+    const unsub = NetInfo.addEventListener((state) => {
+      const online = state.isConnected !== false && state.isInternetReachable !== false
+      if (online) dispatch(fetchSession())
+    })
+    return () => unsub()
+  }, [sessionNetworkError, dispatch])
+
   const finishSplash = useCallback(() => {
     setGateOpen(false)
   }, [])
 
   if (gateOpen) {
-    return <SplashScreen onFinished={finishSplash} initializing={initializing} />
+    return (
+      <SplashScreen
+        onFinished={finishSplash}
+        initializing={initializing}
+        sessionNetworkError={sessionNetworkError}
+        onRetry={() => dispatch(fetchSession())}
+      />
+    )
   }
 
+  const navKey = user?.id ?? (sessionNetworkError ? 'offline' : 'guest')
+
   return (
-    <NavigationContainer>
+    <NavigationContainer key={navKey}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

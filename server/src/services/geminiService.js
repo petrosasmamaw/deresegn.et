@@ -3,26 +3,51 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { buildExtractionPrompt } from './receiptFormats.js';
 import { normalizeTelebirrInvoiceId } from '../utils/telebirrInvoice.js';
 
-const TELEBIRR_INVOICE_PROMPT = `This is a Telebirr mobile wallet payment receipt screenshot.
-Read these fields exactly as printed (do not guess or correct them):
-- Invoice No. (10 characters, e.g. DFC7TG1O11, DF52MV8ILW, DG65L5I9M5) or a transactioninfo.ethiotelecom.et/receipt/... URL
-- Payer / sender name
-- Payer telebirr / sender account
-- Credited party / receiver name
-- Credited party account
-- Total Paid Amount or transfer amount (number only, no ETB)
-Return ONLY valid JSON (no markdown):
+const TELEBIRR_INVOICE_PROMPT = `This is a Telebirr mobile wallet payment screenshot.
+There are TWO common layouts — read whichever is on screen:
+
+LAYOUT A — Official invoice / receipt (often has a QR code):
+- Invoice No. (exactly 10 characters, e.g. DFC7TG1O11, DF52MV8ILW, DG65L5I9M5, DHK50UYSH1)
+- Or a URL like transactioninfo.ethiotelecom.et/receipt/...
+- Payer / sender name and payer telebirr number
+- Credited party / receiver name and account
+- Total Paid Amount (number only)
+
+LAYOUT B — In-app "Transaction Detail" (Send Money / Completed, usually NO QR):
+- Transaction No. (exactly 10 characters — same as Invoice No., e.g. DHK50UYSH1)
+- Transaction To = receiver name
+- Transaction Amount (number only, ignore the leading minus)
+- Transaction Status should be Completed
+- Service Charge may also appear — do NOT use it as the amount
+
+Rules:
+- Prefer Invoice No. / Transaction No. as transactionCode — never invent or "correct" characters
+- Amount: absolute paid/transfer amount as a number (e.g. 50), never the service charge
+- If the credited party / "Transaction To" is an Ethiopian BANK or institution name
+  (e.g. Commercial Bank of Ethiopia, Bank of Abyssinia, Dashen Bank, CBE, BOA), set receiverName to null
+  — that is not a personal name (the official record has the real person)
+- Return ONLY valid JSON (no markdown):
 { "transactionCode": string or null, "amount": number or null, "senderName": string or null, "senderAccount": string or null, "receiverName": string or null, "receiverAccount": string or null }`;
 
-/** gemini-2.0-flash shut down June 1 2026. Fast OCR: 3.1 Flash-Lite; fallbacks still live. */
-const PRIMARY_MODEL = (process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite').trim();
-const FALLBACK_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+/**
+ * Active Gemini models (August 2026):
+ * - Primary: gemini-3.5-flash-lite (fastest, ~750ms OCR)
+ * - Fallbacks: gemini-3.1-flash-lite, gemini-3.6-flash
+ * Decommissioned / 404 models: gemini-2.5-*, gemini-2.0-*, gemini-1.5-*
+ */
+const PRIMARY_MODEL = (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite').trim();
+const FALLBACK_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.6-flash'];
 
 const SHUT_DOWN_MODELS = new Set([
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
   'gemini-2.0-flash-001',
   'gemini-2.0-flash-lite',
   'gemini-2.0-flash-lite-001',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash-8b',
 ]);
 
 function modelQueue() {
@@ -31,9 +56,9 @@ function modelQueue() {
   return [...new Set([primary, ...FALLBACK_MODELS].filter((id) => id && !SHUT_DOWN_MODELS.has(id)))];
 }
 
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 18000;
-const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 5000;
-const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 5000;
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 20000;
+const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 12000;
+const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 12000;
 
 const BOA_OCR_PROMPT = `This is a Bank of Abyssinia (BOA) payment receipt screenshot.
 Read these fields exactly as printed (do not guess):
@@ -118,12 +143,8 @@ function isQuotaError(err) {
 }
 
 function isRetryableModelError(err) {
-  const msg = err?.message || '';
   if (isQuotaError(err)) return false;
-  return msg.includes('404')
-    || msg.includes('not found')
-    || msg.includes('is not supported')
-    || msg.includes('no longer available');
+  return true;
 }
 
 export async function extractPaymentFromScreenshot(imagePath, method = 'telebirr') {

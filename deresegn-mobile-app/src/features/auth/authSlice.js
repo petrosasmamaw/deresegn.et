@@ -51,14 +51,17 @@ export const hydrateProfile = createAsyncThunk('auth/hydrateProfile', async () =
   }
 })
 
-export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatch }) => {
+export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatch, rejectWithValue }) => {
   try {
     const session = await authApi.getSession()
     const user = session?.user || null
     if (!user) return null
     dispatch(hydrateProfile())
     return mapSessionUser(user)
-  } catch {
+  } catch (err) {
+    if (err?.message === 'NETWORK_UNREACHABLE') {
+      return rejectWithValue({ code: 'NETWORK' })
+    }
     return null
   }
 })
@@ -74,6 +77,7 @@ const slice = createSlice({
     initializing: true,
     submitting: false,
     error: null,
+    sessionNetworkError: false,
   },
   reducers: {
     clearError(state) {
@@ -84,6 +88,10 @@ const slice = createSlice({
       state.error = null
       state.submitting = false
       state.initializing = false
+      state.sessionNetworkError = false
+    },
+    clearSessionNetworkError(state) {
+      state.sessionNetworkError = false
     },
   },
   extraReducers: (builder) => {
@@ -119,10 +127,16 @@ const slice = createSlice({
       })
       .addCase(fetchSession.fulfilled, (s, a) => {
         s.initializing = false
+        s.sessionNetworkError = false
         s.user = a.payload
       })
-      .addCase(fetchSession.rejected, (s) => {
+      .addCase(fetchSession.rejected, (s, a) => {
         s.initializing = false
+        if (a.payload?.code === 'NETWORK') {
+          s.sessionNetworkError = true
+          return
+        }
+        s.sessionNetworkError = false
         s.user = null
       })
 
@@ -143,5 +157,5 @@ const slice = createSlice({
   },
 })
 
-export const { clearError, sessionExpired } = slice.actions
+export const { clearError, sessionExpired, clearSessionNetworkError } = slice.actions
 export default slice.reducer

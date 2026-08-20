@@ -10,9 +10,27 @@ const isNeon = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('ne
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: isNeon ? { rejectUnauthorized: false } : (process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
+  // Timeouts so a slow/unreachable DB fails fast instead of hanging startup.
+  max: Number(process.env.DB_POOL_MAX) || 10,
+  connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 10000,
+  idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
+});
+
+// Never let a background pool error crash the process.
+pool.on('error', (err) => {
+  console.error('[db] Unexpected idle client error:', err.message);
 });
 
 export const db = drizzle(pool, { schema });
+
+/** Close the pool during graceful shutdown. */
+export async function closePool() {
+  try {
+    await pool.end();
+  } catch {
+    // ignore — process is exiting
+  }
+}
 
 export async function testConnection() {
   try {

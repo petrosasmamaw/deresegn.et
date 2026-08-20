@@ -14,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useDispatch, useSelector } from 'react-redux'
 import { clearError, login } from '../features/auth/authSlice'
 import { displayAuthError } from '../lib/errors'
+import { alertIfOffline } from '../lib/guardOnline'
+import useIsOnline from '../hooks/useIsOnline'
 import { useLocale } from '../i18n/LocaleContext'
 import BrandLockup from '../components/BrandLockup'
 import LangToggle from '../components/LangToggle'
@@ -25,10 +27,12 @@ export default function LoginScreen({ navigation }) {
   const insets = useSafeAreaInsets()
   const dispatch = useDispatch()
   const { submitting, error } = useSelector((s) => s.auth)
+  const online = useIsOnline()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   const onSubmit = () => {
+    if (!alertIfOffline(online, t)) return
     dispatch(clearError())
     dispatch(login({ email: email.trim(), password }))
   }

@@ -68,6 +68,8 @@ export const en = {
   'sessionOpen.methodId': 'Payment ID',
   'sessionOpen.methodSms': 'SMS',
   'sessionOpen.checking': 'Opening your session',
+  'sessionOpen.networkError': 'Could not reach the server',
+  'sessionOpen.retry': 'Try again',
 
   // Home
   'home.logoAlt': 'Tamagn Check logo — ታማኝ ቸክ Ethiopian receipt verification',
@@ -309,6 +311,9 @@ export const en = {
   'topup.verified': 'Top-up verified',
   'topup.failed': 'Top-up failed',
   'topup.done': 'Done',
+  'topup.cameraPermissionRequired': 'Camera permission is required to photograph a receipt.',
+  'topup.libraryPermissionRequired': 'Photo library permission is required to choose a receipt.',
+  'topup.pickerFailed': 'Could not open image picker',
   'topup.stepMethod': 'Select payment method',
   'topup.stepMethodHint': 'Top-up accepts Telebirr, CBE, and Bank of Abyssinia',
   'topup.stepMode': 'Choose verification type',
@@ -477,6 +482,7 @@ export const en = {
 
   'offline.title': 'No internet',
   'offline.body': 'Check your connection. Verification and top-up need the network.',
+  'offline.actionBlocked': 'Connect to the internet to continue.',
 
   'check.paymentIdFailed': 'Payment ID could not be verified',
   'check.smsFailed': 'SMS could not be verified',
@@ -524,4 +530,7 @@ export const en = {
   'dev.keyFallback': 'API key',
   'dev.capacityMeta': '{used} / {cap} Birr capacity · remaining {remaining}',
   'dev.renew': 'Renew',
+
+  'legal.privacy': 'Privacy Policy',
+  'legal.terms': 'Terms of Service',
 }

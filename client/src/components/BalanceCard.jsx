@@ -5,7 +5,7 @@ import Modal from './Modal'
 import PricingTables from './PricingTables'
 import { useLocale } from '../i18n/LocaleContext'
 
-export default function BalanceCard({ balance = 0, onTopUpClick }) {
+export default function BalanceCard({ balance = 0, error = null, onTopUpClick }) {
   const [pricingOpen, setPricingOpen] = useState(false)
   const { t } = useLocale()
 
@@ -14,7 +14,13 @@ export default function BalanceCard({ balance = 0, onTopUpClick }) {
       <section className="dash-tools" aria-label={t('balance.title')}>
         <div className="dash-tools-balance">
           <p className="dash-tools-amount">{Number(balance || 0).toFixed(2)}</p>
-          <p className="dash-tools-meta">{t('balance.available')}</p>
+          <p className="dash-tools-meta">
+            {error ? (
+              <span role="alert" style={{ color: '#dc2626' }}>{t('errors.loadBalance')}</span>
+            ) : (
+              t('balance.available')
+            )}
+          </p>
         </div>
 
         <div className="dash-tools-actions">

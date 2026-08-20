@@ -155,10 +155,13 @@ export async function ensureApiKeysTable() {
   tableReady = true;
 }
 
-async function debitWalletAtomic(userId, amount, ledgerMeta) {
-  await ensureUserBalance(userId);
+/**
+ * Atomic wallet debit inside an existing Drizzle transaction.
+ * Throws CheckError(402) if the balance can't cover the debit.
+ */
+async function debitWalletTx(tx, userId, amount, insufficientMessage) {
   const debit = money(amount);
-  const result = await db.execute(sql`
+  const result = await tx.execute(sql`
     UPDATE balances
     SET amount = amount - ${debit}::numeric,
         updated_at = NOW()
@@ -168,21 +171,9 @@ async function debitWalletAtomic(userId, amount, ledgerMeta) {
   `);
   const row = result?.rows?.[0] || result?.[0];
   if (!row) {
-    throw new CheckError('Insufficient balance. Top up to buy or renew an API package.', 402);
+    throw new CheckError(insufficientMessage || 'Insufficient balance. Top up to buy or renew an API package.', 402);
   }
-  const balanceAfter = money(row.amount);
-  if (ledgerMeta) {
-    await recordBalanceTransaction({
-      userId,
-      type: ledgerMeta.type,
-      amount: -debit,
-      balanceAfter,
-      referenceType: ledgerMeta.referenceType || 'api_key',
-      referenceId: ledgerMeta.referenceId || null,
-      description: ledgerMeta.description || null,
-    }).catch(() => {});
-  }
-  return balanceAfter;
+  return money(row.amount);
 }
 
 export async function listUserApiKeys(userId) {
@@ -214,29 +205,42 @@ export async function purchaseApiKey(userId, { packageId, name } = {}) {
   const keyHash = hashKey(rawKey);
   const keyPrefix = rawKey.slice(0, 12);
 
-  const newBalance = await debitWalletAtomic(userId, pkg.price, null);
+  await ensureUserBalance(userId);
 
-  const [created] = await db.insert(apiKeys).values({
-    userId,
-    name: String(name || `${pkg.label} API`).slice(0, 80),
-    keyPrefix,
-    keyHash,
-    keyEncrypted: encryptRawKey(rawKey),
-    packagePrice: toMoney(pkg.price),
-    capacityAmount: toMoney(pkg.capacity),
-    usedAmount: '0.00',
-    status: 'active',
-  }).returning();
+  // Debit + key insert + ledger row commit or roll back together, so a failed
+  // key insert can never leave the wallet debited without a key.
+  const { created, newBalance } = await db.transaction(async (tx) => {
+    const balanceAfter = await debitWalletTx(
+      tx,
+      userId,
+      pkg.price,
+      `Insufficient balance. This package costs ${pkg.price} Birr. Top up and try again.`,
+    );
 
-  await recordBalanceTransaction({
-    userId,
-    type: 'api_key_purchase',
-    amount: -pkg.price,
-    balanceAfter: newBalance,
-    referenceType: 'api_key',
-    referenceId: created.id,
-    description: `API ${pkg.label} — key ${keyPrefix}…`,
-  }).catch(() => {});
+    const [createdKey] = await tx.insert(apiKeys).values({
+      userId,
+      name: String(name || `${pkg.label} API`).slice(0, 80),
+      keyPrefix,
+      keyHash,
+      keyEncrypted: encryptRawKey(rawKey),
+      packagePrice: toMoney(pkg.price),
+      capacityAmount: toMoney(pkg.capacity),
+      usedAmount: '0.00',
+      status: 'active',
+    }).returning();
+
+    await recordBalanceTransaction({
+      userId,
+      type: 'api_key_purchase',
+      amount: -pkg.price,
+      balanceAfter,
+      referenceType: 'api_key',
+      referenceId: createdKey.id,
+      description: `API ${pkg.label} — key ${keyPrefix}…`,
+    }, tx);
+
+    return { created: createdKey, newBalance: balanceAfter };
+  });
 
   return {
     key: publicKeyView(created, { includeSecret: rawKey }),
@@ -271,29 +275,41 @@ export async function renewApiKey(userId, keyId, { packageId } = {}) {
     );
   }
 
-  const newBalance = await debitWalletAtomic(userId, pkg.price, null);
+  await ensureUserBalance(userId);
 
   const nextCapacity = money(row.capacityAmount) + pkg.capacity;
-  const [updated] = await db
-    .update(apiKeys)
-    .set({
-      capacityAmount: toMoney(nextCapacity),
-      packagePrice: toMoney(pkg.price),
-      status: 'active',
-      updatedAt: new Date(),
-    })
-    .where(eq(apiKeys.id, row.id))
-    .returning();
 
-  await recordBalanceTransaction({
-    userId,
-    type: 'api_key_renewal',
-    amount: -pkg.price,
-    balanceAfter: newBalance,
-    referenceType: 'api_key',
-    referenceId: row.id,
-    description: `Renewed API key ${row.keyPrefix}… (+${pkg.capacity} capacity)`,
-  }).catch(() => {});
+  const { updated, newBalance } = await db.transaction(async (tx) => {
+    const balanceAfter = await debitWalletTx(
+      tx,
+      userId,
+      pkg.price,
+      `Insufficient balance. Renewal costs ${pkg.price} Birr. Top up and try again.`,
+    );
+
+    const [updatedKey] = await tx
+      .update(apiKeys)
+      .set({
+        capacityAmount: toMoney(nextCapacity),
+        packagePrice: toMoney(pkg.price),
+        status: 'active',
+        updatedAt: new Date(),
+      })
+      .where(eq(apiKeys.id, row.id))
+      .returning();
+
+    await recordBalanceTransaction({
+      userId,
+      type: 'api_key_renewal',
+      amount: -pkg.price,
+      balanceAfter,
+      referenceType: 'api_key',
+      referenceId: row.id,
+      description: `Renewed API key ${row.keyPrefix}… (+${pkg.capacity} capacity)`,
+    }, tx);
+
+    return { updated: updatedKey, newBalance: balanceAfter };
+  });
 
   return {
     key: publicKeyView(updated),

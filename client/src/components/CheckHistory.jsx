@@ -16,7 +16,7 @@ function BankBadge({ method, label }) {
   return <span className={`bank-badge ${badgeClass}`}>{label || method}</span>
 }
 
-export default function CheckHistory({ checks = [], loading = false }) {
+export default function CheckHistory({ checks = [], loading = false, error = null, onRetry }) {
   const { t } = useLocale()
   const [search, setSearch] = useState('')
   const [methodFilter, setMethodFilter] = useState('all')
@@ -50,6 +50,19 @@ export default function CheckHistory({ checks = [], loading = false }) {
     return (
       <div className="space-y-3">
         {[1, 2, 3].map(i => <div key={i} className="skeleton skeleton-card" style={{ height: '60px' }} />)}
+      </div>
+    )
+  }
+
+  if (error && checks.length === 0) {
+    return (
+      <div className="py-8 text-center" role="alert">
+        <p className="text-sm text-[var(--color-text-secondary)] mb-3">{t('errors.loadHistory')}</p>
+        {onRetry && (
+          <button type="button" onClick={onRetry} className="btn-secondary text-sm">
+            {t('common.tryAgain')}
+          </button>
+        )}
       </div>
     )
   }

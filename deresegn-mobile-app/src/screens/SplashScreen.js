@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useSelector } from 'react-redux'
 import { useLocale } from '../i18n/LocaleContext'
 import BrandLockup from '../components/BrandLockup'
 import { colors, space } from '../theme/tokens'
@@ -16,10 +15,14 @@ const ACTS = [
 /**
  * Lightweight session splash (web SessionOpenPage simplified for Phase 1).
  */
-export default function SplashScreen({ onFinished }) {
+export default function SplashScreen({
+  onFinished,
+  initializing = false,
+  sessionNetworkError = false,
+  onRetry,
+}) {
   const { t } = useLocale()
   const insets = useSafeAreaInsets()
-  const initializing = useSelector((s) => s.auth.initializing)
   const [actIndex, setActIndex] = useState(0)
   const [minHoldDone, setMinHoldDone] = useState(false)
 
@@ -35,12 +38,13 @@ export default function SplashScreen({ onFinished }) {
   }, [])
 
   useEffect(() => {
+    if (sessionNetworkError) return undefined
     if (!initializing && minHoldDone) {
       const tmr = setTimeout(() => onFinished?.(), 280)
       return () => clearTimeout(tmr)
     }
     return undefined
-  }, [initializing, minHoldDone, onFinished])
+  }, [initializing, minHoldDone, onFinished, sessionNetworkError])
 
   const act = ACTS[actIndex]
 
@@ -52,15 +56,29 @@ export default function SplashScreen({ onFinished }) {
         { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[6] },
       ]}
       accessibilityRole="progressbar"
-      accessibilityLabel={t('sessionOpen.checking')}
+      accessibilityLabel={sessionNetworkError ? t('sessionOpen.networkError') : t('sessionOpen.checking')}
     >
       <BrandLockup dark={false} />
-      <View style={styles.act} key={act.titleKey}>
-        <Text style={styles.actTitle}>{t(act.titleKey)}</Text>
-        <Text style={styles.actBody}>{t(act.bodyKey)}</Text>
-      </View>
-      <ActivityIndicator color={colors.foilGold} style={{ marginTop: space[8] }} />
-      <Text style={styles.hint}>{t('sessionOpen.checking')}</Text>
+      {sessionNetworkError ? (
+        <View style={styles.act}>
+          <Text style={styles.actTitle}>{t('sessionOpen.networkError')}</Text>
+          <Text style={styles.actBody}>{t('offline.body')}</Text>
+          {onRetry ? (
+            <Pressable onPress={onRetry} style={[ui.btnPrimary, styles.retryBtn]}>
+              <Text style={ui.btnPrimaryText}>{t('sessionOpen.retry')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : (
+        <>
+          <View style={styles.act} key={act.titleKey}>
+            <Text style={styles.actTitle}>{t(act.titleKey)}</Text>
+            <Text style={styles.actBody}>{t(act.bodyKey)}</Text>
+          </View>
+          <ActivityIndicator color={colors.foilGold} style={{ marginTop: space[8] }} />
+          <Text style={styles.hint}>{t('sessionOpen.checking')}</Text>
+        </>
+      )}
     </View>
   )
 }
@@ -97,5 +115,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: colors.textSecondary,
+  },
+  retryBtn: {
+    marginTop: space[6],
+    minWidth: 180,
   },
 })

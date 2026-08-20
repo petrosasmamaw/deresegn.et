@@ -64,7 +64,9 @@ export const am = {
   'sessionOpen.methodQr': 'QR',
   'sessionOpen.methodId': 'የክፍያ መለያ',
   'sessionOpen.methodSms': 'SMS',
-  'sessionOpen.checking': 'እየገባዎት ነው...',
+  'sessionOpen.checking': 'Opening your session',
+  'sessionOpen.networkError': 'Could not reach the server',
+  'sessionOpen.retry': 'Try again',
 
   'home.titleAm': 'ታማኝ ቸክ',
   'home.subtitle': 'የሚታመን የኢትዮጵያ ደረሰኝ ማረጋገጫ — የTelebirr፣ CBE፣ ዳሽንና የአቢሲኒያ ባንክ ክፍያዎችን በስክሪንሹት፣ QR፣ የክፍያ መለያ ወይም SMS ያረጋግጡ።',
@@ -295,6 +297,9 @@ export const am = {
   'topup.verified': 'ሂሳብ መሙላት ተረጋግጧል',
   'topup.failed': 'ሂሳብ መሙላት አልተሳካም',
   'topup.done': 'ተጠናቋል',
+  'topup.cameraPermissionRequired': 'ደረሰኝ ለመፎቶግራፍ የካሜራ ፈቃድ ያስፈልጋል።',
+  'topup.libraryPermissionRequired': 'ደረሰኝ ለመምረጥ የፎቶ ቤተ-መጽሐፍት ፈቃድ ያስፈልጋል።',
+  'topup.pickerFailed': 'የምስል መምረጊያ መክፈት አልተሳካም',
   'topup.stepMethod': 'የክፍያ ዘዴ ይምረጡ',
   'topup.stepMethodHint': 'ለሂሳብ መሙላት Telebirr፣ CBE እና የአቢሲኒያ ባንክ ተቀባይነት አላቸው',
   'topup.stepMode': 'የማረጋገጫ አይነት ይምረጡ',
@@ -458,6 +463,7 @@ export const am = {
 
   'offline.title': 'ኢንተርኔት የለም',
   'offline.body': 'ግንኙነትዎን ይፈትሹ። ማረጋገጫና ሂሳብ መሙላት ኔትዎርክ ያስፈልጋቸዋል።',
+  'offline.actionBlocked': 'ለመቀጠል ኢንተርኔት ያገናኙ።',
 
   'check.paymentIdFailed': 'የክፍያ መለያውን ማረጋገጥ አልተቻለም',
   'check.smsFailed': 'SMS ን ማረጋገጥ አልተቻለም',
@@ -505,4 +511,7 @@ export const am = {
   'dev.keyFallback': 'የAPI ቁልፍ',
   'dev.capacityMeta': '{used} / {cap} ብር አቅም · የቀረ {remaining}',
   'dev.renew': 'አድስ',
+
+  'legal.privacy': 'የግላዊነት ፖሊሲ',
+  'legal.terms': 'የአገልግሎት ውሎች',
 }

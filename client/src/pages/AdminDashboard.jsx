@@ -15,8 +15,10 @@ import {
   AdminBonusesPanel,
   AdminBonusSettingsPanel,
 } from '../components/AdminOperationsPanels'
+import { useLocale } from '../i18n/LocaleContext'
 
 export default function AdminDashboard() {
+  const { t } = useLocale()
   const { user } = useSelector((s) => s.auth)
   const [activeTab, setActiveTab] = useState('users')
   const [dashboardData, setDashboardData] = useState(null)
@@ -38,7 +40,7 @@ export default function AdminDashboard() {
       setDashboardData(data)
       setError(null)
     } catch (err) {
-      setError('Failed to load dashboard data')
+      setError(t('admin.loadFailed'))
       console.error(err)
     } finally {
       setLoading(false)
@@ -129,7 +131,7 @@ export default function AdminDashboard() {
           </div>
 
           {error && (
-            <div className="alert alert-error">
+            <div className="alert alert-error" role="alert">
               <p>{error}</p>
             </div>
           )}
@@ -142,7 +144,7 @@ export default function AdminDashboard() {
               className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'users' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Users size={16} />
-              Users
+              {t('admin.tab.users')}
             </button>
             <button
               type="button"
@@ -150,7 +152,7 @@ export default function AdminDashboard() {
               className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'verifications' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <FileCheck size={16} />
-              Verifications
+              {t('admin.tab.verifications')}
             </button>
             <button
               type="button"
@@ -158,7 +160,7 @@ export default function AdminDashboard() {
               className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'topups' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <TrendingUp size={16} />
-              Top-Ups
+              {t('admin.tab.topups')}
             </button>
             <button
               type="button"
@@ -166,7 +168,7 @@ export default function AdminDashboard() {
               className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'bonuses' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Gift size={16} />
-              Bonuses
+              {t('admin.tab.bonuses')}
             </button>
             <button
               type="button"
@@ -174,7 +176,7 @@ export default function AdminDashboard() {
               className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'channels' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Landmark size={16} />
-              Banks
+              {t('admin.tab.banks')}
             </button>
             <button
               type="button"
@@ -182,7 +184,7 @@ export default function AdminDashboard() {
               className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'accounts' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Wallet size={16} />
-              Accounts
+              {t('admin.tab.accounts')}
             </button>
             <button
               type="button"
@@ -190,7 +192,7 @@ export default function AdminDashboard() {
               className={`btn-secondary flex items-center gap-2 shrink-0 ${activeTab === 'settings' ? 'ring-2 ring-[var(--color-primary)]' : ''}`}
             >
               <Settings size={16} />
-              Settings
+              {t('admin.tab.settings')}
             </button>
           </div>
 

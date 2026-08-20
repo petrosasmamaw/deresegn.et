@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Smartphone, Building2, RotateCcw, Upload, Hash, Camera, MessageSquare, XCircle, Check } from 'lucide-react'
@@ -213,9 +213,25 @@ export default function CheckerModal({
     setFailureIssues([])
   }, [active, dispatch])
 
+  // Track whether the user manually flipped the switch for the current bank.
+  // Auto-default ON only when a saved account first becomes available — never
+  // re-force ON after the user turns it off.
+  const matchUserOverrideRef = useRef(false)
+
   useEffect(() => {
-    setMatchMyAccount(canMatchMyAccount)
-  }, [canMatchMyAccount, method])
+    matchUserOverrideRef.current = false
+    setMatchMyAccount(Boolean(canMatchMyAccount))
+  }, [method])
+
+  useEffect(() => {
+    if (!canMatchMyAccount) {
+      setMatchMyAccount(false)
+      return
+    }
+    if (!matchUserOverrideRef.current) {
+      setMatchMyAccount(true)
+    }
+  }, [canMatchMyAccount])
 
   const handleReferenceChange = (field, value) => {
     setReferenceForm((prev) => ({ ...prev, [field]: value }))
@@ -349,7 +365,10 @@ export default function CheckerModal({
           type="checkbox"
           checked={matchMyAccount}
           disabled={!canMatchMyAccount}
-          onChange={(e) => setMatchMyAccount(e.target.checked)}
+          onChange={(e) => {
+            matchUserOverrideRef.current = true
+            setMatchMyAccount(e.target.checked)
+          }}
         />
         <span className="pay-my-account-switch" aria-hidden="true" />
         <span className="pay-my-account-copy">

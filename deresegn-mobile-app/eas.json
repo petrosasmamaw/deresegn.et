@@ -34,6 +34,13 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal"
+      },
+      "ios": {
+        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      }
+    }
   }
 }

@@ -11,6 +11,7 @@ import { fetchBalance } from '../features/balance/balanceSlice'
 import { useDashboardUi } from '../context/DashboardUiContext'
 import PricingTables from '../components/PricingTables'
 import { getApiBaseUrl } from '../lib/apiBase'
+import { useLocale } from '../i18n/LocaleContext'
 
 const PACKAGE_ACCENTS = {
   starter: '#1B463A',
@@ -21,6 +22,7 @@ const PACKAGE_ACCENTS = {
 }
 
 export default function DeveloperApiPage() {
+  const { t } = useLocale()
   const user = useSelector((s) => s.auth.user)
   const balance = useSelector((s) => s.balance.current)
   const dispatch = useDispatch()
@@ -51,7 +53,7 @@ export default function DeveloperApiPage() {
       setKeys(data.keys || [])
       setPricing(data.pricing || null)
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to load API keys')
+      setError(err.response?.data?.message || err.message || t('dev.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -179,35 +181,34 @@ export default function DeveloperApiPage() {
         <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-start justify-between gap-4 mb-8">
           <div className="min-w-0 flex-1">
             <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold mb-3" style={{ color: 'var(--color-foil-gold)' }}>
-              <ArrowLeft size={16} /> Dashboard
+              <ArrowLeft size={16} /> {t('dev.backDashboard')}
             </Link>
-            <p className="eyebrow mb-1">Developer</p>
+            <p className="eyebrow mb-1">{t('dev.eyebrow')}</p>
             <h1 className="page-title flex items-center gap-2 flex-wrap">
               <KeyRound size={28} className="shrink-0" style={{ color: 'var(--color-foil-gold)' }} />
-              <span className="break-words">Paid Verify API</span>
+              <span className="break-words">{t('dev.title')}</span>
             </h1>
             <p className="page-subtitle max-w-2xl mt-2">
-              Buy capacity with your balance, copy URL + API key into any software.
-              Capacity meters the <strong>sum of verified payment amounts</strong> — when it runs out, renew after topping up.
+              {t('dev.lead')}
             </p>
           </div>
           <div className="stat-card w-full sm:w-auto sm:min-w-[160px] lg:shrink-0">
-            <p className="eyebrow mb-1">Wallet</p>
+            <p className="eyebrow mb-1">{t('dev.wallet')}</p>
             <p className="balance-amount text-2xl">{Number(balance || 0).toFixed(2)}</p>
-            <p className="text-xs text-[var(--color-text-secondary)] mt-1">Birr available</p>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-1">{t('dev.birrAvailable')}</p>
             <button type="button" className="btn-secondary w-full mt-3 text-sm" onClick={openTopUp}>
-              <Wallet size={14} className="inline mr-1" /> Top up
+              <Wallet size={14} className="inline mr-1" /> {t('dev.topUp')}
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="alert alert-error mb-6">
+          <div className="alert alert-error mb-6" role="alert">
             <AlertTriangle size={18} />
             <div className="flex-1">
               <p className="font-semibold text-sm">{error}</p>
               {/top up|insufficient/i.test(error) && (
-                <button type="button" className="btn-primary text-xs mt-2" onClick={openTopUp}>Top up balance</button>
+                <button type="button" className="btn-primary text-xs mt-2" onClick={openTopUp}>{t('dev.topUpBalance')}</button>
               )}
             </div>
           </div>
@@ -218,9 +219,9 @@ export default function DeveloperApiPage() {
             <div className="flex items-start gap-3">
               <Sparkles size={20} style={{ color: 'var(--color-foil-gold)' }} />
               <div className="flex-1 min-w-0">
-                <p className="font-display font-bold text-sm mb-1">Your new API key</p>
+                <p className="font-display font-bold text-sm mb-1">{t('dev.newKeyTitle')}</p>
                 <p className="text-xs text-[var(--color-text-secondary)] mb-3">
-                  Store it in your app. You can also reveal it later from Your keys with the eye icon.
+                  {t('dev.newKeyHint')}
                 </p>
                 <div
                   className="flex items-center gap-2 rounded-lg px-3 py-2"
@@ -246,7 +247,7 @@ export default function DeveloperApiPage() {
 
         <section className="mb-10">
           <h2 className="section-title mb-2">
-            {renewForId ? 'Choose package to renew' : 'Choose an API package'}
+            {renewForId ? t('dev.chooseRenew') : t('dev.choosePackage')}
           </h2>
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
             Price is charged from your wallet. Capacity is verified receipt amounts (not the in-app per-check fee).

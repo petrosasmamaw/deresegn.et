@@ -17,6 +17,7 @@ import {
   hasOfficialQrTruth,
 } from './qrFieldExtractor.js';
 import { extractTelebirrInvoiceFromExtracted } from './telebirrReceiptService.js';
+import { isEthiopianBankName, personNamesConflict } from '../utils/ethiopianBanks.js';
 
 function issue(type, code, field, message, extra = {}) {
   return { type, code, field, message, ...extra };
@@ -143,6 +144,8 @@ function cbeAmountsCompatible(officialAmount, screenshotAmount) {
 function hasReliableNameForFraudCheck(value) {
   const text = String(value || '').trim();
   if (!text) return false;
+  // Bank / institution labels are not person names — never use them for fraud name checks.
+  if (isEthiopianBankName(text)) return false;
   if (/\d/.test(text)) return false;
   const words = text.split(/\s+/).filter(Boolean);
   const alphaLen = text.replace(/[^A-Za-z]/g, '').length;
@@ -187,6 +190,8 @@ function fieldMismatch(field, label, a, b, aLabel, bLabel) {
   if (!a || !b) return null;
   const isAccount = field.includes('Account');
   const isAmount = field === 'amount';
+  const isName = field.includes('Name') || field === 'receiverName' || field === 'senderName';
+  if (isName && (isEthiopianBankName(a) || isEthiopianBankName(b))) return null;
   const match = isAmount ? amountsMatch(a, b) : isAccount ? accountsMatch(a, b) : namesMatch(a, b);
   if (match) return null;
   return issue('error', `${field.toUpperCase()}_MISMATCH`, field,
@@ -477,15 +482,13 @@ function validateTelebirrReceipt({
       { screenshotValue: shotTx, qrValue: officialTx }));
   }
 
-  if (extracted?.senderName && qrFields?.senderName
-    && !namesMatch(extracted.senderName, qrFields.senderName)) {
+  if (personNamesConflict(extracted?.senderName, qrFields?.senderName, namesMatch)) {
     issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'senderName',
       `Sender name error: screenshot shows "${extracted.senderName}" but the official Telebirr record shows "${qrFields.senderName}". The receipt appears edited.`,
       { screenshotValue: extracted.senderName, qrValue: qrFields.senderName }));
   }
 
-  if (extracted?.receiverName && qrFields?.receiverName
-    && !namesMatch(extracted.receiverName, qrFields.receiverName)) {
+  if (personNamesConflict(extracted?.receiverName, qrFields?.receiverName, namesMatch)) {
     issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', 'receiverName',
       `Receiver name error: screenshot shows "${extracted.receiverName}" but the official Telebirr record shows "${qrFields.receiverName}". The receipt appears edited.`,
       { screenshotValue: extracted.receiverName, qrValue: qrFields.receiverName }));
@@ -566,7 +569,7 @@ function validateCbeOfficialReceipt({
   ]) {
     const shotVal = extracted?.[field];
     const truthVal = qrFields?.[field];
-    if (shotVal && truthVal && !namesMatch(shotVal, truthVal)) {
+    if (personNamesConflict(shotVal, truthVal, namesMatch)) {
       issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', field,
         `${label} error: screenshot shows "${shotVal}" but the official CBE record shows "${truthVal}". The receipt appears edited.`,
         { screenshotValue: shotVal, qrValue: truthVal }));
@@ -644,7 +647,7 @@ function validateDashenReceipt({
   ]) {
     const shotVal = extracted?.[field];
     const truthVal = qrFields?.[field];
-    if (shotVal && truthVal && !namesMatch(shotVal, truthVal)) {
+    if (personNamesConflict(shotVal, truthVal, namesMatch)) {
       issues.push(issue('error', 'FRAUD_EDITED_RECEIPT', field,
         `${label} error: screenshot shows "${shotVal}" but the official Dashen Bank record shows "${truthVal}". The receipt appears edited.`,
         { screenshotValue: shotVal, qrValue: truthVal }));

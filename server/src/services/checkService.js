@@ -35,6 +35,7 @@ import {
 import { computeConfidenceTier } from './confidenceService.js';
 import { matchPaymentToMyAccount } from './userPaymentAccountService.js';
 import { isVerifyChannelEnabled } from './verifyChannelService.js';
+import { getCheckCostByAmount } from './verifyPricing.js';
 
 function toMoney(value) {
   return (Math.round((parseFloat(value) || 0) * 100) / 100).toFixed(2);
@@ -69,16 +70,9 @@ export function resolvePaymentId(method, { validation, qrData, extracted }) {
 
 const TOPUP_UNITS_PER_APPROVAL = 50;
 
-// Calculate check cost based on receipt amount
-export function getCheckCostByAmount(amount) {
-  const numAmount = parseFloat(amount) || 0;
-  
-  if (numAmount < 100) return 2;
-  if (numAmount < 1000) return 5;
-  if (numAmount < 5000) return 10;
-  if (numAmount < 10000) return 15;
-  return 20;
-}
+// Check cost pricing lives in a pure, unit-tested module; re-exported here to
+// preserve the existing public API (behavior is identical).
+export { getCheckCostByAmount };
 
 export class CheckError extends Error {
   constructor(message, status = 400, details = null) {
@@ -160,14 +154,17 @@ export async function getUserBalance(userId) {
   return parseFloat(toMoney(row.amount))
 }
 
-async function deductBalance(userId, amount, ledgerMeta = null) {
-  await ensureUserBalance(userId);
+/**
+ * Atomic wallet debit that runs inside an existing Drizzle transaction.
+ * Throws CheckError(402) if the balance can't cover the debit.
+ */
+async function deductBalanceTx(tx, userId, amount) {
   const debit = parseFloat(toMoney(amount)) || 0;
   if (debit <= 0) {
-    return getUserBalance(userId);
+    const [row] = await tx.select().from(balances).where(eq(balances.userId, userId)).limit(1);
+    return parseFloat(toMoney(row?.amount));
   }
-
-  const result = await db.execute(sql`
+  const result = await tx.execute(sql`
     UPDATE balances
     SET amount = amount - ${debit}::numeric,
         updated_at = NOW()
@@ -179,38 +176,35 @@ async function deductBalance(userId, amount, ledgerMeta = null) {
   if (!row) {
     throw new CheckError('Insufficient balance. Top up to continue verifying receipts.', 402);
   }
-
-  const newBalance = parseFloat(toMoney(row.amount));
-  if (ledgerMeta && debit > 0) {
-    await recordBalanceTransaction({
-      userId,
-      type: ledgerMeta.type || 'verification',
-      amount: -debit,
-      balanceAfter: newBalance,
-      referenceType: ledgerMeta.referenceType || null,
-      referenceId: ledgerMeta.referenceId || null,
-      description: ledgerMeta.description || null,
-    });
-  }
-  return newBalance;
+  return parseFloat(toMoney(row.amount));
 }
 
-async function addBalance(userId, amount) {
+/**
+ * Persist a wallet-billed verification atomically: debit the wallet, insert the
+ * receipt_checks row, and write the ledger entry in ONE transaction. Any failure
+ * (duplicate tx code, ledger write, etc.) rolls back the whole thing, so a debit
+ * can never be stranded without its check row or its audit line, and a crash
+ * mid-flight leaves no half-applied money change. Returns { check, newBalance }.
+ */
+async function persistWalletCheck({ userId, checkCost, recordValues, ledgerDescription }) {
   await ensureUserBalance(userId);
-  const credit = parseFloat(toMoney(amount)) || 0;
-  if (credit <= 0) {
-    return getUserBalance(userId);
-  }
-
-  const result = await db.execute(sql`
-    UPDATE balances
-    SET amount = amount + ${credit}::numeric,
-        updated_at = NOW()
-    WHERE user_id = ${userId}
-    RETURNING amount
-  `);
-  const row = result?.rows?.[0] || result?.[0];
-  return parseFloat(toMoney(row?.amount));
+  return db.transaction(async (tx) => {
+    const newBalance = await deductBalanceTx(tx, userId, checkCost);
+    const [saved] = await tx.insert(receiptChecks).values(recordValues).returning();
+    const check = parseCheckRow(saved);
+    if (parseFloat(toMoney(checkCost)) > 0) {
+      await recordBalanceTransaction({
+        userId,
+        type: 'verification',
+        amount: -checkCost,
+        balanceAfter: newBalance,
+        referenceType: 'check',
+        referenceId: check.id,
+        description: ledgerDescription,
+      }, tx);
+    }
+    return { check, newBalance };
+  });
 }
 
 export async function findCheckByTxCode(txCode) {
@@ -645,11 +639,13 @@ export async function submitReceiptCheck({
 
     const details = result.validation.resolvedDetails;
     const checkCost = getCheckCostByAmount(details.amount);
-    const newBalance = await deductBalance(userId, checkCost);
 
+    let persisted;
     try {
-      const [saved] = await db.insert(receiptChecks).values(
-        buildCheckRecordValues({
+      persisted = await persistWalletCheck({
+        userId,
+        checkCost,
+        recordValues: buildCheckRecordValues({
           userId,
           method,
           details,
@@ -662,31 +658,11 @@ export async function submitReceiptCheck({
           checkCost,
           verifyMode: 'screenshot',
         }),
-      ).returning();
-
-      const check = parseCheckRow(saved);
-      await recordBalanceTransaction({
-        userId,
-        type: 'verification',
-        amount: -checkCost,
-        balanceAfter: newBalance,
-        referenceType: 'check',
-        referenceId: check.id,
-        description: `Receipt verification — ${result.validation.txCode}`,
-      }).catch(() => {});
-
-      return {
-        check,
-        newBalance,
-        message: result.validation.warnings.length
-          ? 'Receipt verified (with warnings)'
-          : 'Receipt verified successfully',
-        validation: result.validation,
-        issues: result.validation.issues,
-        resolvedDetails: details,
-      };
+        ledgerDescription: `Receipt verification — ${result.validation.txCode}`,
+      });
     } catch (err) {
-      await addBalance(userId, checkCost);
+      // The transaction already rolled back the debit; just clean up the
+      // externally-uploaded screenshot before surfacing the error.
       await deleteCloudinaryImage(screenshotPublicId);
       screenshotPublicId = null;
 
@@ -696,6 +672,17 @@ export async function submitReceiptCheck({
       }
       throw err;
     }
+
+    return {
+      check: persisted.check,
+      newBalance: persisted.newBalance,
+      message: result.validation.warnings.length
+        ? 'Receipt verified (with warnings)'
+        : 'Receipt verified successfully',
+      validation: result.validation,
+      issues: result.validation.issues,
+      resolvedDetails: details,
+    };
   } finally {
     await cleanupTempFile(screenshotPath);
   }
@@ -761,22 +748,7 @@ export async function submitReferenceCheck({
 
   const useApiKey = billing?.type === 'api_key' && billing.apiKeyId;
 
-  let checkCost = 0;
-  let newBalance = null;
-  let apiKeyState = null;
-
-  if (useApiKey) {
-    const { assertApiKeyHasCapacity, consumeApiKeyCapacity, refundApiKeyCapacity } = await import('./apiKeyService.js');
-    await assertApiKeyHasCapacity(billing.apiKeyRow, details.amount);
-    apiKeyState = await consumeApiKeyCapacity(billing.apiKeyId, details.amount);
-    checkCost = 0;
-    newBalance = await getUserBalance(userId);
-  } else {
-    checkCost = getCheckCostByAmount(details.amount);
-    newBalance = await deductBalance(userId, checkCost);
-  }
-
-  const validation = {
+  const buildValidation = () => ({
     passed: true,
     verifyMode: 'reference',
     txCode: result.txCode,
@@ -786,67 +758,83 @@ export async function submitReferenceCheck({
     warnings: [],
     errors: [],
     billedVia: useApiKey ? 'api_key' : 'wallet',
-  };
+  });
+  const validation = buildValidation();
 
-  try {
-    const [saved] = await db.insert(receiptChecks).values(
-      buildCheckRecordValues({
-        userId,
-        method,
-        details,
-        txCode: result.txCode,
-        screenshotUrl: REFERENCE_SCREENSHOT_PLACEHOLDER,
-        enteredDetails: {
-          verifyMode: 'reference',
-          transactionCode: result.validated.transactionCode,
-          accountSuffix: result.validated.accountSuffix || null,
-          billedVia: useApiKey ? 'api_key' : 'wallet',
-          apiKeyId: useApiKey ? billing.apiKeyId : null,
-        },
-        extractedDetails: { official: result.official },
-        qrData: null,
+  const buildRecordValues = (checkCost) => buildCheckRecordValues({
+    userId,
+    method,
+    details,
+    txCode: result.txCode,
+    screenshotUrl: REFERENCE_SCREENSHOT_PLACEHOLDER,
+    enteredDetails: {
+      verifyMode: 'reference',
+      transactionCode: result.validated.transactionCode,
+      accountSuffix: result.validated.accountSuffix || null,
+      billedVia: useApiKey ? 'api_key' : 'wallet',
+      apiKeyId: useApiKey ? billing.apiKeyId : null,
+    },
+    extractedDetails: { official: result.official },
+    qrData: null,
+    validation,
+    checkCost,
+    verifyMode: 'reference',
+  });
+
+  if (useApiKey) {
+    const { assertApiKeyHasCapacity, consumeApiKeyCapacity, refundApiKeyCapacity } = await import('./apiKeyService.js');
+    await assertApiKeyHasCapacity(billing.apiKeyRow, details.amount);
+    const apiKeyState = await consumeApiKeyCapacity(billing.apiKeyId, details.amount);
+    const newBalance = await getUserBalance(userId);
+
+    try {
+      const [saved] = await db.insert(receiptChecks).values(buildRecordValues(0)).returning();
+      const check = parseCheckRow(saved);
+      return {
+        check,
+        newBalance,
+        apiKey: apiKeyState,
+        message: 'Payment ID verified successfully',
         validation,
-        checkCost,
-        verifyMode: 'reference',
-      }),
-    ).returning();
-
-    const check = parseCheckRow(saved);
-    if (!useApiKey && checkCost > 0) {
-      await recordBalanceTransaction({
-        userId,
-        type: 'verification',
-        amount: -checkCost,
-        balanceAfter: newBalance,
-        referenceType: 'check',
-        referenceId: check.id,
-        description: `Payment ID verification — ${result.txCode}`,
-      }).catch(() => {});
-    }
-
-    return {
-      check,
-      newBalance,
-      apiKey: apiKeyState,
-      message: 'Payment ID verified successfully',
-      validation,
-      issues: [],
-      resolvedDetails: details,
-    };
-  } catch (err) {
-    if (!useApiKey) {
-      await addBalance(userId, checkCost);
-    } else {
-      const { refundApiKeyCapacity } = await import('./apiKeyService.js');
+        issues: [],
+        resolvedDetails: details,
+      };
+    } catch (err) {
       await refundApiKeyCapacity(billing.apiKeyId, details.amount).catch(() => {});
+      if (err.code === '23505') {
+        const dupIssue = buildDuplicateTxIssue(result.txCode);
+        throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+      }
+      throw err;
     }
+  }
 
+  const checkCost = getCheckCostByAmount(details.amount);
+  let persisted;
+  try {
+    persisted = await persistWalletCheck({
+      userId,
+      checkCost,
+      recordValues: buildRecordValues(checkCost),
+      ledgerDescription: `Payment ID verification — ${result.txCode}`,
+    });
+  } catch (err) {
     if (err.code === '23505') {
       const dupIssue = buildDuplicateTxIssue(result.txCode);
       throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
     }
     throw err;
   }
+
+  return {
+    check: persisted.check,
+    newBalance: persisted.newBalance,
+    apiKey: null,
+    message: 'Payment ID verified successfully',
+    validation,
+    issues: [],
+    resolvedDetails: details,
+  };
 }
 
 export async function submitSmsCheck({
@@ -923,21 +911,6 @@ export async function submitSmsCheck({
 
   const useApiKey = billing?.type === 'api_key' && billing.apiKeyId;
 
-  let checkCost = 0;
-  let newBalance = null;
-  let apiKeyState = null;
-
-  if (useApiKey) {
-    const { assertApiKeyHasCapacity, consumeApiKeyCapacity } = await import('./apiKeyService.js');
-    await assertApiKeyHasCapacity(billing.apiKeyRow, details.amount);
-    apiKeyState = await consumeApiKeyCapacity(billing.apiKeyId, details.amount);
-    checkCost = 0;
-    newBalance = await getUserBalance(userId);
-  } else {
-    checkCost = getCheckCostByAmount(details.amount);
-    newBalance = await deductBalance(userId, checkCost);
-  }
-
   const validation = {
     passed: true,
     verifyMode: 'sms',
@@ -951,64 +924,79 @@ export async function submitSmsCheck({
     billedVia: useApiKey ? 'api_key' : 'wallet',
   };
 
-  try {
-    const [saved] = await db.insert(receiptChecks).values(
-      buildCheckRecordValues({
-        userId,
-        method,
-        details,
-        txCode: result.txCode,
-        screenshotUrl: SMS_SCREENSHOT_PLACEHOLDER,
-        enteredDetails: {
-          verifyMode: 'sms',
-          smsTextPreview: trimmed.slice(0, 500),
-          billedVia: useApiKey ? 'api_key' : 'wallet',
-          apiKeyId: useApiKey ? billing.apiKeyId : null,
-        },
-        extractedDetails: { sms: result.parsed, official: result.official },
-        qrData: null,
+  const buildRecordValues = (checkCost) => buildCheckRecordValues({
+    userId,
+    method,
+    details,
+    txCode: result.txCode,
+    screenshotUrl: SMS_SCREENSHOT_PLACEHOLDER,
+    enteredDetails: {
+      verifyMode: 'sms',
+      smsTextPreview: trimmed.slice(0, 500),
+      billedVia: useApiKey ? 'api_key' : 'wallet',
+      apiKeyId: useApiKey ? billing.apiKeyId : null,
+    },
+    extractedDetails: { sms: result.parsed, official: result.official },
+    qrData: null,
+    validation,
+    checkCost,
+    verifyMode: 'sms',
+  });
+
+  if (useApiKey) {
+    const { assertApiKeyHasCapacity, consumeApiKeyCapacity, refundApiKeyCapacity } = await import('./apiKeyService.js');
+    await assertApiKeyHasCapacity(billing.apiKeyRow, details.amount);
+    const apiKeyState = await consumeApiKeyCapacity(billing.apiKeyId, details.amount);
+    const newBalance = await getUserBalance(userId);
+
+    try {
+      const [saved] = await db.insert(receiptChecks).values(buildRecordValues(0)).returning();
+      const check = parseCheckRow(saved);
+      return {
+        check,
+        newBalance,
+        apiKey: apiKeyState,
+        message: 'SMS verified successfully',
         validation,
-        checkCost,
-        verifyMode: 'sms',
-      }),
-    ).returning();
-
-    const check = parseCheckRow(saved);
-    if (!useApiKey && checkCost > 0) {
-      await recordBalanceTransaction({
-        userId,
-        type: 'verification',
-        amount: -checkCost,
-        balanceAfter: newBalance,
-        referenceType: 'check',
-        referenceId: check.id,
-        description: `SMS verification — ${result.txCode}`,
-      }).catch(() => {});
-    }
-
-    return {
-      check,
-      newBalance,
-      apiKey: apiKeyState,
-      message: 'SMS verified successfully',
-      validation,
-      issues: result.issues,
-      resolvedDetails: details,
-    };
-  } catch (err) {
-    if (!useApiKey) {
-      await addBalance(userId, checkCost);
-    } else {
-      const { refundApiKeyCapacity } = await import('./apiKeyService.js');
+        issues: result.issues,
+        resolvedDetails: details,
+      };
+    } catch (err) {
       await refundApiKeyCapacity(billing.apiKeyId, details.amount).catch(() => {});
+      if (err.code === '23505') {
+        const dupIssue = buildDuplicateTxIssue(result.txCode);
+        throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
+      }
+      throw err;
     }
+  }
 
+  const checkCost = getCheckCostByAmount(details.amount);
+  let persisted;
+  try {
+    persisted = await persistWalletCheck({
+      userId,
+      checkCost,
+      recordValues: buildRecordValues(checkCost),
+      ledgerDescription: `SMS verification — ${result.txCode}`,
+    });
+  } catch (err) {
     if (err.code === '23505') {
       const dupIssue = buildDuplicateTxIssue(result.txCode);
       throw new CheckError(dupIssue.message, 409, { issues: [dupIssue] });
     }
     throw err;
   }
+
+  return {
+    check: persisted.check,
+    newBalance: persisted.newBalance,
+    apiKey: null,
+    message: 'SMS verified successfully',
+    validation,
+    issues: result.issues,
+    resolvedDetails: details,
+  };
 }
 
 export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' }) {
@@ -1257,10 +1245,28 @@ async function creditTopUpBalance({
     throw new TopUpError('Invalid amount. Please deposit a valid Birr amount.', 422);
   }
 
+  // Cheap early-out before opening a transaction.
   await assertTopUpPaymentIdAvailable(paymentId);
 
   try {
     return await db.transaction(async (tx) => {
+      // Authoritative duplicate guard INSIDE the transaction — closes the
+      // TOCTOU window between the pre-check above and the credit below.
+      const dupCheck = await tx.query.receiptChecks.findFirst({
+        where: eq(receiptChecks.transactionCode, paymentId),
+      });
+      if (dupCheck) {
+        const dupIssue = buildDuplicateTxIssue(paymentId);
+        throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
+      }
+      const dupTopUp = await tx.query.topUpTransactions.findFirst({
+        where: eq(topUpTransactions.transactionCode, paymentId),
+      });
+      if (dupTopUp?.status === 'complete') {
+        const dupIssue = buildDuplicateTxIssue(paymentId);
+        throw new TopUpError(dupIssue.message, 409, { issues: [dupIssue] });
+      }
+
       const [existingBalance] = await tx
         .select()
         .from(balances)
@@ -1297,9 +1303,23 @@ async function creditTopUpBalance({
         .where(eq(balances.userId, userId))
         .returning();
 
+      const finalBalance = parseFloat(toMoney(updatedBalance.amount));
+
+      // Ledger row for the credit — completes the audit trail for money added,
+      // committed atomically with the wallet update.
+      await recordBalanceTransaction({
+        userId,
+        type: 'topup',
+        amount: birrAmount,
+        balanceAfter: finalBalance,
+        referenceType: 'topup',
+        referenceId: transaction.id,
+        description: `Top-up — ${paymentId}`,
+      }, tx);
+
       return {
         transaction,
-        newBalance: parseFloat(toMoney(updatedBalance.amount)),
+        newBalance: finalBalance,
       };
     });
   } catch (err) {

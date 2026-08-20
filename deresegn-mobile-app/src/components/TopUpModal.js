@@ -17,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { api } from '../api/http'
 import { unwrap } from '../api/unwrap'
 import { useLocale } from '../i18n/LocaleContext'
+import useIsOnline from '../hooks/useIsOnline'
+import { alertIfOffline } from '../lib/guardOnline'
 import ReceiptSummaryCard from './ReceiptSummaryCard'
 import { VerificationFailureList } from './VerificationResult'
 import { ui } from '../theme/styles'
@@ -62,6 +64,7 @@ export default function TopUpModal({
 }) {
   const { t } = useLocale()
   const insets = useSafeAreaInsets()
+  const online = useIsOnline()
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState('telebirr')
   const [verifyMode, setVerifyMode] = useState('')
@@ -211,13 +214,13 @@ export default function TopUpModal({
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync()
         if (!perm.granted) {
-          Alert.alert(t('topup.title'), 'Camera permission is required')
+          Alert.alert(t('topup.title'), t('topup.cameraPermissionRequired'))
           return
         }
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
         if (!perm.granted) {
-          Alert.alert(t('topup.title'), 'Photo library permission is required')
+          Alert.alert(t('topup.title'), t('topup.libraryPermissionRequired'))
           return
         }
       }
@@ -237,11 +240,12 @@ export default function TopUpModal({
       })
       setPreview(asset.uri)
     } catch (err) {
-      Alert.alert(t('topup.title'), err?.message || 'Could not open image picker')
+      Alert.alert(t('topup.title'), err?.message || t('topup.pickerFailed'))
     }
   }
 
   const runTopUpScreenshot = async () => {
+    if (!alertIfOffline(online, t)) return
     if (!screenshot) {
       setFailureIssues([
         {
@@ -264,6 +268,7 @@ export default function TopUpModal({
   }
 
   const runTopUpReference = async () => {
+    if (!alertIfOffline(online, t)) return
     setRejected(false)
     setFailureIssues([])
     const result = await onReferenceSubmit({
@@ -279,6 +284,7 @@ export default function TopUpModal({
   }
 
   const runTopUpSms = async () => {
+    if (!alertIfOffline(online, t)) return
     setRejected(false)
     setFailureIssues([])
     const result = await onSmsSubmit({ method, smsText })

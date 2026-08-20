@@ -60,6 +60,11 @@ export async function getRegistrationBonusSettings() {
   };
 }
 
+/**
+ * Insert a ledger row. Pass a Drizzle transaction handle as `executor` to make
+ * the ledger write part of an enclosing atomic transaction (so a debit/credit
+ * and its audit row commit or roll back together). Defaults to the shared db.
+ */
 export async function recordBalanceTransaction({
   userId,
   type,
@@ -68,8 +73,8 @@ export async function recordBalanceTransaction({
   referenceType = null,
   referenceId = null,
   description = null,
-}) {
-  const [row] = await db.insert(balanceTransactions).values({
+}, executor = db) {
+  const [row] = await executor.insert(balanceTransactions).values({
     userId,
     type,
     amount: toMoney(amount),

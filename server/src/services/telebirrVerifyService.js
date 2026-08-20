@@ -42,8 +42,9 @@ async function officialFromInvoice(invoiceId, source) {
 }
 
 /**
- * Telebirr screenshot: OCR Invoice No. → official Petros lookup (same as payment ID).
- * QR is only used if OCR misses the invoice. No sequential Gemini fallbacks.
+ * Telebirr screenshot: OCR Invoice/Transaction No. → official Petros lookup.
+ * QR starts in parallel with OCR so classic invoice screens stay fast when OCR
+ * is slow/misses; Transaction Detail screens (no QR) still rely on OCR alone.
  */
 export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', screenshotPath }) {
   if (!buffer && screenshotPath) {
@@ -56,11 +57,23 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
   const started = Date.now();
   console.log('[Telebirr] verify', buffer.length, 'bytes', mime);
 
+  // Kick off QR decode immediately — cancelled/ignored if OCR finds the invoice.
+  const qrPromise = decodeQrFromBuffer(buffer, { maxMs: QR_BACKUP_MS }).catch((err) => {
+    console.warn('[Telebirr] QR backup error:', err.message);
+    return buildQrDataFromRaw(null);
+  });
+
   const ocr = isGeminiQuotaBlocked()
     ? { ...EMPTY_EXTRACTED }
     : await extractTelebirrOcrFromBuffer(buffer, mime);
 
   let extracted = { ...EMPTY_EXTRACTED, ...ocr };
+  // Normalize negative amounts from "Transaction Detail" screens (-50.00 ETB).
+  if (extracted.amount != null) {
+    const n = Math.abs(parseFloat(extracted.amount));
+    extracted.amount = Number.isFinite(n) && n > 0 ? n : extracted.amount;
+  }
+
   let invoice = extractTelebirrInvoiceFromExtracted(extracted);
   let source = invoice ? 'ocr' : null;
   let qrData = buildQrDataFromRaw(null);
@@ -70,15 +83,31 @@ export async function verifyTelebirrReceipt({ buffer, mime = 'image/jpeg', scree
     : null;
 
   if (!invoice) {
-    qrData = await decodeQrFromBuffer(buffer, { maxMs: QR_BACKUP_MS }).catch((err) => {
-      console.warn('[Telebirr] QR backup error:', err.message);
-      return buildQrDataFromRaw(null);
-    });
+    qrData = await qrPromise;
     invoice = resolveQrInvoice(qrData);
     source = invoice ? 'qr' : null;
+  } else {
+    // OCR already won — don't block on QR; still attach if it finishes quickly.
+    qrData = await Promise.race([
+      qrPromise,
+      new Promise((resolve) => setTimeout(() => resolve(buildQrDataFromRaw(null)), 50)),
+    ]);
   }
 
   let officialHit = await officialFromInvoice(invoice, source || 'fast');
+
+  // If OCR invoice was wrong/stale and official miss, try QR invoice once.
+  if (!officialHit && source === 'ocr') {
+    qrData = await qrPromise;
+    const qrInvoice = resolveQrInvoice(qrData);
+    if (qrInvoice && qrInvoice !== invoice) {
+      officialHit = await officialFromInvoice(qrInvoice, 'qr');
+      if (officialHit) {
+        invoice = qrInvoice;
+        source = 'qr';
+      }
+    }
+  }
 
   let qrFields = extractQrReceiptFields('telebirr', qrData);
   let telebirrOfficial = officialHit?.official || null;

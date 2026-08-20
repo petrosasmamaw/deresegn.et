@@ -149,8 +149,10 @@ export const authApi = {
         return null
       }
       return res.data?.user ? res.data : null
-    } catch {
-      return null
+    } catch (err) {
+      // Distinguish transient network failures from an invalid/expired session so
+      // cold boot doesn't show the login screen while a valid cookie still exists.
+      throw networkError(err, 'Session check failed')
     }
   },
 

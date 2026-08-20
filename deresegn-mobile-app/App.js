@@ -7,11 +7,14 @@ import { LocaleProvider } from './src/i18n/LocaleContext'
 import { setUnauthorizedHandler } from './src/api/sessionExpired'
 import { logout, sessionExpired } from './src/features/auth/authSlice'
 import { applyOtaUpdateIfAvailable } from './src/lib/checkOtaUpdate'
+import { initMonitoring } from './src/lib/initMonitoring'
 import OfflineBanner from './src/components/OfflineBanner'
+import ErrorBoundary from './src/components/ErrorBoundary'
 import RootNavigator from './src/navigation/RootNavigator'
 
 function AuthAndUpdateBridge() {
   useEffect(() => {
+    initMonitoring()
     setUnauthorizedHandler(() => {
       store.dispatch(sessionExpired())
       store.dispatch(logout())
@@ -24,15 +27,17 @@ function AuthAndUpdateBridge() {
 
 export default function App() {
   return (
-    <Provider store={store}>
-      <SafeAreaProvider>
-        <LocaleProvider>
-          <StatusBar style="dark" />
-          <AuthAndUpdateBridge />
-          <OfflineBanner />
-          <RootNavigator />
-        </LocaleProvider>
-      </SafeAreaProvider>
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <SafeAreaProvider>
+          <LocaleProvider>
+            <StatusBar style="dark" />
+            <AuthAndUpdateBridge />
+            <OfflineBanner />
+            <RootNavigator />
+          </LocaleProvider>
+        </SafeAreaProvider>
+      </Provider>
+    </ErrorBoundary>
   )
 }

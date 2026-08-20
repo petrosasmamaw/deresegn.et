@@ -119,6 +119,14 @@ function accountsMatchForMethod(method, saved, official) {
     const official4 = lastFourDigits(official) || lastFourDigits(b);
     return Boolean(saved4 && official4 && saved4 === official4);
   }
+  // Telebirr: 09XXXXXXXX ↔ 2519XXXXXXXX already via normalizeAccount; also allow
+  // last-8 match when the official record masks the number (e.g. 09****6956).
+  if (method === 'telebirr') {
+    if (a.length >= 8 && b.length >= 8 && a.slice(-8) === b.slice(-8)) return true;
+    const saved8 = String(saved || '').replace(/\D/g, '').slice(-8);
+    const official8 = String(official || '').replace(/\D/g, '').slice(-8);
+    if (saved8.length === 8 && official8.length === 8 && saved8 === official8) return true;
+  }
   if (method === 'dashen' && shorter.length >= 6 && longer.endsWith(shorter)) return true;
   return false;
 }

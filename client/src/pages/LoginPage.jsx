@@ -58,7 +58,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm mx-auto">
           <div className="auth-form-card space-y-5">
             {error && (
-              <div className="alert alert-error">
+              <div className="alert alert-error" role="alert" aria-live="assertive">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm break-words">{error}</p>
                 </div>

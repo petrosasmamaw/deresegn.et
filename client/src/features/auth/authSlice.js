@@ -101,6 +101,13 @@ const slice = createSlice({
     clearError(state) {
       state.error = null
     },
+    // Triggered by a 401 on any API call — drops the stale user so guarded
+    // routes redirect to /login. Does NOT touch the verify/auth request flow.
+    sessionExpired(state) {
+      state.user = null
+      state.initializing = false
+      state.submitting = false
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -133,5 +140,5 @@ const slice = createSlice({
   },
 })
 
-export const { clearError } = slice.actions
+export const { clearError, sessionExpired } = slice.actions
 export default slice.reducer

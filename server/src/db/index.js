@@ -1,1 +1,1 @@
-export { db, testConnection } from '../config/drizzle.js'
+export { db, testConnection, closePool } from '../config/drizzle.js'

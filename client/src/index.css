@@ -1496,11 +1496,18 @@ body {
   cursor: not-allowed;
 }
 .pay-my-account-toggle input {
+  /* Keep the control clickable via the label — do not use pointer-events:none
+     (that breaks on/off on many browsers). Visually hide with clip instead. */
   position: absolute;
   width: 1px;
   height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
   opacity: 0;
-  pointer-events: none;
 }
 .pay-my-account-switch {
   width: 32px;
@@ -3042,4 +3049,71 @@ body {
   .verify-bank-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+}
+
+/* Toast notifications */
+.toast-viewport {
+  position: fixed;
+  z-index: 100;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: min(92vw, 22rem);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  pointer-events: auto;
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast--success {
+  border-left: 3px solid #22c55e;
+}
+
+.toast--error {
+  border-left: 3px solid #ef4444;
+}
+
+.toast--info {
+  border-left: 3px solid #6366f1;
+}
+
+.toast-msg {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toast-close {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.125rem;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+@keyframes toast-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }

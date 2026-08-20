@@ -34,7 +34,7 @@ export function extractTelebirrInvoiceFromText(text) {
   }
 
   const labeled = raw.match(
-    /(?:invoice\s*(?:no\.?|number|#)?|transaction\s*(?:no\.?|number|#)?|payment\s*id)[:\s#-]*([A-Z0-9]{8,12})/i,
+    /(?:invoice\s*(?:no\.?|number|#)?|transaction\s*(?:no\.?|number|#)?|payment\s*id|trx\s*(?:no\.?|id)?)[:\s#-]*([A-Z0-9]{8,12})/i,
   )?.[1];
   if (labeled) {
     const fromLabel = normalizeTelebirrInvoiceId(labeled);

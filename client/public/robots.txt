@@ -6,6 +6,6 @@ Allow: /developer
 
 Disallow: /dashboard
 Disallow: /admin
-Disallow: /certificate/
+Disallow: /accounts
 
 Sitemap: https://tamagncheck.online/sitemap.xml
