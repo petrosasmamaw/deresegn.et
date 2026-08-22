@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://deresegn-et.onrender.com/api/:path*"
+      "destination": "https://deresegn-api.asmamawpetros.workers.dev/api/:path*"
     },
     {
       "source": "/(.*)",
@@ -10,4 +10,3 @@
     }
   ]
 }
-

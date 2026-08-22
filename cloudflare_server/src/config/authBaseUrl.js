@@ -1,39 +1,28 @@
-/** Public Better Auth URL — must be the Render API URL in production. */
+/** Public Better Auth URL — must match the URL the browser uses for /api/auth. */
 export function resolveAuthBaseUrl() {
   let configured = (process.env.BETTER_AUTH_URL || '').trim().replace(/\/+$/, '');
-  const renderBase = (process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/+$/, '');
+  const workerUrl = (process.env.WORKER_URL || process.env.CF_PAGES_URL || '').trim().replace(/\/+$/, '');
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Common misconfig: BETTER_AUTH_URL still points at Vercel after removing vercel.json proxy.
-  if (isProduction && configured && renderBase) {
-    try {
-      const authHost = new URL(configured).hostname;
-      if (authHost.includes('vercel.app')) {
-        configured = `${renderBase}/api/auth`;
-        console.warn(
-          '⚠️  BETTER_AUTH_URL was pointing at Vercel — auto-corrected to:',
-          configured,
-          '\n   Set BETTER_AUTH_URL to this value in Render env and redeploy.',
-        );
-      }
-    } catch {
-      // keep configured
+  if (configured) {
+    // Common mistake: http:// site URL while the live site is https://
+    if (isProduction && configured.startsWith('http://tamagncheck.online')) {
+      configured = configured.replace('http://', 'https://');
     }
+    return configured;
   }
 
-  if (configured) return configured;
-
-  if (isProduction && renderBase) {
-    return `${renderBase}/api/auth`;
+  if (workerUrl) {
+    return `${workerUrl}/api/auth`;
   }
 
   if (isProduction) {
-    console.warn('⚠️  BETTER_AUTH_URL not set — using localhost fallback (set in Render env).');
+    console.warn('⚠️  BETTER_AUTH_URL not set — using localhost fallback.');
   }
-  return 'http://localhost:5000/api/auth';
+  return 'http://localhost:8787/api/auth';
 }
 
-/** Frontend(s) + Render API = cross-origin cookies (SameSite=None). */
+/** Frontend ↔ API on different hosts → need SameSite=None cookies. */
 export function isCrossOriginAuth() {
   const authUrl = resolveAuthBaseUrl();
   if (!authUrl) return false;
@@ -48,27 +37,32 @@ export function isCrossOriginAuth() {
   const candidates = [
     ...(process.env.CLIENT_URL || '').split(','),
     ...(process.env.CLIENT_URLS || '').split(','),
+    'https://tamagncheck.online',
+    'https://www.tamagncheck.online',
   ]
     .map((s) => s.trim())
     .filter(Boolean);
 
   for (const entry of candidates) {
     try {
-      if (new URL(entry).origin !== authOrigin) return true;
+      const clientOrigin = new URL(entry).origin;
+      if (clientOrigin !== authOrigin) return true;
     } catch {
       // ignore invalid entry
     }
   }
 
+  // workers.dev API is always cross-origin to the website
+  if (/\.workers\.dev$/i.test(new URL(authUrl).hostname)) return true;
+
   return false;
 }
 
 export function getAuthCookieAttributes(isProduction) {
-  const crossOrigin = isProduction && isCrossOriginAuth();
+  const crossOrigin = isCrossOriginAuth();
   return {
     httpOnly: true,
     secure: isProduction || crossOrigin,
-    // Cross-origin SPA↔API needs None; same-site can use Lax (stronger CSRF default).
     sameSite: crossOrigin ? 'none' : 'lax',
     ...(crossOrigin ? { partitioned: true } : {}),
     path: '/',

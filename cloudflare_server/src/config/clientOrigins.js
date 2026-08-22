@@ -1,12 +1,10 @@
-const isProduction = process.env.NODE_ENV === 'production';
-
-/** Live site only — used on Render / deployed API. */
+/** Live website origins — always allowed for CORS / Better Auth. */
 const PRODUCTION_ORIGINS = [
   'https://tamagncheck.online',
   'https://www.tamagncheck.online',
 ];
 
-/** Local Vite only — never trusted by the deployed server. */
+/** Local Vite only. */
 const DEV_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
@@ -37,29 +35,51 @@ function isLocalDevOrigin(origin) {
   }
 }
 
+function isProductionEnv() {
+  // Prefer runtime Worker binding; fall back to build-time define.
+  const fromBinding = globalThis.__WORKER_ENV?.NODE_ENV;
+  const value = String(fromBinding || process.env.NODE_ENV || '').toLowerCase();
+  return value === 'production';
+}
+
 /**
  * Origins allowed for CORS and Better Auth.
- * Deployed (production): only your domain (+ CLIENT_URL), never localhost.
- * Local (development): localhost Vite + any CLIENT_URL.
+ * Always includes production website origins so Workers CORS cannot
+ * accidentally drop tamagncheck.online when NODE_ENV is wrong.
  */
 export function getTrustedOrigins() {
-  const defaults = isProduction ? PRODUCTION_ORIGINS : [...DEV_ORIGINS, ...PRODUCTION_ORIGINS];
+  const isProduction = isProductionEnv();
+  const defaults = isProduction
+    ? [...PRODUCTION_ORIGINS]
+    : [...DEV_ORIGINS, ...PRODUCTION_ORIGINS];
 
   const fromEnv = [
-    ...originsFromEnvValue(process.env.CLIENT_URL),
-    ...originsFromEnvValue(process.env.CLIENT_URLS),
+    ...originsFromEnvValue(process.env.CLIENT_URL || globalThis.__WORKER_ENV?.CLIENT_URL),
+    ...originsFromEnvValue(process.env.CLIENT_URLS || globalThis.__WORKER_ENV?.CLIENT_URLS),
   ]
     .map(normalizeOrigin)
     .filter(Boolean)
-    // Hard block: production must never trust a browser on someone's PC
     .filter((origin) => !(isProduction && isLocalDevOrigin(origin)));
 
-  return [...new Set([...defaults, ...fromEnv])];
+  // Always keep https site origins even if CLIENT_URL was set to http:// by mistake.
+  return [...new Set([...defaults, ...PRODUCTION_ORIGINS, ...fromEnv])];
 }
 
 export function isTrustedOrigin(origin) {
-  if (!origin) return true; // non-browser / same-origin tools (curl, health checks)
-  return getTrustedOrigins().includes(normalizeOrigin(origin));
+  if (!origin) return true;
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return false;
+  if (getTrustedOrigins().includes(normalized)) return true;
+  // Allow any *.tamagncheck.online subdomain over https
+  try {
+    const host = new URL(normalized).hostname;
+    if (normalized.startsWith('https://') && (host === 'tamagncheck.online' || host.endsWith('.tamagncheck.online'))) {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
 }
 
 export function getPrimaryClientOrigin() {

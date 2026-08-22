@@ -32,11 +32,48 @@ const app = new Hono();
 
 app.use('*', requestId());
 
+// CORS first — OPTIONS preflight must never wait on Neon / Better Auth.
+app.use(
+  '*',
+  cors({
+    origin: (origin) => {
+      if (!origin) return '*';
+      if (isTrustedOrigin(origin)) return origin;
+      if (/^exp:\/\//i.test(origin)) return origin;
+      if (/^http:\/\/(10\.0\.2\.2|localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return origin;
+      if (/^http:\/\/(localhost|127\.0\.0\.1):8787$/i.test(origin)) return origin;
+      console.warn(`CORS blocked for origin: ${origin}`);
+      return null;
+    },
+    allowMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true,
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-Tamagn-Client',
+      'X-Tamagn-Platform',
+      'X-API-Key',
+      'X-Request-Id',
+      'Cookie',
+    ],
+    exposeHeaders: ['X-Request-Id', 'Set-Cookie'],
+    maxAge: 86400,
+  }),
+);
+
+app.options('*', (c) => c.body(null, 204));
+
 app.use('*', async (c, next) => {
+  // Preflight already answered above; skip DB for safety.
+  if (c.req.method === 'OPTIONS') {
+    await next();
+    return;
+  }
+
   const env = c.env || {};
   syncEnvToProcess(env);
 
-  // Reconfigure Cloudinary from bindings each request (module may load before env).
   try {
     const { default: cloudinary } = await import('./config/cloudinary.js');
     cloudinary.config({
@@ -56,37 +93,8 @@ app.use('*', async (c, next) => {
   });
 });
 
-app.use(
-  '*',
-  cors({
-    origin: (origin) => {
-      if (!origin) return origin || '*';
-      if (isTrustedOrigin(origin)) return origin;
-      if (/^exp:\/\//i.test(origin)) return origin;
-      if (/^http:\/\/(10\.0\.2\.2|localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return origin;
-      // Wrangler local
-      if (/^http:\/\/(localhost|127\.0\.0\.1):8787$/i.test(origin)) return origin;
-      console.warn(`CORS blocked for origin: ${origin}`);
-      return null;
-    },
-    credentials: true,
-    allowHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'X-Tamagn-Client',
-      'X-Tamagn-Platform',
-      'X-API-Key',
-      'X-Request-Id',
-      'Cookie',
-    ],
-    exposeHeaders: ['X-Request-Id', 'Set-Cookie'],
-  }),
-);
-
 app.use('/api/*', globalApiRateLimiter);
 app.use('/api/*', async (c, next) => {
-  // Normalize native mobile Origin for Better Auth
   const isMobile =
     c.req.header('x-tamagn-client') === '1' &&
     String(c.req.header('x-tamagn-platform') || '').toLowerCase() === 'mobile';
@@ -95,11 +103,7 @@ app.use('/api/*', async (c, next) => {
     const bad = !origin || origin === 'null' || /^exp:\/\//i.test(origin);
     if (bad) {
       const primary = getPrimaryClientOrigin();
-      if (primary) {
-        // Cannot mutate Request headers in Workers easily; Better Auth reads
-        // from the Request we pass — handled in auth mount below via rewritten headers.
-        c.set('normalizedOrigin', primary);
-      }
+      if (primary) c.set('normalizedOrigin', primary);
     }
   }
   await next();
@@ -147,7 +151,6 @@ app.get('/api/health/banks', async (c) => {
   }
 });
 
-// Better Auth — fetch handler (specific routes before wildcard)
 app.get('/api/auth/get-session', authRateLimiter, async (c) => {
   try {
     const { getRequestAuth } = await import('./config/requestContext.js');
