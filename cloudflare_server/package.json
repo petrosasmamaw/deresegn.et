@@ -24,7 +24,8 @@
     "hono": "^4.7.0",
     "jimp": "^1.6.1",
     "jsqr": "^1.4.0",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10",
