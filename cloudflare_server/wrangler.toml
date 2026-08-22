@@ -1,0 +1,20 @@
+name = "deresegn-api"
+main = "src/index.js"
+compatibility_date = "2026-08-20"
+compatibility_flags = ["nodejs_compat"]
+
+# Force Node ESM build of Jimp (Wrangler otherwise picks the browser build).
+[alias]
+jimp = "./node_modules/jimp/dist/esm/index.js"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "00000000000000000000000000000000"
+preview_id = "00000000000000000000000000000000"
+
+[vars]
+CLOUDINARY_FOLDER = "deresegn"
+TELEBIRR_PREFER_PETROS = "true"
+TELEBIRR_SKIP_DIRECT = "true"
+PETROS_VERIFIER_RETRIES = "2"
+PETROS_VERIFIER_TIMEOUT_MS = "45000"
