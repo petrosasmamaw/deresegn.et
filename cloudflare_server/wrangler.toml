@@ -9,8 +9,7 @@ jimp = "./node_modules/jimp/dist/esm/index.js"
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "00000000000000000000000000000000"
-preview_id = "00000000000000000000000000000000"
+id = "8df800a8100447b68015d2be8463bd77"
 
 [vars]
 CLOUDINARY_FOLDER = "deresegn"
