@@ -1,24 +1,42 @@
-import { neonConfig, Pool } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { neon, Pool } from '@neondatabase/serverless';
+import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
+import { drizzle as drizzleWs } from 'drizzle-orm/neon-serverless';
 import * as schema from '../db/schema.js';
 import { getRequestDb } from './requestContext.js';
 
-// Prefer HTTP for pool queries on Workers (more reliable than WebSockets locally).
-neonConfig.poolQueryViaFetch = true;
-if (typeof WebSocket !== 'undefined') {
-  neonConfig.webSocketConstructor = WebSocket;
+function resolveConnectionString(env) {
+  const connectionString = (env?.DATABASE_URL || process.env.DATABASE_URL || '').trim();
+  if (!connectionString) {
+    throw new Error('DATABASE_URL is not configured on this Worker');
+  }
+  return connectionString;
 }
 
 /**
- * Per-request Drizzle client. Never reuse Pool across requests (Workers I/O isolation).
+ * Per-request Drizzle client for Cloudflare Workers.
+ * - Neon HTTP for normal queries (auth, reads) — no WebSocket / cross-request I/O issues
+ * - Short-lived WebSocket Pool only inside db.transaction() for money paths
  */
 export function createDb(env) {
-  const connectionString = env?.DATABASE_URL || process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not configured');
-  }
-  const pool = new Pool({ connectionString });
-  return drizzle({ client: pool, schema });
+  const connectionString = resolveConnectionString(env);
+  const sql = neon(connectionString);
+  const db = drizzleHttp(sql, { schema });
+
+  db.transaction = async (fn, config) => {
+    const pool = new Pool({ connectionString });
+    try {
+      const txDb = drizzleWs(pool, { schema });
+      return await txDb.transaction(fn, config);
+    } finally {
+      try {
+        await pool.end();
+      } catch {
+        // ignore pool cleanup errors
+      }
+    }
+  };
+
+  return db;
 }
 
 /**
@@ -36,14 +54,14 @@ export const db = new Proxy(
 );
 
 export async function closePool() {
-  // no-op — pool is request-scoped
+  // no-op — HTTP driver; transactional pools are ended in createDb.transaction
 }
 
 export async function testConnection(env) {
   try {
     const database = env ? createDb(env) : getRequestDb();
-    const result = await database.execute('select 1 as ok');
-    console.log('✅ Database connected:', result);
+    const rows = await database.execute('select 1 as ok');
+    console.log('✅ Database connected:', rows);
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);

@@ -29,12 +29,11 @@ export function syncEnvToProcess(env) {
   globalThis.__WORKER_ENV = env;
   for (const [key, value] of Object.entries(env)) {
     if (value == null) continue;
-    if (key === 'NODE_ENV') continue; // compile-time define in Wrangler — do not assign
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
       try {
         process.env[key] = String(value);
       } catch {
-        // ignore read-only env keys
+        // ignore read-only / compile-time env keys
       }
     }
   }

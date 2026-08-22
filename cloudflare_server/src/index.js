@@ -64,52 +64,7 @@ app.use(
 
 app.options('*', (c) => c.body(null, 204));
 
-app.use('*', async (c, next) => {
-  // Preflight already answered above; skip DB for safety.
-  if (c.req.method === 'OPTIONS') {
-    await next();
-    return;
-  }
-
-  const env = c.env || {};
-  syncEnvToProcess(env);
-
-  try {
-    const { default: cloudinary } = await import('./config/cloudinary.js');
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
-  } catch {
-    // ignore
-  }
-
-  const db = createDb(env);
-  const auth = createAuth(db, env);
-
-  await runWithRequestContext({ env, db, auth }, async () => {
-    await next();
-  });
-});
-
-app.use('/api/*', globalApiRateLimiter);
-app.use('/api/*', async (c, next) => {
-  const isMobile =
-    c.req.header('x-tamagn-client') === '1' &&
-    String(c.req.header('x-tamagn-platform') || '').toLowerCase() === 'mobile';
-  if (isMobile) {
-    const origin = c.req.header('origin');
-    const bad = !origin || origin === 'null' || /^exp:\/\//i.test(origin);
-    if (bad) {
-      const primary = getPrimaryClientOrigin();
-      if (primary) c.set('normalizedOrigin', primary);
-    }
-  }
-  await next();
-});
-app.use('/api/*', csrfOriginGuardHono);
-
+// Lightweight routes — no DB (so a bad DATABASE_URL cannot take down health).
 app.get('/', (c) =>
   c.json({
     name: 'Deresegn API',
@@ -132,6 +87,88 @@ app.get('/api/health', (c) =>
     },
   }),
 );
+
+app.use('*', async (c, next) => {
+  if (c.req.method === 'OPTIONS') {
+    await next();
+    return;
+  }
+  // Health already handled above
+  if (c.req.path === '/' || c.req.path === '/api/health') {
+    await next();
+    return;
+  }
+
+  const env = c.env || {};
+  syncEnvToProcess(env);
+
+  try {
+    const { default: cloudinary } = await import('./config/cloudinary.js');
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  } catch {
+    // ignore
+  }
+
+  try {
+    const db = createDb(env);
+    const auth = createAuth(db, env);
+    await runWithRequestContext({ env, db, auth }, async () => {
+      await next();
+    });
+  } catch (err) {
+    console.error('[boot-context]', err?.message || err, err?.stack);
+    return c.json(
+      {
+        success: false,
+        message: err?.message || 'Failed to initialize request context',
+        code: 'CONTEXT_INIT_FAILED',
+        requestId: c.get('requestId'),
+      },
+      500,
+    );
+  }
+});
+
+app.use('/api/*', globalApiRateLimiter);
+app.use('/api/*', async (c, next) => {
+  const isMobile =
+    c.req.header('x-tamagn-client') === '1' &&
+    String(c.req.header('x-tamagn-platform') || '').toLowerCase() === 'mobile';
+  if (isMobile) {
+    const origin = c.req.header('origin');
+    const bad = !origin || origin === 'null' || /^exp:\/\//i.test(origin);
+    if (bad) {
+      const primary = getPrimaryClientOrigin();
+      if (primary) c.set('normalizedOrigin', primary);
+    }
+  }
+  await next();
+});
+app.use('/api/*', csrfOriginGuardHono);
+
+app.get('/api/health/db', async (c) => {
+  try {
+    const { getRequestDb } = await import('./config/requestContext.js');
+    const database = getRequestDb();
+    await database.execute('select 1 as ok');
+    return c.json({ status: 'ok', db: true, time: new Date().toISOString() });
+  } catch (err) {
+    console.error('[health/db]', err?.message || err);
+    return c.json(
+      {
+        status: 'error',
+        db: false,
+        message: err?.message || 'Database check failed',
+        requestId: c.get('requestId'),
+      },
+      500,
+    );
+  }
+});
 
 app.get('/api/health/banks', async (c) => {
   try {
@@ -165,8 +202,15 @@ app.get('/api/auth/get-session', authRateLimiter, async (c) => {
     const session = await authInstance.api.getSession({ headers: request.headers });
     return c.json(session || null);
   } catch (error) {
-    console.error('[auth] get-session failed:', error.message);
-    return c.json({ error: 'Failed to get session' }, 500);
+    console.error('[auth] get-session failed:', error?.message || error, error?.stack);
+    return c.json(
+      {
+        error: 'Failed to get session',
+        message: error?.message || 'Failed to get session',
+        requestId: c.get('requestId'),
+      },
+      500,
+    );
   }
 });
 
@@ -174,19 +218,31 @@ app.on(['POST', 'GET', 'PUT', 'PATCH', 'DELETE'], '/api/auth/sign-up/*', signupR
 app.on(['POST', 'GET', 'PUT', 'PATCH', 'DELETE'], '/api/auth/sign-up/email', signupRateLimiter);
 
 app.on(['POST', 'GET', 'PUT', 'PATCH', 'DELETE'], '/api/auth/*', authRateLimiter, async (c) => {
-  const { getRequestAuth } = await import('./config/requestContext.js');
-  const authInstance = getRequestAuth();
+  try {
+    const { getRequestAuth } = await import('./config/requestContext.js');
+    const authInstance = getRequestAuth();
 
-  let request = c.req.raw;
-  const normalizedOrigin = c.get('normalizedOrigin');
-  if (normalizedOrigin) {
-    const headers = new Headers(request.headers);
-    headers.set('origin', normalizedOrigin);
-    if (!headers.get('referer')) headers.set('referer', `${normalizedOrigin}/`);
-    request = new Request(request, { headers });
+    let request = c.req.raw;
+    const normalizedOrigin = c.get('normalizedOrigin');
+    if (normalizedOrigin) {
+      const headers = new Headers(request.headers);
+      headers.set('origin', normalizedOrigin);
+      if (!headers.get('referer')) headers.set('referer', `${normalizedOrigin}/`);
+      request = new Request(request, { headers });
+    }
+
+    return await authInstance.handler(request);
+  } catch (error) {
+    console.error('[auth] handler failed:', error?.message || error, error?.stack);
+    return c.json(
+      {
+        success: false,
+        message: error?.message || 'Auth handler failed',
+        requestId: c.get('requestId'),
+      },
+      500,
+    );
   }
-
-  return authInstance.handler(request);
 });
 
 app.use('/api/balance/topup/*', topUpRateLimiter);
@@ -205,13 +261,18 @@ registerDeveloperRoutes(app);
 registerV1ApiRoutes(app);
 
 app.onError((err, c) => {
-  console.error('[Worker]', err);
+  console.error('[Worker]', err?.message || err, err?.stack);
   const status = err.status || err.statusCode || 500;
-  const isProd = process.env.NODE_ENV === 'production';
+  // Surface real messages for auth/config failures so prod is diagnosable.
+  const expose =
+    status < 500 ||
+    /DATABASE_URL|BETTER_AUTH|not configured|not initialized|CONTEXT_INIT/i.test(
+      String(err?.message || ''),
+    );
   return c.json(
     {
       success: false,
-      message: status >= 500 && isProd ? 'Internal Server Error' : err.message || 'Internal Server Error',
+      message: expose ? err.message || 'Internal Server Error' : 'Internal Server Error',
       requestId: c.get('requestId'),
     },
     status,
