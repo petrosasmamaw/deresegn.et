@@ -17,6 +17,7 @@ import { analyzeQrAuthenticity } from './qrAuthenticityService.js';
 import { extractPaymentFromBuffer } from './geminiService.js';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
+import { isWorkersRuntime } from '../config/runtime.js';
 
 const RECEIPT_BASE = 'https://receipt.dashensuperapp.com/receipt';
 const DASHEN_REF_RE = /\b(\d{3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i;
