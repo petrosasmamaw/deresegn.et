@@ -11,3 +11,4 @@ dist-ssr/
 # Logs & OS
 *.log
 .DS_Store
+.dev.vars
