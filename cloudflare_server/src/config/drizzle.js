@@ -1,8 +1,14 @@
-import { neon, Pool } from '@neondatabase/serverless';
+import { neon, Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import { drizzle as drizzleWs } from 'drizzle-orm/neon-serverless';
 import * as schema from '../db/schema.js';
 import { getRequestDb } from './requestContext.js';
+import { isWorkersRuntime } from './runtime.js';
+
+// WebSocket Pool hangs on Workers — use HTTP fetch for transactional queries.
+if (isWorkersRuntime()) {
+  neonConfig.poolQueryViaFetch = true;
+}
 
 function resolveConnectionString(env) {
   const connectionString = (env?.DATABASE_URL || process.env.DATABASE_URL || '').trim();

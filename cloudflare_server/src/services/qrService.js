@@ -11,6 +11,12 @@ import {
   GlobalHistogramBinarizer,
 } from '@zxing/library';
 import { TELEBIRR_INVOICE_RE } from '../utils/telebirrInvoice.js';
+import { isWorkersRuntime } from '../config/runtime.js';
+
+const DEFAULT_QR_MAX_MS = isWorkersRuntime()
+  ? Number(process.env.QR_MAX_MS) || 3500
+  : Number(process.env.QR_MAX_MS) || 9000;
+const WORKERS_QR_VARIANT_CAP = 6;
 
 function matchTelebirrInvoice(text) {
   const hit = String(text).match(/\b([A-Z]{2,3}[A-Z0-9]{7,8})\b/i)?.[1];
@@ -322,19 +328,26 @@ function* iterScanVariants(image) {
   const bottom55 = Math.floor(height * 0.55);
   const midY = Math.floor(height * 0.35);
 
-  yield image;
-  yield image.clone().scale(2);
-  yield image.clone().scale(3);
-  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(2);
-  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(2);
-  yield image.clone().greyscale().scale(2);
-  yield image.clone().crop({ x: 0, y: midY, w: width, h: height - midY }).scale(3);
-  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(3);
-  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(3);
-  yield image.clone().greyscale().scale(3);
-  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).greyscale().invert().scale(4);
-  yield image.clone().crop({ x: Math.floor(width * 0.05), y: bottom55, w: Math.floor(width * 0.9), h: height - bottom55 }).greyscale().invert().scale(4);
-  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).greyscale().scale(4);
+  const variants = [
+    image,
+    image.clone().scale(2),
+    image.clone().scale(3),
+    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(2),
+    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(2),
+    image.clone().greyscale().scale(2),
+    image.clone().crop({ x: 0, y: midY, w: width, h: height - midY }).scale(3),
+    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(3),
+    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(3),
+    image.clone().greyscale().scale(3),
+    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).greyscale().invert().scale(4),
+    image.clone().crop({ x: Math.floor(width * 0.05), y: bottom55, w: Math.floor(width * 0.9), h: height - bottom55 }).greyscale().invert().scale(4),
+    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).greyscale().scale(4),
+  ];
+
+  const cap = isWorkersRuntime() ? WORKERS_QR_VARIANT_CAP : variants.length;
+  for (let i = 0; i < Math.min(cap, variants.length); i += 1) {
+    yield variants[i];
+  }
 }
 
 function buildQrDataFromRaw(data) {
@@ -388,7 +401,7 @@ export function scanBitmapForData(bitmap) {
 
 export { buildQrDataFromRaw };
 
-export async function decodeQrFromBuffer(buffer, { maxMs = 9000, image: preparedImage = null } = {}) {
+export async function decodeQrFromBuffer(buffer, { maxMs = DEFAULT_QR_MAX_MS, image: preparedImage = null } = {}) {
   try {
     const image = preparedImage || await prepareQrScanImage(buffer);
     const deadline = Date.now() + maxMs;
