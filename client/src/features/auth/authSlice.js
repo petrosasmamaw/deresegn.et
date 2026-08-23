@@ -64,7 +64,8 @@ export const login = createAsyncThunk('auth/login', async (payload, { rejectWith
 /** Background profile refresh — does not gate the app shell. */
 export const hydrateProfile = createAsyncThunk('auth/hydrateProfile', async () => {
   try {
-    const res = await axios.get('/users/me', { timeout: 6000 })
+    // Background refresh — a 401 here must not force logout (cookie race / stale tab).
+    const res = await axios.get('/users/me', { timeout: 6000, skipAuthExpire: true })
     const data = unwrap(res)
     return data?.user || null
   } catch {

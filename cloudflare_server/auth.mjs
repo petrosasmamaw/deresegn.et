@@ -72,6 +72,7 @@ export function createAuth(db, env = {}) {
           required: false,
           defaultValue: 'client',
           input: false,
+          returned: true,
         },
       },
     },

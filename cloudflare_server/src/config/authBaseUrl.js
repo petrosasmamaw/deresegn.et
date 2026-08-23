@@ -9,6 +9,9 @@ export function resolveAuthBaseUrl() {
     if (isProduction && configured.startsWith('http://tamagncheck.online')) {
       configured = configured.replace('http://', 'https://');
     }
+    if (isProduction && configured.startsWith('http://www.tamagncheck.online')) {
+      configured = configured.replace('http://', 'https://');
+    }
     return configured;
   }
 
@@ -22,40 +25,56 @@ export function resolveAuthBaseUrl() {
   return 'http://localhost:8787/api/auth';
 }
 
-/** Frontend ↔ API on different hosts → need SameSite=None cookies. */
-export function isCrossOriginAuth() {
-  const authUrl = resolveAuthBaseUrl();
-  if (!authUrl) return false;
-
-  let authOrigin;
-  try {
-    authOrigin = new URL(authUrl).origin;
-  } catch {
-    return false;
-  }
-
-  const candidates = [
+function collectClientOrigins() {
+  return [
     ...(process.env.CLIENT_URL || '').split(','),
     ...(process.env.CLIENT_URLS || '').split(','),
     'https://tamagncheck.online',
     'https://www.tamagncheck.online',
   ]
     .map((s) => s.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      try {
+        return new URL(entry).origin;
+      } catch {
+        return null;
+      }
+    })
     .filter(Boolean);
+}
 
-  for (const entry of candidates) {
-    try {
-      const clientOrigin = new URL(entry).origin;
-      if (clientOrigin !== authOrigin) return true;
-    } catch {
-      // ignore invalid entry
-    }
+/**
+ * True when the browser must treat auth cookies as third-party
+ * (API host ≠ website host). Same-origin Vercel /api rewrite → false.
+ */
+export function isCrossOriginAuth() {
+  const authUrl = resolveAuthBaseUrl();
+  if (!authUrl) return false;
+
+  let authOrigin;
+  let authHost;
+  try {
+    const u = new URL(authUrl);
+    authOrigin = u.origin;
+    authHost = u.hostname;
+  } catch {
+    return false;
   }
 
-  // workers.dev API is always cross-origin to the website
-  if (/\.workers\.dev$/i.test(new URL(authUrl).hostname)) return true;
+  // Direct workers.dev API is always cross-origin to the marketing site.
+  if (/\.workers\.dev$/i.test(authHost)) return true;
 
-  return false;
+  const clientOrigins = collectClientOrigins();
+  // Same-origin (or www ↔ apex on same registrable site via rewrite) → first-party cookies.
+  if (clientOrigins.includes(authOrigin)) return false;
+
+  // Auth on apex while CLIENT_URL lists www (or vice versa) still first-party via proxy.
+  const authIsSite =
+    authHost === 'tamagncheck.online' || authHost.endsWith('.tamagncheck.online');
+  if (authIsSite) return false;
+
+  return clientOrigins.some((origin) => origin !== authOrigin);
 }
 
 export function getAuthCookieAttributes(isProduction) {
@@ -64,6 +83,7 @@ export function getAuthCookieAttributes(isProduction) {
     httpOnly: true,
     secure: isProduction || crossOrigin,
     sameSite: crossOrigin ? 'none' : 'lax',
+    // Partitioned only for real third-party (workers.dev) cookies — CHIPS.
     ...(crossOrigin ? { partitioned: true } : {}),
     path: '/',
   };
