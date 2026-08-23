@@ -221,5 +221,4 @@ async function bootstrap() {
 app.listen(WORKER_HTTP_PORT, () => {
   console.log(`🚀 Express on Workers port ${WORKER_HTTP_PORT}`);
 });
-
 export default httpServerHandler({ port: WORKER_HTTP_PORT });

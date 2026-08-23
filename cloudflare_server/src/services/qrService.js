@@ -251,7 +251,11 @@ export function parseQrPayload(raw) {
   };
 }
 
+<<<<<<< HEAD
 const QR_SCAN_MAX_DIM = isWorkersRuntime() ? 1200 : 2200;
+=======
+const QR_SCAN_MAX_DIM = isWorkersRuntime() ? 700 : 2200;
+>>>>>>> 53495e5276b0c5fbf4f64af5ac7cc6fed911624e
 const QR_SCAN_MIN_DIM = 350;
 
 let cachedZxingReader = null;
