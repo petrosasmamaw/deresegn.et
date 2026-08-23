@@ -1,18 +1,28 @@
 import https from 'node:https';
 import { URL } from 'node:url';
+import { isWorkersRuntime } from '../config/runtime.js';
+import { outboundFetch } from './outboundFetch.js';
 
 const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 /**
  * Native Node HTTPS GET — forces IPv4, no keep-alive.
- * Telebirr (ethiotelecom.et) often hangs with global fetch() from US cloud hosts (Render).
- * CBE apps.cbe.com.et:100 needs rejectUnauthorized:false (self-signed / broken chain).
+ * On Cloudflare Workers, delegates to standard outboundFetch.
  */
-export function httpsGet(url, {
+export async function httpsGet(url, {
   timeoutMs = 45000,
   headers = {},
   rejectUnauthorized = true,
 } = {}) {
+  if (isWorkersRuntime()) {
+    const res = await outboundFetch(url, { timeoutMs, headers });
+    const arrayBuffer = await res.arrayBuffer();
+    return {
+      ok: res.ok,
+      status: res.status,
+      body: Buffer.from(arrayBuffer),
+    };
+  }
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const req = https.request(

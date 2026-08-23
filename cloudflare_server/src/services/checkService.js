@@ -137,6 +137,8 @@ async function uploadScreenshotBuffer(buffer, mimeType = 'image/jpeg') {
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
+  const dataUri = `data:${mimeType};base64,${buffer.toString('base64')}`;
+
   if (isWorkersRuntime() && cloudName && apiKey && apiSecret) {
     const timestamp = Math.round(Date.now() / 1000);
     const signature = crypto
@@ -144,7 +146,7 @@ async function uploadScreenshotBuffer(buffer, mimeType = 'image/jpeg') {
       .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
       .digest('hex');
     const form = new FormData();
-    form.append('file', new Blob([buffer], { type: mimeType }));
+    form.append('file', dataUri);
     form.append('api_key', apiKey);
     form.append('timestamp', String(timestamp));
     form.append('folder', folder);
@@ -160,7 +162,6 @@ async function uploadScreenshotBuffer(buffer, mimeType = 'image/jpeg') {
     return { url: payload.secure_url, publicId: payload.public_id };
   }
 
-  const dataUri = `data:${mimeType};base64,${buffer.toString('base64')}`;
   const result = await cloudinary.uploader.upload(dataUri, {
     folder,
     resource_type: 'image',
