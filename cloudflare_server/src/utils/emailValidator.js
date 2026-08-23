@@ -1,6 +1,7 @@
+import dns from 'dns/promises';
 import disposableDomains from 'disposable-email-domains/index.json' with { type: 'json' };
+import { isWorkersRuntime } from '../config/runtime.js';
 
-let disposableSet = new Set();
 const EXTRA_DISPOSABLE_DOMAINS = [
   'tempmail.com',
   'temp-mail.org',
@@ -30,19 +31,10 @@ const EXTRA_DISPOSABLE_DOMAINS = [
   'minutemailbox.com',
 ];
 
-try {
-  if (Array.isArray(disposableDomains)) {
-    disposableSet = new Set([
-      ...disposableDomains.map((d) => String(d).toLowerCase().trim()),
-      ...EXTRA_DISPOSABLE_DOMAINS,
-    ]);
-  } else {
-    disposableSet = new Set(EXTRA_DISPOSABLE_DOMAINS);
-  }
-} catch (err) {
-  console.warn('[emailValidator] Could not load disposable domains:', err.message);
-  disposableSet = new Set(EXTRA_DISPOSABLE_DOMAINS);
-}
+const disposableSet = new Set([
+  ...(Array.isArray(disposableDomains) ? disposableDomains : []).map((d) => String(d).toLowerCase().trim()),
+  ...EXTRA_DISPOSABLE_DOMAINS,
+]);
 
 const TRUSTED_DOMAINS = new Set([
   'gmail.com',
@@ -86,45 +78,35 @@ export function extractEmailDomain(email) {
 export function isDisposableEmail(email) {
   const domain = extractEmailDomain(email);
   if (!domain) return false;
-
   if (disposableSet.has(domain)) return true;
-
   const parts = domain.split('.');
   if (parts.length > 2) {
     const parentDomain = parts.slice(-2).join('.');
     if (disposableSet.has(parentDomain)) return true;
   }
-
   return false;
 }
 
-async function resolveMxViaDoH(domain) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DNS_TIMEOUT_MS);
-  try {
-    const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`;
-    const res = await fetch(url, {
-      headers: { Accept: 'application/dns-json' },
-      signal: controller.signal,
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const answers = Array.isArray(data?.Answer) ? data.Answer : [];
-    return answers
-      .filter((a) => a?.type === 15 && a?.data)
-      .map((a) => ({ exchange: String(a.data).replace(/\d+\s+/, '').replace(/\.$/, '') }));
-  } finally {
-    clearTimeout(timer);
-  }
+async function resolveMxViaDoh(domain) {
+  const url = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`;
+  const res = await fetch(url, {
+    headers: { Accept: 'application/dns-json' },
+    signal: AbortSignal.timeout(DNS_TIMEOUT_MS),
+  });
+  if (!res.ok) return false;
+  const data = await res.json();
+  return Array.isArray(data?.Answer) && data.Answer.some((a) => a?.type === 15 || a?.data);
+}
+
+async function resolveMxViaNode(domain) {
+  const records = await dns.resolveMx(domain);
+  return Array.isArray(records) && records.length > 0 && records.some((r) => r && r.exchange);
 }
 
 export async function isRealEmailDomain(email) {
   const domain = extractEmailDomain(email);
   if (!domain) return false;
-
-  if (TRUSTED_DOMAINS.has(domain)) {
-    return true;
-  }
+  if (TRUSTED_DOMAINS.has(domain)) return true;
 
   const cached = mxCache.get(domain);
   if (cached && cached.expiresAt > Date.now()) {
@@ -132,9 +114,9 @@ export async function isRealEmailDomain(email) {
   }
 
   try {
-    const records = await resolveMxViaDoH(domain);
-    const isValid = Array.isArray(records) && records.length > 0 && records.some((r) => r && r.exchange);
-
+    const isValid = isWorkersRuntime()
+      ? await resolveMxViaDoh(domain)
+      : await resolveMxViaNode(domain);
     mxCache.set(domain, { isValid, expiresAt: Date.now() + MX_CACHE_TTL_MS });
     return isValid;
   } catch {

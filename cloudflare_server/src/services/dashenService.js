@@ -4,6 +4,7 @@
  * Fast path: parallel QR scan + Gemini OCR; VAT falls back to official PDF by IPSS reference.
  */
 import fs from 'fs/promises';
+import { PDFParse } from 'pdf-parse';
 import {
   parseQrPayload,
   decodeQrFromBuffer,
@@ -207,7 +208,6 @@ function parseDashenPdfLines(text) {
 }
 
 export async function parseDashenPdfBuffer(pdfBuffer) {
-  const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: pdfBuffer });
   try {
     const textResult = await parser.getText();

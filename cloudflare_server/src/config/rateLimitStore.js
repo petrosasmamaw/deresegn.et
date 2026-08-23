@@ -1,4 +1,7 @@
-/** Redis rate-limit store is unused on Workers — KV limiters replace it. */
-export async function makeRateLimitStore() {
+/**
+ * Cloudflare Workers use in-memory rate limits (per isolate).
+ * REDIS_URL is not used on this runtime.
+ */
+export function makeRateLimitStore() {
   return undefined;
 }

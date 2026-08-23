@@ -1,73 +1,69 @@
-import { neon, Pool, neonConfig } from '@neondatabase/serverless';
+import { config } from 'dotenv';
+import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import { drizzle as drizzleWs } from 'drizzle-orm/neon-serverless';
+import { neon, Pool, neonConfig } from '@neondatabase/serverless';
+import { Pool as PgPool } from 'pg';
 import * as schema from '../db/schema.js';
-import { getRequestDb } from './requestContext.js';
 import { isWorkersRuntime } from './runtime.js';
 
-// WebSocket Pool hangs on Workers — use HTTP fetch for transactional queries.
+config();
+
+let pool;
+let db;
+
 if (isWorkersRuntime()) {
   neonConfig.poolQueryViaFetch = true;
-}
-
-function resolveConnectionString(env) {
-  const connectionString = (env?.DATABASE_URL || process.env.DATABASE_URL || '').trim();
+  const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error('DATABASE_URL is not configured on this Worker');
+    console.warn('[db] DATABASE_URL is not set on Worker');
   }
-  return connectionString;
-}
-
-/**
- * Per-request Drizzle client for Cloudflare Workers.
- * - Neon HTTP for normal queries (auth, reads) — no WebSocket / cross-request I/O issues
- * - Short-lived WebSocket Pool only inside db.transaction() for money paths
- */
-export function createDb(env) {
-  const connectionString = resolveConnectionString(env);
-  const sql = neon(connectionString);
-  const db = drizzleHttp(sql, { schema });
-
-  db.transaction = async (fn, config) => {
-    const pool = new Pool({ connectionString });
+  const sql = neon(connectionString || '');
+  db = drizzleHttp(sql, { schema });
+  db.transaction = async (fn, cfg) => {
+    const wsPool = new Pool({ connectionString });
     try {
-      const txDb = drizzleWs(pool, { schema });
-      return await txDb.transaction(fn, config);
+      const txDb = drizzleWs(wsPool, { schema });
+      return await txDb.transaction(fn, cfg);
     } finally {
-      try {
-        await pool.end();
-      } catch {
-        // ignore pool cleanup errors
-      }
+      await wsPool.end().catch(() => {});
     }
   };
-
-  return db;
+  pool = null;
+} else {
+  const isNeon = process.env.DATABASE_URL?.includes('neon');
+  pool = new PgPool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: isNeon ? { rejectUnauthorized: false } : (process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
+    max: Number(process.env.DB_POOL_MAX) || 10,
+    connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 10000,
+    idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
+  });
+  pool.on('error', (err) => {
+    console.error('[db] Unexpected idle client error:', err.message);
+  });
+  db = drizzlePg(pool, { schema });
 }
 
-/**
- * Lazy proxy so existing `import { db } from '...'` keeps working under ALS.
- */
-export const db = new Proxy(
-  {},
-  {
-    get(_target, prop) {
-      const real = getRequestDb();
-      const value = real[prop];
-      return typeof value === 'function' ? value.bind(real) : value;
-    },
-  },
-);
+export { db };
 
 export async function closePool() {
-  // no-op — HTTP driver; transactional pools are ended in createDb.transaction
+  if (!pool) return;
+  try {
+    await pool.end();
+  } catch {
+    // ignore
+  }
 }
 
-export async function testConnection(env) {
+export async function testConnection() {
   try {
-    const database = env ? createDb(env) : getRequestDb();
-    const rows = await database.execute('select 1 as ok');
-    console.log('✅ Database connected:', rows);
+    if (isWorkersRuntime()) {
+      await db.execute('select 1 as ok');
+    } else {
+      const result = await pool.query('SELECT NOW()');
+      console.log('✅ Database connected:', result.rows[0]);
+    }
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);

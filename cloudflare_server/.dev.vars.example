@@ -1,22 +1,20 @@
-# Copy to .dev.vars for local `wrangler dev` (never commit .dev.vars)
-
+# Copy from server/.env (or use this template) → cloudflare_server/.dev.vars for local wrangler dev
+# Required overrides for local Workers:
+#   NODE_ENV=development
+#   BETTER_AUTH_URL=http://localhost:8787/api/auth
+#   CLIENT_URL=http://localhost:5173
 NODE_ENV=development
 CLIENT_URL=http://localhost:5173
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
-BETTER_AUTH_SECRET=generate-a-long-random-secret
+DATABASE_URL=
+BETTER_AUTH_SECRET=
 BETTER_AUTH_URL=http://localhost:8787/api/auth
 GEMINI_API_KEY=
 BREVO_API_KEY=
 BREVO_SENDER_EMAIL=
-BREVO_SENDER_NAME=Tamagn Check
+BREVO_SENDER_NAME=
 PASSWORD_RESET_URL=http://localhost:5173/reset-password
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
-CLOUDINARY_FOLDER=deresegn
 PETROS_VERIFIER_API_KEY=
-PETROS_VERIFIER_BASE_URL=
-PETROS_VERIFIER_TIMEOUT_MS=45000
-TELEBIRR_PREFER_PETROS=true
-TELEBIRR_SKIP_DIRECT=true
-PETROS_VERIFIER_RETRIES=2
+PETROS_VERIFIER_BASE_URL=https://verifyapi.leulzenebe.pro
