@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get('/', authenticateUser, getBalance);
 router.get('/topup-accounts', authenticateUser, getTopUpAccounts);
-router.post('/topup', authenticateUser, topUpUpload.single('screenshot'), submitTopUpPayment);
+router.post('/topup', topUpUpload.single('screenshot'), authenticateUser, submitTopUpPayment);
 router.post('/topup/reference', authenticateUser, submitTopUpReferencePayment);
 router.post('/topup/sms', authenticateUser, submitTopUpSmsPayment);
 

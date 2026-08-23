@@ -110,7 +110,38 @@ app.get('/api/auth/get-session', async (req, res) => {
   }
 });
 
-app.use('/api/auth', signupRateLimiter, authRateLimiter, nodeHandler);
+app.all('/api/auth/*', async (req, res, next) => {
+  try {
+    const url = `${req.protocol}://${req.get('host') || 'localhost'}${req.originalUrl}`;
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (value != null) {
+        if (Array.isArray(value)) {
+          value.forEach((v) => headers.append(key, v));
+        } else {
+          headers.set(key, value);
+        }
+      }
+    }
+    const init = {
+      method: req.method,
+      headers,
+    };
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      init.body = typeof req.body === 'object' ? JSON.stringify(req.body) : req.body;
+    }
+    const webReq = new Request(url, init);
+    const webRes = await auth.handler(webReq);
+    res.status(webRes.status);
+    webRes.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+    const bodyText = await webRes.text();
+    res.send(bodyText);
+  } catch (err) {
+    next(err);
+  }
+});
 console.log('✅ Mounted Better Auth handler at /api/auth');
 
 app.use('/api/balance/topup', topUpRateLimiter)
@@ -155,6 +186,10 @@ app.use(errorHandler)
 const WORKER_HTTP_PORT = Number(process.env.WORKER_HTTP_PORT || 3000);
 
 async function bootstrap() {
+  if (isWorkersRuntime()) {
+    return;
+  }
+
   if (process.env.NODE_ENV === 'production') {
     try {
       assertRequiredEnv();
@@ -178,7 +213,7 @@ async function bootstrap() {
     console.error('⚠️  Boot seed warning:', err.message);
   }
 
-  if (process.env.NODE_ENV === 'production' && !isWorkersRuntime()) {
+  if (process.env.NODE_ENV === 'production') {
     startBankConnectivityMonitor();
   }
 }

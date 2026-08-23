@@ -168,7 +168,7 @@ export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mime
   const apiKey = process.env.GEMINI_API_KEY;
   assertValidApiKey(apiKey);
 
-  const base64 = buffer.toString('base64');
+  const base64 = Buffer.from(buffer).toString('base64');
   const prompt = buildExtractionPrompt(method);
 
   let lastError = null;

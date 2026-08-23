@@ -190,7 +190,9 @@ export async function getBonusStats() {
 }
 
 export function generateShareToken() {
-  return crypto.randomBytes(24).toString('hex');
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export const RECHECK_WINDOW_MS = 24 * 60 * 60 * 1000;

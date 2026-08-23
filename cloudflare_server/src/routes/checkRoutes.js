@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get('/certificate/:token', getPublicCertificate);
 router.get('/channels', authenticateUser, getVerifyChannelsCatalog);
-router.post('/', authenticateUser, checkUpload.single('screenshot'), performCheck);
+router.post('/', checkUpload.single('screenshot'), authenticateUser, performCheck);
 router.post('/reference', authenticateUser, performReferenceCheck);
 router.post('/sms', authenticateUser, performSmsCheck);
 router.get('/history', authenticateUser, getHistory);

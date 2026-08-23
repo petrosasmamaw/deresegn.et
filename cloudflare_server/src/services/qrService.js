@@ -251,7 +251,7 @@ export function parseQrPayload(raw) {
   };
 }
 
-const QR_SCAN_MAX_DIM = isWorkersRuntime() ? 700 : 2200;
+const QR_SCAN_MAX_DIM = isWorkersRuntime() ? 1200 : 2200;
 const QR_SCAN_MIN_DIM = 350;
 
 let cachedZxingReader = null;
@@ -333,7 +333,10 @@ function* iterScanVariants(image) {
   const bottom55 = Math.floor(height * 0.55);
 
   if (isWorkersRuntime()) {
-    // Workers mode: at most 1 lightweight bottom crop (where payment QRs live)
+    // Workers mode: 1 middle crop (Dashen/CBE success screen) + 1 bottom crop (VAT/slip)
+    const midY = Math.floor(height * 0.18);
+    const midH = Math.floor(height * 0.58);
+    yield image.clone().crop({ x: 0, y: midY, w: width, h: midH });
     yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH });
     return;
   }
@@ -382,6 +385,9 @@ function buildQrDataFromRaw(data) {
 }
 
 function quickScan(image, shouldStop = () => false, validate = () => true) {
+  const direct = scanBitmap(image.bitmap);
+  if (direct && validate(direct)) return direct;
+
   for (const variant of iterScanVariants(image)) {
     if (shouldStop()) break;
     const data = scanBitmap(variant.bitmap);

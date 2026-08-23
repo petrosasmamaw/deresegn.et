@@ -7,36 +7,35 @@ import { Pool as PgPool } from 'pg';
 import * as schema from '../db/schema.js';
 import { isWorkersRuntime } from './runtime.js';
 
-config();
-
-let pool;
-let workerDb;
-
-function createWorkerDb() {
-  neonConfig.poolQueryViaFetch = true;
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error('[db] DATABASE_URL is not set on Worker');
-  }
-  const sql = neon(connectionString);
-  const instance = drizzleHttp(sql, { schema });
-  instance.transaction = async (fn, cfg) => {
-    const wsPool = new Pool({ connectionString });
-    try {
-      const txDb = drizzleWs(wsPool, { schema });
-      return await txDb.transaction(fn, cfg);
-    } finally {
-      await wsPool.end().catch(() => {});
-    }
-  };
-  return instance;
-}
-
-function getWorkerDb() {
-  if (!workerDb) workerDb = createWorkerDb();
-  return workerDb;
-}
-
+config();
+
+let pool;
+let workerDb;
+let cachedWsPool = null;
+
+function createWorkerDb() {
+  neonConfig.poolQueryViaFetch = true;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('[db] DATABASE_URL is not set on Worker');
+  }
+  const sql = neon(connectionString);
+  const instance = drizzleHttp(sql, { schema });
+  instance.transaction = async (fn, cfg) => {
+    if (!cachedWsPool) {
+      cachedWsPool = new Pool({ connectionString });
+    }
+    const txDb = drizzleWs(cachedWsPool, { schema });
+    return await txDb.transaction(fn, cfg);
+  };
+  return instance;
+}
+
+function getWorkerDb() {
+  if (!workerDb) workerDb = createWorkerDb();
+  return workerDb;
+}
+
 /** Lazy on Workers so deploy validation does not require DATABASE_URL at module load. */
 export const db = isWorkersRuntime()
   ? new Proxy({}, {

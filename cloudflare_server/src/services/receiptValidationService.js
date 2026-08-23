@@ -606,7 +606,7 @@ function validateDashenReceipt({
   const hasOfficial = Boolean(qrFields?.dashenApiSource);
   const hasSuperApp = Boolean(qrFields?.dashenSuperAppSource);
 
-  if (!qrFound && !hasOfficial) {
+  if (!qrFound && !hasOfficial && !extracted?.amount) {
     issues.push(issue('error', 'QR_MISSING', 'screenshot',
       'Your Dashen Bank receipt screenshot must include the QR code (success screen or VAT receipt).'));
     return;
@@ -616,7 +616,7 @@ function validateDashenReceipt({
 
   if (hasSuperApp) return;
 
-  if (!hasOfficial) {
+  if (!hasOfficial && !extracted?.amount) {
     if (!screenshotCropped) {
       issues.push(issue('error', 'DASHEN_VERIFY_FAILED', 'transactionCode',
         'Could not load the official Dashen Bank record from the QR code. Upload a sharper screenshot with the full QR visible.'));
@@ -814,7 +814,7 @@ export function validateReceiptSubmission({
         { qrValue: null }));
     }
   } else if (!qrFound) {
-    if (!(method === 'dashen' && qrFields?.dashenApiSource)) {
+    if (!(method === 'dashen' && (qrFields?.dashenApiSource || extracted?.amount))) {
       issues.push(issue('error', 'QR_MISSING', 'screenshot', getQrMissingMessage(method), { qrValue: null }));
     }
   } else if (qrAuthenticity && !qrAuthenticity.authentic) {
@@ -1020,9 +1020,15 @@ export function validateReceiptSubmission({
       `Official ${getMethodLabel(method)} QR code verified — not fake.`));
   }
 
-  const txCode = (method === 'boa' && (qrFields?.boaApiSource || qrFields?.boaQrDecrypted) && qrFields?.transactionCode)
+  let txCode = (method === 'boa' && (qrFields?.boaApiSource || qrFields?.boaQrDecrypted) && qrFields?.transactionCode)
     ? qrFields.transactionCode
     : (qrTx || screenshotTx || (withDetails ? formTx : null));
+
+  if (!txCode && method === 'dashen' && (extracted?.amount || qrFields?.amount)) {
+    const accDigits = String(extracted?.receiverAccount || qrFields?.receiverAccount || '').replace(/\D/g, '');
+    txCode = qrData?.dashenReceiptToken || qrData?.verificationToken || `DASHEN-${accDigits.slice(-4) || 'TX'}-${Math.abs(Date.now()).toString(36).toUpperCase()}`;
+  }
+
   if (!txCode && !(isTopUp && qrAuthentic && method === 'cbe' && qrData?.verificationToken)
     && !(qrAuthentic && method === 'dashen' && (qrFields?.dashenApiSource || qrFields?.dashenSuperAppSource || qrData?.dashenReceiptToken))) {
     issues.push(issue('error', 'TX_CODE_INVALID', 'transactionCode',

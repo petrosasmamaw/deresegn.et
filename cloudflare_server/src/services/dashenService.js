@@ -472,52 +472,18 @@ function scanDashenQrFast(image, deadline) {
  * Runs in parallel with Gemini/OCR like Telebirr.
  */
 async function decodeDashenQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, preparedImage = null } = {}) {
-  const deadline = Date.now() + maxMs;
-  const remaining = () => Math.max(0, deadline - Date.now());
-
   try {
     const prepared = preparedImage || await prepareQrScanImage(buffer);
-
-    const immediate = tryVariant(prepared, 'any');
-    if (immediate) {
-      console.log('[Dashen] QR decoded (immediate)');
-      return immediate;
-    }
-
-    const genericBudget = Math.min(8000, maxMs);
-    const generic = await decodeQrFromBuffer(buffer, { maxMs: genericBudget, image: prepared });
+    const generic = await decodeQrFromBuffer(buffer, { maxMs: Math.min(2500, maxMs), image: prepared });
     if (generic?.raw && isAcceptedDashenQrPayload(generic.raw)) {
       console.log('[Dashen] QR decoded (generic)');
       return buildQrResult(generic.raw, { successScreen: isDashenSuperAppReceiptToken(generic.raw) });
     }
-
-    const left = remaining();
-    if (left < 1500) return buildQrDataFromRaw(null);
-
-    const fastBudget = Math.min(QR_FAST_MS, left);
-    if (fastBudget >= 1200) {
-      const fastHit = scanDashenQrFast(prepared, Date.now() + fastBudget);
-      if (fastHit) {
-        console.log('[Dashen] QR decoded (fast)');
-        return fastHit;
-      }
-    }
-
-    const cropBudget = remaining();
-    if (cropBudget >= 1500) {
-      const half = Math.floor(cropBudget / 2);
-      const [successQr, vatQr] = await Promise.all([
-        Promise.resolve(scanDashenSuccessQr(prepared, Math.min(half, SUCCESS_QR_MS))),
-        Promise.resolve(scanDashenVatBottomQr(prepared, Math.min(half, 4000), { quick: true })),
-      ]);
-      if (successQr?.raw) return successQr;
-      if (vatQr?.raw) return vatQr;
-    }
+    return generic || buildQrDataFromRaw(null);
   } catch (err) {
     console.warn('[Dashen] QR scan error:', err.message);
+    return buildQrDataFromRaw(null);
   }
-
-  return buildQrDataFromRaw(null);
 }
 
 export function detectDashenReceiptType(extracted, qrData) {
@@ -566,6 +532,56 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
 
   const started = Date.now();
   console.log('[Dashen] verify', buffer.length, 'bytes', mime);
+
+  if (isWorkersRuntime()) {
+    let geminiUsed = false;
+    let geminiError = null;
+    let officialFields = null;
+
+    const qrPromise = decodeDashenQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS });
+    const geminiPromise = extractPaymentFromBuffer(buffer, 'dashen', mime)
+      .then((data) => ({ data, used: true }))
+      .catch((err) => ({ data: { ...EMPTY_EXTRACTED }, used: false, error: err.message }));
+
+    let [qrData, geminiOutcome] = await Promise.all([qrPromise, geminiPromise]);
+
+    const extracted = geminiOutcome.data;
+    geminiUsed = geminiOutcome.used;
+    geminiError = geminiOutcome.error || null;
+    if (geminiError) console.warn('[Gemini]', geminiError);
+
+    const refFromQr = extractDashenReferenceFromQr(qrData);
+    const refFromText = extractDashenReferenceFromText(extracted?.transactionCode);
+    const officialRef = refFromQr || refFromText;
+
+    if (officialRef) {
+      officialFields = await fetchDashenTransactionByReference(officialRef);
+      if (officialFields && !qrData?.raw) {
+        qrData = buildOfficialFallbackQr(officialRef, officialFields);
+      }
+    }
+
+    let qrFields = extractQrReceiptFields('dashen', qrData);
+    if (isDashenSuperAppReceiptToken(qrData?.raw)) {
+      qrFields = enrichSuccessFields(qrData, qrFields);
+    } else if (officialFields) {
+      qrFields = mergeDashenOfficialFields(qrFields, officialFields);
+      if (qrData?.officialReceiptFallback) {
+        console.log('[Dashen] Official PDF fields merged:', officialFields.transactionCode);
+      }
+    }
+
+    const receiptType = detectDashenReceiptType(extracted, qrData);
+    console.log('[Dashen] done in', Date.now() - started, 'ms (worker)');
+    return {
+      extracted,
+      geminiUsed,
+      geminiError,
+      qrData,
+      qrFields,
+      receiptType,
+    };
+  }
 
   const preparedPromise = prepareQrScanImage(buffer);
 

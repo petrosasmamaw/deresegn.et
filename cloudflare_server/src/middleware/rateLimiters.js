@@ -26,7 +26,10 @@ function lazyRateLimit(options) {
 }
 
 function buildLimiter(options) {
-  return isWorkersRuntime() ? lazyRateLimit(options) : rateLimit(options);
+  if (isWorkersRuntime()) {
+    return (req, res, next) => next();
+  }
+  return rateLimit(options);
 }
 
 export const authRateLimiter = buildLimiter({

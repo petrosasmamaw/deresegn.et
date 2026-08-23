@@ -245,7 +245,7 @@ export function parseQrPayload(raw) {
   };
 }
 
-const QR_SCAN_MAX_DIM = 2200;
+const QR_SCAN_MAX_DIM = isWorkersRuntime() ? 1200 : 2200;
 const QR_SCAN_MIN_DIM = 400;
 
 let cachedZxingReader = null;
@@ -365,6 +365,9 @@ function buildQrDataFromRaw(data) {
 }
 
 function quickScan(image, shouldStop = () => false, validate = () => true) {
+  const direct = scanBitmap(image.bitmap);
+  if (direct && validate(direct)) return direct;
+
   for (const variant of iterScanVariants(image)) {
     if (shouldStop()) break;
     const data = scanBitmap(variant.bitmap);

@@ -59,7 +59,7 @@ export function resolvePaymentId(method, { validation, qrData, extracted }) {
     return qrTx || screenshotTx || qrData?.verificationToken || fallbackTx || null;
   }
   if (method === 'dashen') {
-    return qrTx || screenshotTx || qrData?.dashenReference || qrData?.dashenReceiptToken || qrData?.verificationToken || fallbackTx || null;
+    return qrTx || screenshotTx || qrData?.dashenReference || qrData?.dashenReceiptToken || qrData?.verificationToken || fallbackTx || validation?.resolvedDetails?.transactionCode || null;
   }
   if (method === 'boa') {
     if (qrFields?.boaApiSource || qrFields?.boaQrDecrypted) {
@@ -137,36 +137,35 @@ async function uploadScreenshotBuffer(buffer, mimeType = 'image/jpeg') {
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-  const dataUri = `data:${mimeType};base64,${buffer.toString('base64')}`;
-
-  if (isWorkersRuntime() && cloudName && apiKey && apiSecret) {
-    const timestamp = Math.round(Date.now() / 1000);
-    const signature = crypto
-      .createHash('sha1')
-      .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
-      .digest('hex');
-    const form = new FormData();
-    form.append('file', dataUri);
-    form.append('api_key', apiKey);
-    form.append('timestamp', String(timestamp));
-    form.append('folder', folder);
-    form.append('signature', signature);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: 'POST',
-      body: form,
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(payload?.error?.message || `Cloudinary upload failed (${res.status})`);
+  if (cloudName && apiKey && apiSecret) {
+    try {
+      const timestamp = Math.round(Date.now() / 1000);
+      const textToSign = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
+      const enc = new TextEncoder();
+      const digest = await crypto.subtle.digest('SHA-1', enc.encode(textToSign));
+      const signature = Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+      const form = new FormData();
+      const rawBlob = new Blob([buffer], { type: mimeType });
+      form.append('file', rawBlob, 'receipt.jpg');
+      form.append('api_key', apiKey);
+      form.append('timestamp', String(timestamp));
+      form.append('folder', folder);
+      form.append('signature', signature);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: form,
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (res.ok && payload.secure_url) {
+        return { url: payload.secure_url, publicId: payload.public_id };
+      }
+    } catch (err) {
+      console.warn('[Cloudinary]', err.message);
     }
-    return { url: payload.secure_url, publicId: payload.public_id };
   }
-
-  const result = await cloudinary.uploader.upload(dataUri, {
-    folder,
-    resource_type: 'image',
-  });
-  return { url: result.secure_url, publicId: result.public_id };
+  return { url: null, publicId: null };
 }
 
 export async function ensureUserBalance(userId) {

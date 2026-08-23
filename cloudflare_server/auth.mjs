@@ -55,10 +55,7 @@ export const auth = betterAuth({
   trustedOrigins: getTrustedOrigins(),
   useSecureCookies: isProduction,
   rateLimit: {
-    enabled: true,
-    window: 60,
-    max: 40,
-    storage: "memory",
+    enabled: false,
   },
   advanced: {
     defaultCookieAttributes: cookieAttributes,
