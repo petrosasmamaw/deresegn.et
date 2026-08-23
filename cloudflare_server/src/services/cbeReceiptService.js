@@ -7,11 +7,16 @@ import { extractCbeMbReceiptToken, decodeQrFromBuffer, prepareQrScanImage, build
 import { extractPaymentFromBuffer } from './geminiService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { fetchCbeViaPetros, isPetrosVerifierConfigured } from './petrosVerifierService.js';
+import { isWorkersRuntime } from '../config/runtime.js';
 
-const QR_BUDGET_MS = 9000;
-const OCR_GRACE_MS = 800;
+const QR_BUDGET_MS = isWorkersRuntime()
+  ? Number(process.env.QR_MAX_MS) || 3500
+  : 9000;
+const OCR_GRACE_MS = isWorkersRuntime() ? 500 : 800;
 /** CBE PDF host often needs longer than other banks + insecure TLS. */
-const CBE_PDF_TIMEOUT_MS = Math.max(BANK_FETCH_TIMEOUT_MS, 30000);
+const CBE_PDF_TIMEOUT_MS = isWorkersRuntime()
+  ? Math.min(BANK_FETCH_TIMEOUT_MS, 15000)
+  : Math.max(BANK_FETCH_TIMEOUT_MS, 30000);
 
 const EMPTY_EXTRACTED = {
   senderName: null,
@@ -310,6 +315,12 @@ export async function fetchCbeTransactionByReference(ftNumber, accountSuffix) {
     return err;
   };
 
+  // Direct PDF fetch/parse exceeds Workers CPU — use Petros + QR API only.
+  if (isWorkersRuntime()) {
+    const fromPetros = await tryPetros();
+    return fromPetros || null;
+  }
+
   // Direct first (works on an Ethiopian IP). Petros next — skip if their Chrome/PDF path is down.
   const direct = await tryDirectPdf();
   if (direct.official) return direct.official;
@@ -377,10 +388,52 @@ export async function verifyCbeReceipt({ buffer, mime = 'image/jpeg', screenshot
   const started = Date.now();
   console.log('[CBE] verify', buffer.length, 'bytes', mime);
 
+  if (isWorkersRuntime()) {
+    let geminiUsed = false;
+    let geminiError = null;
+    const qrData = await decodeQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS });
+    let cbeOfficial = hasCbeQrToken(qrData) ? await fetchCbeTransactionFromQr(qrData) : null;
+    let extracted = { ...EMPTY_EXTRACTED };
+
+    if (!cbeOfficial) {
+      try {
+        extracted = await extractPaymentFromBuffer(buffer, 'cbe', mime);
+        geminiUsed = true;
+        if (canFetchCbePdfFromExtracted(extracted)) {
+          cbeOfficial = await fetchCbeTransactionByReference(
+            extracted.transactionCode,
+            extracted.senderAccount,
+          );
+        }
+      } catch (err) {
+        geminiError = err.message;
+        console.warn('[Gemini]', geminiError);
+      }
+    }
+
+    let qrFields = extractQrReceiptFields('cbe', qrData);
+    if (cbeOfficial) {
+      qrFields = mergeCbeApiIntoQrFields(qrFields, cbeOfficial);
+      console.log('[CBE] Official record:', cbeOfficial.transactionCode, 'amount', cbeOfficial.amount);
+    }
+
+    console.log('[CBE] done in', Date.now() - started, 'ms (worker)');
+    return {
+      extracted,
+      geminiUsed,
+      geminiError,
+      qrData,
+      qrFields,
+      cbeOfficial,
+    };
+  }
+
   let geminiUsed = true;
   let geminiError = null;
 
-  const preparedPromise = prepareQrScanImage(buffer);
+  const preparedPromise = isWorkersRuntime()
+    ? Promise.resolve(null)
+    : prepareQrScanImage(buffer);
 
   const geminiPromise = extractPaymentFromBuffer(buffer, 'cbe', mime)
     .then((data) => ({ data }))
@@ -390,7 +443,9 @@ export async function verifyCbeReceipt({ buffer, mime = 'image/jpeg', screenshot
       return { data: { ...EMPTY_EXTRACTED } };
     });
 
-  const screenshotPdfPrefetchPromise = geminiPromise.then(async (outcome) => {
+  const screenshotPdfPrefetchPromise = isWorkersRuntime()
+    ? Promise.resolve(null)
+    : geminiPromise.then(async (outcome) => {
     if (!canFetchCbePdfFromExtracted(outcome.data)) return null;
     const official = await fetchCbeTransactionByReference(
       outcome.data.transactionCode,

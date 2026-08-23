@@ -1,4 +1,4 @@
-import dns from 'node:dns';
+import { isWorkersRuntime } from '../config/runtime.js';
 
 const DEFAULT_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -8,14 +8,11 @@ const DEFAULT_HEADERS = {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Cloud hosts (Render) often fail on broken IPv6 routes to .et domains.
-dns.setDefaultResultOrder('ipv4first');
-
 export const BANK_FETCH_TIMEOUT_MS = Number(process.env.BANK_FETCH_TIMEOUT_MS)
-  || (isProduction ? 25000 : 15000);
+  || (isWorkersRuntime() ? 12000 : (isProduction ? 25000 : 15000));
 
 export const BANK_FETCH_RETRIES = Number(process.env.BANK_FETCH_RETRIES)
-  || (isProduction ? 2 : 1);
+  || (isWorkersRuntime() ? 1 : (isProduction ? 2 : 1));
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));

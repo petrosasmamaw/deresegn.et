@@ -2,6 +2,7 @@ import { outboundFetch } from '../utils/outboundFetch.js';
 import { normalizeTelebirrInvoiceId } from '../utils/telebirrInvoice.js';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { reportPetrosFailure } from '../config/petrosMonitor.js';
+import { isWorkersRuntime } from '../config/runtime.js';
 
 const PETROS_BASE_URL = String(process.env.PETROS_VERIFIER_BASE_URL || '')
   .trim()
@@ -11,7 +12,8 @@ const PETROS_API_KEY = String(
   || process.env.VERIFIER_API_KEY
   || '',
 ).trim();
-const PETROS_TIMEOUT_MS = Number(process.env.PETROS_VERIFIER_TIMEOUT_MS) || 45000;
+const PETROS_TIMEOUT_MS = Number(process.env.PETROS_VERIFIER_TIMEOUT_MS)
+  || (isWorkersRuntime() ? 20000 : 45000);
 const PETROS_RETRIES = Number(process.env.PETROS_VERIFIER_RETRIES);
 const PETROS_RETRY_COUNT = Number.isFinite(PETROS_RETRIES) ? Math.max(0, PETROS_RETRIES) : 2;
 
