@@ -1,6 +1,15 @@
 /** Public Better Auth URL — must match the URL the browser uses for /api/auth. */
+function normalizeAuthUrl(value) {
+  let configured = (value || '').trim().replace(/\/+$/, '');
+  if (!configured) return '';
+  if (!/^https?:\/\//i.test(configured)) {
+    configured = `https://${configured}`;
+  }
+  return configured;
+}
+
 export function resolveAuthBaseUrl() {
-  let configured = (process.env.BETTER_AUTH_URL || '').trim().replace(/\/+$/, '');
+  let configured = normalizeAuthUrl(process.env.BETTER_AUTH_URL);
   const workerUrl = (process.env.WORKER_URL || process.env.CF_PAGES_URL || '').trim().replace(/\/+$/, '');
   const isProduction = process.env.NODE_ENV === 'production';
 

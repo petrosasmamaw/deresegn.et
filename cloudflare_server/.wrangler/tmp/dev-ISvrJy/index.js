@@ -49486,10 +49486,34 @@ var init_schema2 = __esm({
 });
 
 // src/config/drizzle.js
+function createWorkerDb() {
+  ce.poolQueryViaFetch = true;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("[db] DATABASE_URL is not set on Worker");
+  }
+  const sql3 = cs(connectionString);
+  const instance = drizzle2(sql3, { schema: schema_exports });
+  instance.transaction = async (fn, cfg) => {
+    const wsPool = new Mn({ connectionString });
+    try {
+      const txDb = drizzle3(wsPool, { schema: schema_exports });
+      return await txDb.transaction(fn, cfg);
+    } finally {
+      await wsPool.end().catch(() => {
+      });
+    }
+  };
+  return instance;
+}
+function getWorkerDb() {
+  if (!workerDb) workerDb = createWorkerDb();
+  return workerDb;
+}
 async function testConnection() {
   try {
     if (isWorkersRuntime()) {
-      await db.execute("select 1 as ok");
+      await getWorkerDb().execute("select 1 as ok");
     } else {
       const result = await pool.query("SELECT NOW()");
       console.log("\u2705 Database connected:", result.rows[0]);
@@ -49500,7 +49524,7 @@ async function testConnection() {
     return false;
   }
 }
-var import_dotenv, pool, db;
+var import_dotenv, pool, workerDb, db;
 var init_drizzle = __esm({
   "src/config/drizzle.js"() {
     init_modules_watch_stub();
@@ -49513,26 +49537,15 @@ var init_drizzle = __esm({
     init_schema2();
     init_runtime();
     (0, import_dotenv.config)();
-    if (isWorkersRuntime()) {
-      ce.poolQueryViaFetch = true;
-      const connectionString = process.env.DATABASE_URL;
-      if (!connectionString) {
-        console.warn("[db] DATABASE_URL is not set on Worker");
+    __name(createWorkerDb, "createWorkerDb");
+    __name(getWorkerDb, "getWorkerDb");
+    db = isWorkersRuntime() ? new Proxy({}, {
+      get(_target, prop) {
+        const real2 = getWorkerDb();
+        const value = real2[prop];
+        return typeof value === "function" ? value.bind(real2) : value;
       }
-      const sql3 = cs(connectionString || "");
-      db = drizzle2(sql3, { schema: schema_exports });
-      db.transaction = async (fn, cfg) => {
-        const wsPool = new Mn({ connectionString });
-        try {
-          const txDb = drizzle3(wsPool, { schema: schema_exports });
-          return await txDb.transaction(fn, cfg);
-        } finally {
-          await wsPool.end().catch(() => {
-          });
-        }
-      };
-      pool = null;
-    } else {
+    }) : (() => {
       const isNeon = process.env.DATABASE_URL?.includes("neon");
       pool = new Pool({
         connectionString: process.env.DATABASE_URL,
@@ -49544,8 +49557,8 @@ var init_drizzle = __esm({
       pool.on("error", (err) => {
         console.error("[db] Unexpected idle client error:", err.message);
       });
-      db = drizzle(pool, { schema: schema_exports });
-    }
+      return drizzle(pool, { schema: schema_exports });
+    })();
     __name(testConnection, "testConnection");
   }
 });
@@ -188681,6 +188694,26 @@ init_modules_watch_stub();
 
 // src/polyfills.js
 init_modules_watch_stub();
+
+// src/config/workerEnv.js
+init_modules_watch_stub();
+import { env as workerEnv } from "cloudflare:workers";
+function syncWorkerEnv() {
+  if (!workerEnv || typeof workerEnv !== "object") return;
+  for (const [key, value] of Object.entries(workerEnv)) {
+    if (value == null) continue;
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      try {
+        process.env[key] = String(value);
+      } catch {
+      }
+    }
+  }
+}
+__name(syncWorkerEnv, "syncWorkerEnv");
+
+// src/polyfills.js
+syncWorkerEnv();
 if (typeof globalThis.DOMMatrix === "undefined") {
   globalThis.DOMMatrix = class DOMMatrix {
     static {
@@ -188744,25 +188777,6 @@ var import_express8 = __toESM(require_express2(), 1);
 var import_dotenv4 = __toESM(require_main(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 import { httpServerHandler } from "cloudflare:node";
-
-// src/config/workerEnv.js
-init_modules_watch_stub();
-import { env as workerEnv } from "cloudflare:workers";
-function syncWorkerEnv() {
-  if (!workerEnv || typeof workerEnv !== "object") return;
-  for (const [key, value] of Object.entries(workerEnv)) {
-    if (value == null) continue;
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      try {
-        process.env[key] = String(value);
-      } catch {
-      }
-    }
-  }
-}
-__name(syncWorkerEnv, "syncWorkerEnv");
-
-// src/index.js
 init_runtime();
 
 // node_modules/helmet/index.mjs
@@ -221489,8 +221503,17 @@ init_modules_watch_stub();
 
 // src/config/authBaseUrl.js
 init_modules_watch_stub();
+function normalizeAuthUrl(value) {
+  let configured2 = (value || "").trim().replace(/\/+$/, "");
+  if (!configured2) return "";
+  if (!/^https?:\/\//i.test(configured2)) {
+    configured2 = `https://${configured2}`;
+  }
+  return configured2;
+}
+__name(normalizeAuthUrl, "normalizeAuthUrl");
 function resolveAuthBaseUrl() {
-  let configured2 = (process.env.BETTER_AUTH_URL || "").trim().replace(/\/+$/, "");
+  let configured2 = normalizeAuthUrl(process.env.BETTER_AUTH_URL);
   const workerUrl = (process.env.WORKER_URL || process.env.CF_PAGES_URL || "").trim().replace(/\/+$/, "");
   const isProduction7 = false;
   if (configured2) {

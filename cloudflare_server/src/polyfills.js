@@ -1,3 +1,8 @@
+import { syncWorkerEnv } from './config/workerEnv.js';
+
+/** Bind Worker secrets into process.env before auth/db modules initialize. */
+syncWorkerEnv();
+
 if (typeof globalThis.DOMMatrix === 'undefined') {
   globalThis.DOMMatrix = class DOMMatrix {
     constructor() {
