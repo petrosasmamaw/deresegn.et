@@ -1,3 +1,5 @@
+import dns from 'node:dns';
+
 const DEFAULT_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   Accept: 'application/json, text/html, application/pdf, */*',
@@ -6,7 +8,9 @@ const DEFAULT_HEADERS = {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Workers/fetch prefer whatever Cloudflare resolves; no node:dns needed.
+// Cloud hosts (Render) often fail on broken IPv6 routes to .et domains.
+dns.setDefaultResultOrder('ipv4first');
+
 export const BANK_FETCH_TIMEOUT_MS = Number(process.env.BANK_FETCH_TIMEOUT_MS)
   || (isProduction ? 25000 : 15000);
 

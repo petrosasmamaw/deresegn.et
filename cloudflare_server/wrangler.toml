@@ -1,9 +1,8 @@
 name = "deresegn-api"
 main = "src/index.js"
-compatibility_date = "2026-08-20"
+compatibility_date = "2026-08-04"
 compatibility_flags = ["nodejs_compat"]
 
-# Force Node ESM build of Jimp (Wrangler otherwise picks the browser build).
 [alias]
 jimp = "./node_modules/jimp/dist/esm/index.js"
 

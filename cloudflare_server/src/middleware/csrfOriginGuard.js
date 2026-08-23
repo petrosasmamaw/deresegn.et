@@ -1,7 +1,10 @@
 import { isTrustedOrigin } from '../config/clientOrigins.js';
 
 /**
- * Express-style CSRF guard (used via toHono).
+ * CSRF defense for cookie-authenticated browser calls.
+ * Cross-site form posts cannot set custom headers; trusted SPA always sends Origin + X-Tamagn-Client.
+ * API-key traffic is skipped (no session cookies required).
+ * Native mobile clients send custom headers (browser forms cannot) + session cookie.
  */
 export function csrfOriginGuard(req, res, next) {
   const method = req.method.toUpperCase();
@@ -15,6 +18,7 @@ export function csrfOriginGuard(req, res, next) {
     return next();
   }
 
+  // Official mobile app (custom headers cannot be forged by cross-site forms)
   const isMobileClient =
     req.headers['x-tamagn-client'] === '1' &&
     String(req.headers['x-tamagn-platform'] || '').toLowerCase() === 'mobile';
@@ -23,6 +27,7 @@ export function csrfOriginGuard(req, res, next) {
   }
 
   const origin = req.headers.origin;
+  // Expo deep-link style origins are not browser SPA sites
   if (origin && /^exp:\/\//i.test(origin)) {
     return next();
   }
@@ -41,12 +46,8 @@ export function csrfOriginGuard(req, res, next) {
     }
   }
 
+  // Dev convenience: same-machine tools without Origin
   if (process.env.NODE_ENV !== 'production' && !origin && !referer) {
-    return next();
-  }
-
-  // Same-origin Workers rewrite (no Origin) with custom client header
-  if (req.headers['x-tamagn-client'] === '1' && !origin) {
     return next();
   }
 
@@ -56,70 +57,4 @@ export function csrfOriginGuard(req, res, next) {
     message: 'Request blocked (invalid origin). Use the official Tamagn Check website.',
     code: 'CSRF_BLOCKED',
   });
-}
-
-/** Hono middleware wrapper */
-export async function csrfOriginGuardHono(c, next) {
-  const method = c.req.method.toUpperCase();
-  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
-    await next();
-    return;
-  }
-
-  const apiKey = c.req.header('x-api-key');
-  const auth = c.req.header('authorization') || '';
-  if (apiKey || auth.toLowerCase().startsWith('bearer dk_live_')) {
-    await next();
-    return;
-  }
-
-  const isMobileClient =
-    c.req.header('x-tamagn-client') === '1' &&
-    String(c.req.header('x-tamagn-platform') || '').toLowerCase() === 'mobile';
-  if (isMobileClient) {
-    await next();
-    return;
-  }
-
-  const origin = c.req.header('origin');
-  if (origin && /^exp:\/\//i.test(origin)) {
-    await next();
-    return;
-  }
-  if (origin && isTrustedOrigin(origin)) {
-    await next();
-    return;
-  }
-
-  const referer = c.req.header('referer') || c.req.header('referrer');
-  if (referer) {
-    try {
-      if (isTrustedOrigin(new URL(referer).origin)) {
-        await next();
-        return;
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  if (process.env.NODE_ENV !== 'production' && !origin && !referer) {
-    await next();
-    return;
-  }
-
-  if (c.req.header('x-tamagn-client') === '1' && !origin) {
-    await next();
-    return;
-  }
-
-  console.warn('[CSRF] blocked', method, c.req.path, 'origin=', origin || '-');
-  return c.json(
-    {
-      success: false,
-      message: 'Request blocked (invalid origin). Use the official Tamagn Check website.',
-      code: 'CSRF_BLOCKED',
-    },
-    403,
-  );
 }

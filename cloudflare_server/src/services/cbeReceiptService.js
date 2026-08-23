@@ -1,4 +1,4 @@
-
+import { PDFParse } from 'pdf-parse';
 import fs from 'fs/promises';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
@@ -192,7 +192,6 @@ function parseCbeBranchPdfText(text) {
 }
 
 async function parseCbePdfBuffer(buffer) {
-  const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: buffer });
   try {
     const textResult = await parser.getText();

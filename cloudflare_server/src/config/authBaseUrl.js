@@ -5,7 +5,6 @@ export function resolveAuthBaseUrl() {
   const isProduction = process.env.NODE_ENV === 'production';
 
   if (configured) {
-    // Common mistake: http:// site URL while the live site is https://
     if (isProduction && configured.startsWith('http://tamagncheck.online')) {
       configured = configured.replace('http://', 'https://');
     }
@@ -25,8 +24,23 @@ export function resolveAuthBaseUrl() {
   return 'http://localhost:8787/api/auth';
 }
 
-function collectClientOrigins() {
-  return [
+export function isCrossOriginAuth() {
+  const authUrl = resolveAuthBaseUrl();
+  if (!authUrl) return false;
+
+  let authOrigin;
+  let authHost;
+  try {
+    const u = new URL(authUrl);
+    authOrigin = u.origin;
+    authHost = u.hostname;
+  } catch {
+    return false;
+  }
+
+  if (/\.workers\.dev$/i.test(authHost)) return true;
+
+  const candidates = [
     ...(process.env.CLIENT_URL || '').split(','),
     ...(process.env.CLIENT_URLS || '').split(','),
     'https://tamagncheck.online',
@@ -42,39 +56,11 @@ function collectClientOrigins() {
       }
     })
     .filter(Boolean);
-}
 
-/**
- * True when the browser must treat auth cookies as third-party
- * (API host ≠ website host). Same-origin Vercel /api rewrite → false.
- */
-export function isCrossOriginAuth() {
-  const authUrl = resolveAuthBaseUrl();
-  if (!authUrl) return false;
+  if (candidates.includes(authOrigin)) return false;
+  if (authHost === 'tamagncheck.online' || authHost.endsWith('.tamagncheck.online')) return false;
 
-  let authOrigin;
-  let authHost;
-  try {
-    const u = new URL(authUrl);
-    authOrigin = u.origin;
-    authHost = u.hostname;
-  } catch {
-    return false;
-  }
-
-  // Direct workers.dev API is always cross-origin to the marketing site.
-  if (/\.workers\.dev$/i.test(authHost)) return true;
-
-  const clientOrigins = collectClientOrigins();
-  // Same-origin (or www ↔ apex on same registrable site via rewrite) → first-party cookies.
-  if (clientOrigins.includes(authOrigin)) return false;
-
-  // Auth on apex while CLIENT_URL lists www (or vice versa) still first-party via proxy.
-  const authIsSite =
-    authHost === 'tamagncheck.online' || authHost.endsWith('.tamagncheck.online');
-  if (authIsSite) return false;
-
-  return clientOrigins.some((origin) => origin !== authOrigin);
+  return candidates.some((origin) => origin !== authOrigin);
 }
 
 export function getAuthCookieAttributes(isProduction) {
@@ -83,7 +69,6 @@ export function getAuthCookieAttributes(isProduction) {
     httpOnly: true,
     secure: isProduction || crossOrigin,
     sameSite: crossOrigin ? 'none' : 'lax',
-    // Partitioned only for real third-party (workers.dev) cookies — CHIPS.
     ...(crossOrigin ? { partitioned: true } : {}),
     path: '/',
   };

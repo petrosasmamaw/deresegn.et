@@ -1,21 +1,14 @@
-import { toHono, multipartFile } from '../adapters/expressToHono.js';
+import express from 'express';
 import { authenticateUser } from '../middleware/auth.js';
-import {
-  getBalance,
-  submitTopUpPayment,
-  submitTopUpReferencePayment,
-  submitTopUpSmsPayment,
-  getTopUpAccounts,
-} from '../controllers/balanceController.js';
+import { topUpUpload } from '../middleware/multer.js';
+import { getBalance, submitTopUpPayment, submitTopUpReferencePayment, submitTopUpSmsPayment, getTopUpAccounts } from '../controllers/balanceController.js';
 
-export function registerBalanceRoutes(app) {
-  app.get('/api/balance', toHono(authenticateUser, getBalance));
-  app.get('/api/balance/topup-accounts', toHono(authenticateUser, getTopUpAccounts));
-  app.post(
-    '/api/balance/topup',
-    multipartFile('screenshot'),
-    toHono(authenticateUser, submitTopUpPayment),
-  );
-  app.post('/api/balance/topup/reference', toHono(authenticateUser, submitTopUpReferencePayment));
-  app.post('/api/balance/topup/sms', toHono(authenticateUser, submitTopUpSmsPayment));
-}
+const router = express.Router();
+
+router.get('/', authenticateUser, getBalance);
+router.get('/topup-accounts', authenticateUser, getTopUpAccounts);
+router.post('/topup', authenticateUser, topUpUpload.single('screenshot'), submitTopUpPayment);
+router.post('/topup/reference', authenticateUser, submitTopUpReferencePayment);
+router.post('/topup/sms', authenticateUser, submitTopUpSmsPayment);
+
+export default router;

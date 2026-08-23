@@ -1,7 +1,3 @@
-/**
- * Minimal browser DOM stubs so pdf-parse / canvas-adjacent deps can load on Workers.
- * Not for rendering — only to avoid ReferenceError at module init.
- */
 if (typeof globalThis.DOMMatrix === 'undefined') {
   globalThis.DOMMatrix = class DOMMatrix {
     constructor() {
@@ -35,8 +31,4 @@ if (typeof globalThis.Path2D === 'undefined') {
   globalThis.Path2D = class Path2D {
     constructor() {}
   };
-}
-
-if (typeof globalThis.Buffer === 'undefined' && typeof Buffer !== 'undefined') {
-  globalThis.Buffer = Buffer;
 }

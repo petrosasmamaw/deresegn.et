@@ -1,9 +1,11 @@
-import { toHono } from '../adapters/expressToHono.js';
+import express from 'express';
 import { authenticateUser } from '../middleware/auth.js';
 import { success } from '../utils/response.js';
 import { getUserById } from '../services/userService.js';
 import { ensureUserBalance } from '../services/checkService.js';
 import { ensureRegistrationBonus } from '../services/balanceLedgerService.js';
+
+const router = express.Router();
 
 async function getProfile(req, res) {
   await ensureRegistrationBonus(req.userId);
@@ -12,7 +14,7 @@ async function getProfile(req, res) {
   return success(res, { user }, 'Current user retrieved');
 }
 
-export function registerAppAuthRoutes(app) {
-  app.post('/api/users', toHono(authenticateUser, getProfile));
-  app.get('/api/users/me', toHono(authenticateUser, getProfile));
-}
+router.post('/', authenticateUser, getProfile);
+router.get('/me', authenticateUser, getProfile);
+
+export default router;

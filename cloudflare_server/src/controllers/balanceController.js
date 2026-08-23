@@ -31,9 +31,9 @@ export async function submitTopUpPayment(req, res) {
 
     const result = await submitTopUp({
       userId: req.userId,
+      screenshotPath: req.file.path,
       screenshotBuffer: req.file.buffer,
       screenshotMime: req.file.mimetype,
-      screenshotPath: req.file.path || null,
       method,
     });
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { requestIdExpress } from '../src/middleware/requestId.js'
+import { requestId } from '../src/middleware/requestId.js'
 
 function mockRes() {
   return {
@@ -15,7 +15,7 @@ test('generates a request id and echoes it on the response', () => {
   const req = { headers: {} }
   const res = mockRes()
   let called = false
-  requestIdExpress(req, res, () => {
+  requestId(req, res, () => {
     called = true
   })
   assert.equal(called, true)
@@ -27,7 +27,7 @@ test('generates a request id and echoes it on the response', () => {
 test('reuses an inbound X-Request-Id header', () => {
   const req = { headers: { 'x-request-id': 'abc-123' } }
   const res = mockRes()
-  requestIdExpress(req, res, () => {})
+  requestId(req, res, () => {})
   assert.equal(req.id, 'abc-123')
   assert.equal(res.headers['X-Request-Id'], 'abc-123')
 })

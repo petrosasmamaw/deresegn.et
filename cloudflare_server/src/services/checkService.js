@@ -1,7 +1,5 @@
 import fs from 'fs/promises';
-import crypto from 'node:crypto';
 import cloudinary from '../config/cloudinary.js';
-import { isWorkersRuntime } from '../config/runtime.js';
 import { db } from '../db/index.js';
 import { balances, receiptChecks, topUpTransactions } from '../db/schema.js';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -132,37 +130,10 @@ async function uploadScreenshot(screenshotPath) {
 }
 
 async function uploadScreenshotBuffer(buffer, mimeType = 'image/jpeg') {
-  const folder = `${process.env.CLOUDINARY_FOLDER || 'deresegn'}/receipts`;
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-  if (isWorkersRuntime() && cloudName && apiKey && apiSecret) {
-    const timestamp = Math.round(Date.now() / 1000);
-    const signature = crypto
-      .createHash('sha1')
-      .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
-      .digest('hex');
-    const form = new FormData();
-    form.append('file', new Blob([buffer], { type: mimeType }));
-    form.append('api_key', apiKey);
-    form.append('timestamp', String(timestamp));
-    form.append('folder', folder);
-    form.append('signature', signature);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: 'POST',
-      body: form,
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(payload?.error?.message || `Cloudinary upload failed (${res.status})`);
-    }
-    return { url: payload.secure_url, publicId: payload.public_id };
-  }
-
+  const folder = process.env.CLOUDINARY_FOLDER || 'deresegn';
   const dataUri = `data:${mimeType};base64,${buffer.toString('base64')}`;
   const result = await cloudinary.uploader.upload(dataUri, {
-    folder,
+    folder: `${folder}/receipts`,
     resource_type: 'image',
   });
   return { url: result.secure_url, publicId: result.public_id };
@@ -1028,13 +999,7 @@ export async function submitSmsCheck({
   };
 }
 
-export async function submitTopUp({
-  userId,
-  screenshotPath = null,
-  screenshotBuffer = null,
-  screenshotMime = 'image/jpeg',
-  method = 'telebirr',
-}) {
+export async function submitTopUp({ userId, screenshotPath, screenshotBuffer, screenshotMime, method = 'telebirr' }) {
   const receiverConfig = await getTopUpReceiverAccount(method);
   if (!receiverConfig) {
     throw new TopUpError('Top-up is only supported for Telebirr, CBE, and Bank of Abyssinia', 400);
@@ -1111,7 +1076,7 @@ export async function submitTopUp({
       throw err;
     }
   } finally {
-    if (screenshotPath) await cleanupTempFile(screenshotPath);
+    await cleanupTempFile(screenshotPath);
   }
 }
 

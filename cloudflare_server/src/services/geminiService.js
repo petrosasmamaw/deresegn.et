@@ -2,7 +2,6 @@ import fs from 'fs/promises';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { buildExtractionPrompt } from './receiptFormats.js';
 import { normalizeTelebirrInvoiceId } from '../utils/telebirrInvoice.js';
-import { isWorkersRuntime } from '../config/runtime.js';
 
 const TELEBIRR_INVOICE_PROMPT = `This is a Telebirr mobile wallet payment screenshot.
 There are TWO common layouts — read whichever is on screen:
@@ -54,17 +53,12 @@ const SHUT_DOWN_MODELS = new Set([
 function modelQueue() {
   const requested = (process.env.GEMINI_MODEL || PRIMARY_MODEL).trim();
   const primary = SHUT_DOWN_MODELS.has(requested) ? PRIMARY_MODEL : requested;
-  const queue = [...new Set([primary, ...FALLBACK_MODELS].filter((id) => id && !SHUT_DOWN_MODELS.has(id)))];
-  // Workers CPU budget — one fast model attempt, then QR/official lookup.
-  return isWorkersRuntime() ? queue.slice(0, 1) : queue;
+  return [...new Set([primary, ...FALLBACK_MODELS].filter((id) => id && !SHUT_DOWN_MODELS.has(id)))];
 }
 
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS)
-  || (isWorkersRuntime() ? 8000 : 20000);
-const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS)
-  || (isWorkersRuntime() ? 8000 : 12000);
-const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS)
-  || (isWorkersRuntime() ? 8000 : 12000);
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 20000;
+const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 12000;
+const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 12000;
 
 const BOA_OCR_PROMPT = `This is a Bank of Abyssinia (BOA) payment receipt screenshot.
 Read these fields exactly as printed (do not guess):

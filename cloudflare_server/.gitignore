@@ -11,8 +11,6 @@ node_modules
 uploads
 dist
 dist-ssr
-.wrangler
-.dev.vars
 *.local
 
 # Editor directories and files

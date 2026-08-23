@@ -1,99 +1,94 @@
-/**
- * Simple KV-backed rate limiter for Cloudflare Workers.
- * Falls back to in-memory Map when RATE_LIMIT_KV is unavailable (local tests).
- */
-const memoryBuckets = new Map();
+import rateLimit from 'express-rate-limit';
+import { makeRateLimitStore } from '../config/rateLimitStore.js';
+import { isWorkersRuntime } from '../config/runtime.js';
 
-function clientKey(c) {
-  return (
-    c.req.header('cf-connecting-ip') ||
-    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
-    c.req.header('x-real-ip') ||
-    'unknown'
-  );
+function ipKey(req) {
+  return req.ip || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 'unknown';
 }
 
-function makeLimiter({ windowMs, max, prefix }) {
-  return async (c, next) => {
-    const ip = clientKey(c);
-    const bucketKey = `${prefix}:${ip}`;
-    const now = Date.now();
-    const windowStart = now - windowMs;
-    const kv = c.env?.RATE_LIMIT_KV;
-
-    let timestamps = [];
-    try {
-      if (kv) {
-        const raw = await kv.get(bucketKey);
-        timestamps = raw ? JSON.parse(raw) : [];
-      } else {
-        timestamps = memoryBuckets.get(bucketKey) || [];
-      }
-    } catch {
-      timestamps = [];
-    }
-
-    timestamps = timestamps.filter((t) => t > windowStart);
-    if (timestamps.length >= max) {
-      return c.json(
-        {
-          success: false,
-          message: 'Too many requests. Please try again later.',
-          code: 'RATE_LIMITED',
-        },
-        429,
-      );
-    }
-
-    timestamps.push(now);
-    try {
-      if (kv) {
-        await kv.put(bucketKey, JSON.stringify(timestamps), {
-          expirationTtl: Math.max(60, Math.ceil(windowMs / 1000)),
-        });
-      } else {
-        memoryBuckets.set(bucketKey, timestamps);
-      }
-    } catch {
-      // ignore store failures
-    }
-
-    await next();
+function limitJson(message) {
+  return (_req, res) => {
+    res.status(429).json({
+      success: false,
+      message,
+      code: 'RATE_LIMITED',
+    });
   };
 }
 
-export const globalApiRateLimiter = makeLimiter({
-  windowMs: 60_000,
-  max: 120,
-  prefix: 'global',
-});
+/** Defer rateLimit() construction until first request (Workers forbid setInterval at global scope). */
+function lazyRateLimit(options) {
+  let limiter;
+  return (req, res, next) => {
+    if (!limiter) limiter = rateLimit(options);
+    return limiter(req, res, next);
+  };
+}
 
-export const authRateLimiter = makeLimiter({
-  windowMs: 60_000,
-  max: 40,
-  prefix: 'auth',
-});
+function buildLimiter(options) {
+  return isWorkersRuntime() ? lazyRateLimit(options) : rateLimit(options);
+}
 
-export const signupRateLimiter = makeLimiter({
-  windowMs: 60 * 60_000,
-  max: process.env.NODE_ENV === 'production' ? 10 : 100,
-  prefix: 'signup',
-});
-
-export const verifyRateLimiter = makeLimiter({
-  windowMs: 60_000,
+export const authRateLimiter = buildLimiter({
+  windowMs: 15 * 60 * 1000,
   max: 30,
-  prefix: 'verify',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: ipKey,
+  store: makeRateLimitStore(),
+  handler: limitJson('Too many auth attempts. Wait 15 minutes and try again.'),
 });
 
-export const topUpRateLimiter = makeLimiter({
-  windowMs: 60_000,
+export const signupRateLimiter = buildLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: ipKey,
+  store: makeRateLimitStore(),
+  handler: limitJson('Too many new accounts from this network. Try again later.'),
+  skip: (req) => !/sign-up|signup|register/i.test(req.path + (req.originalUrl || '')),
+});
+
+export const verifyRateLimiter = buildLimiter({
+  windowMs: 60 * 1000,
   max: 20,
-  prefix: 'topup',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `${ipKey(req)}:${req.userId || 'anon'}`,
+  store: makeRateLimitStore(),
+  handler: limitJson('Too many verifications. Slow down and try again shortly.'),
 });
 
-export const apiV1RateLimiter = makeLimiter({
-  windowMs: 60_000,
+export const topUpRateLimiter = buildLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `${ipKey(req)}:${req.userId || 'anon'}`,
+  store: makeRateLimitStore(),
+  handler: limitJson('Too many top-up attempts. Wait and try again.'),
+});
+
+export const apiV1RateLimiter = buildLimiter({
+  windowMs: 60 * 1000,
   max: 60,
-  prefix: 'v1',
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const key = req.headers['x-api-key'] || req.headers.authorization || '';
+    return `${ipKey(req)}:${String(key).slice(0, 24)}`;
+  },
+  store: makeRateLimitStore(),
+  handler: limitJson('API rate limit exceeded. Wait a minute and retry.'),
+});
+
+export const globalApiRateLimiter = buildLimiter({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: ipKey,
+  store: makeRateLimitStore(),
+  handler: limitJson('Too many requests. Please slow down.'),
 });
