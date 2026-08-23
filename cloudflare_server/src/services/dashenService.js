@@ -333,6 +333,16 @@ function scanDashenVatBottomQr(prepared, maxMs = 8000, { quick = false } = {}) {
   const base = prepareImage(prepared);
   const { width, height } = base.bitmap;
 
+  if (isWorkersRuntime()) {
+    const bottomCrop = base.clone().crop({
+      x: Math.floor(width * 0.2),
+      y: Math.floor(height * 0.7),
+      w: Math.floor(width * 0.6),
+      h: Math.floor(height * 0.3),
+    });
+    return tryVariant(bottomCrop, 'any');
+  }
+
   const bands = quick
     ? [
       { y: 0.74, h: 0.24, x: 0.22, w: 0.56 },
@@ -386,6 +396,11 @@ function scanDashenSuccessQr(prepared, maxMs = 8000) {
   const midY = Math.floor(height * 0.30);
   const midH = Math.floor(height * 0.50);
 
+  if (isWorkersRuntime()) {
+    const midCrop = base.clone().crop({ x: 0, y: midY, w: width, h: midH });
+    return tryVariant(base, 'success') || tryVariant(midCrop, 'success');
+  }
+
   const variants = [
     base,
     base.clone().scale(2),
@@ -413,10 +428,17 @@ function scanDashenQrFast(image, deadline) {
   const expired = () => Date.now() >= deadline;
   const base = prepareImage(image);
   const { width, height } = base.bitmap;
-  const qrCrop = height / width < 0.75;
 
+  const hit = tryVariant(base, 'any');
+  if (hit) return hit;
+
+  if (isWorkersRuntime()) {
+    const bottomY = Math.floor(height * 0.45);
+    return tryVariant(base.clone().crop({ x: 0, y: bottomY, w: width, h: height - bottomY }), 'any');
+  }
+
+  const qrCrop = height / width < 0.75;
   const variants = [
-    base,
     base.clone().scale(2),
     base.clone().scale(3),
     base.clone().greyscale().scale(2),

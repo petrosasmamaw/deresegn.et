@@ -4,6 +4,7 @@ import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { extractBoaFieldsFromQrPayload } from './boaQrCrypto.js';
 import { normalizeTxCode, txCodesMatch } from '../utils/txCode.js';
 import { outboundFetch } from '../utils/outboundFetch.js';
+import { isWorkersRuntime } from '../config/runtime.js';
 
 const BOA_API = 'https://cs.bankofabyssinia.com/api/onlineSlip/getDetails/?id=';
 const API_TIMEOUT_MS = Number(process.env.BOA_API_TIMEOUT_MS) || 8000;
@@ -290,6 +291,9 @@ function nearbyReferences(reference) {
 }
 
 async function discoverNearbyOfficial(reference, accounts = [], deadlineMs = NEARBY_BUDGET_MS) {
+  // On Cloudflare Workers, avoid blowing the 50-subrequest limit
+  if (isWorkersRuntime()) return null;
+
   const deadline = Date.now() + deadlineMs;
   const candidates = nearbyReferences(reference);
   const suffixes = buildSuffixCandidates(...accounts).filter((s) => s === '' || s.length === 5);

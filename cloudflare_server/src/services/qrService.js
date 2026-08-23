@@ -251,8 +251,8 @@ export function parseQrPayload(raw) {
   };
 }
 
-const QR_SCAN_MAX_DIM = isWorkersRuntime() ? 1400 : 2200;
-const QR_SCAN_MIN_DIM = 400;
+const QR_SCAN_MAX_DIM = isWorkersRuntime() ? 700 : 2200;
+const QR_SCAN_MIN_DIM = 350;
 
 let cachedZxingReader = null;
 let cachedZxingHints = null;
@@ -315,41 +315,43 @@ export async function prepareQrScanImage(buffer) {
   if (maxDim > QR_SCAN_MAX_DIM) {
     image = image.clone().scale(QR_SCAN_MAX_DIM / maxDim);
   } else if (minDim < QR_SCAN_MIN_DIM) {
-    const factor = Math.min(Math.max(QR_SCAN_MIN_DIM / minDim, 400 / width, 400 / height, 1), 3);
+    const factor = Math.min(Math.max(QR_SCAN_MIN_DIM / minDim, 350 / width, 350 / height, 1), 2);
     image = image.clone().scale(factor);
   }
 
   return image;
 }
 
-/** Cheapest variants first — same coverage, faster average exit. */
+/** Truly lazy generator — cheapest variants evaluated one by one. */
 function* iterScanVariants(image) {
+  // Pass 1: Original image (zero clone overhead, fastest match)
+  yield image;
+
   const { width, height } = image.bitmap;
   const bottomY = Math.floor(height * 0.42);
   const bottomH = height - bottomY;
   const bottom55 = Math.floor(height * 0.55);
+
+  if (isWorkersRuntime()) {
+    // Workers mode: at most 1 lightweight bottom crop (where payment QRs live)
+    yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH });
+    return;
+  }
+
   const midY = Math.floor(height * 0.35);
 
-  const variants = [
-    image,
-    image.clone().scale(2),
-    image.clone().scale(3),
-    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(2),
-    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(2),
-    image.clone().greyscale().scale(2),
-    image.clone().crop({ x: 0, y: midY, w: width, h: height - midY }).scale(3),
-    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(3),
-    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(3),
-    image.clone().greyscale().scale(3),
-    image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).greyscale().invert().scale(4),
-    image.clone().crop({ x: Math.floor(width * 0.05), y: bottom55, w: Math.floor(width * 0.9), h: height - bottom55 }).greyscale().invert().scale(4),
-    image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).greyscale().scale(4),
-  ];
-
-  const cap = isWorkersRuntime() ? WORKERS_QR_VARIANT_CAP : variants.length;
-  for (let i = 0; i < Math.min(cap, variants.length); i += 1) {
-    yield variants[i];
-  }
+  yield image.clone().scale(2);
+  yield image.clone().scale(3);
+  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(2);
+  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(2);
+  yield image.clone().greyscale().scale(2);
+  yield image.clone().crop({ x: 0, y: midY, w: width, h: height - midY }).scale(3);
+  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(3);
+  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(3);
+  yield image.clone().greyscale().scale(3);
+  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).greyscale().invert().scale(4);
+  yield image.clone().crop({ x: Math.floor(width * 0.05), y: bottom55, w: Math.floor(width * 0.9), h: height - bottom55 }).greyscale().invert().scale(4);
+  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).greyscale().scale(4);
 }
 
 function buildQrDataFromRaw(data) {
