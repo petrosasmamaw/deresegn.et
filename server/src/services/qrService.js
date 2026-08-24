@@ -322,8 +322,13 @@ function scaleBitmap(bitmap, factor) {
 
 /** Lightweight bitmap wrapper compatible with Jimp-style helper calls. */
 export async function prepareQrScanImage(buffer) {
-  const bitmap = decodeImageToBitmap(buffer);
+  let bitmap = decodeImageToBitmap(buffer);
   if (!bitmap) return null;
+
+  const maxDim = Math.max(bitmap.width, bitmap.height);
+  if (maxDim > 900) {
+    bitmap = scaleBitmap(bitmap, 900 / maxDim);
+  }
 
   const createWrapper = (b) => ({
     bitmap: b,
