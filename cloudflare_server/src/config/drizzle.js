@@ -14,19 +14,14 @@ let workerDb;
 let cachedWsPool = null;
 
 function createWorkerDb() {
-  neonConfig.poolQueryViaFetch = true;
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error('[db] DATABASE_URL is not set on Worker');
   }
   const sql = neon(connectionString);
   const instance = drizzleHttp(sql, { schema });
-  instance.transaction = async (fn, cfg) => {
-    if (!cachedWsPool) {
-      cachedWsPool = new Pool({ connectionString });
-    }
-    const txDb = drizzleWs(cachedWsPool, { schema });
-    return await txDb.transaction(fn, cfg);
+  instance.transaction = async (fn) => {
+    return await fn(instance);
   };
   return instance;
 }
@@ -41,7 +36,7 @@ export const db = isWorkersRuntime()
   ? new Proxy({}, {
       get(_target, prop) {
         const real = getWorkerDb();
-        const value = real[prop];
+        const value = Reflect.get(real, prop, real);
         return typeof value === 'function' ? value.bind(real) : value;
       },
     })

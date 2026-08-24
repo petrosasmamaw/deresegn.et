@@ -606,7 +606,7 @@ function validateDashenReceipt({
   const hasOfficial = Boolean(qrFields?.dashenApiSource);
   const hasSuperApp = Boolean(qrFields?.dashenSuperAppSource);
 
-  if (!qrFound && !hasOfficial && !extracted?.amount) {
+  if (!qrFound && !hasOfficial) {
     issues.push(issue('error', 'QR_MISSING', 'screenshot',
       'Your Dashen Bank receipt screenshot must include the QR code (success screen or VAT receipt).'));
     return;

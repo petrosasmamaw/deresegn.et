@@ -1,16 +1,15 @@
 import fs from 'fs/promises';
-import { Jimp } from 'jimp';
-import jsQR from 'jsqr';
-import {
-  MultiFormatReader,
-  BarcodeFormat,
-  DecodeHintType,
-  RGBLuminanceSource,
-  BinaryBitmap,
-  HybridBinarizer,
-  GlobalHistogramBinarizer,
-} from '@zxing/library';
+import { PNG } from 'pngjs';
+import jpeg from 'jpeg-js';
+import jsQRRaw from 'jsqr';
 import { TELEBIRR_INVOICE_RE } from '../utils/telebirrInvoice.js';
+import { isWorkersRuntime } from '../config/runtime.js';
+
+const jsQR = typeof jsQRRaw === 'function' ? jsQRRaw : (jsQRRaw?.default || jsQRRaw?.jsQR || jsQRRaw);
+
+const DEFAULT_QR_MAX_MS = isWorkersRuntime()
+  ? Number(process.env.QR_MAX_MS) || 3500
+  : Number(process.env.QR_MAX_MS) || 9000;
 
 function matchTelebirrInvoice(text) {
   const hit = String(text).match(/\b([A-Z]{2,3}[A-Z0-9]{7,8})\b/i)?.[1];
@@ -56,7 +55,6 @@ export function extractTelebirrInvoiceFromPayload(payload) {
   const direct = matchTelebirrInvoice(text);
   if (direct) return direct;
 
-  // Scan decoded binary chunks for embedded invoice IDs
   const chunks = [text];
   if (/^[A-Za-z0-9+/=]+$/.test(text) && text.length > 16) {
     try {
@@ -92,97 +90,83 @@ export function extractPhoneFromQrPayload(qrData) {
     }
 
     const allDigits = text.replace(/[^\d]/g, '');
-    const local = allDigits.match(/09\d{8}/);
-    if (local) return local[0];
-    const intl = allDigits.match(/2519\d{8}/);
-    if (intl) return `0${intl[0].slice(3)}`;
+    if (allDigits.length >= 9) {
+      for (let i = 0; i <= allDigits.length - 9; i += 1) {
+        const slice = allDigits.slice(i, i + 9);
+        if (slice.startsWith('9') && /^\d{9}$/.test(slice)) {
+          return `0${slice}`;
+        }
+      }
+    }
   }
 
   return null;
 }
 
-export function parseTransactionFromQr(qrText) {
-  if (!qrText || typeof qrText !== 'string') return null;
+export function extractCbeMbReceiptToken(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (raw.startsWith('v2-') && raw.length >= 16) return raw;
 
-  const trimmed = qrText.trim();
-
-  if (/^https?:\/\/mbreciept\.cbe\.com\.et\//i.test(trimmed)) {
-    return null;
+  const urlMatch = raw.match(/[?&]id=([^&#\s]+)/i);
+  if (urlMatch?.[1]) {
+    try {
+      const decoded = decodeURIComponent(urlMatch[1]);
+      if (decoded.startsWith('v2-') || decoded.length >= 16) return decoded;
+    } catch {
+      return urlMatch[1];
+    }
   }
 
-  const dashenRef = trimmed.match(/receipt\.dashensuperapp\.com\/receipt\/([A-Z0-9]+)/i)?.[1];
-  if (dashenRef && !dashenRef.startsWith('superappreceipt')) {
-    return dashenRef.toUpperCase();
+  const tokenInPath = raw.match(/\/receipt\/([^/?#\s]+)/i);
+  if (tokenInPath?.[1] && (tokenInPath[1].startsWith('v2-') || tokenInPath[1].length >= 16)) {
+    return tokenInPath[1];
   }
-
-  const boaRef = trimmed.match(/[?&]trx=([A-Z0-9]+)/i)?.[1];
-  if (boaRef) return boaRef.toUpperCase();
-
-  const telebirr = extractTelebirrInvoiceFromPayload(qrText);
-  if (telebirr) return telebirr;
-
-  try {
-    const json = JSON.parse(trimmed);
-    const code = json.transactionCode || json.txnId || json.invoiceNo || json.reference || json.ref;
-    if (code) return String(code).toUpperCase();
-  } catch {
-    // not JSON
-  }
-
-  const patterns = [
-    /(?:invoice|txn|transaction|reference|ref)[:\s#-]*([A-Z0-9]{8,20})/i,
-    /\b([A-Z]{2,3}[A-Z0-9]{7,8})\b/i,
-    /\b(FT[A-Z0-9]{8,14})\b/i,
-    /\b(\d{3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i,
-    /\b(IPSS\d+[A-Z0-9]+)\b/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = trimmed.match(pattern);
-    if (match?.[1]) return match[1].toUpperCase();
-  }
-
-  if (trimmed.startsWith('http')) return null;
-  if (/^superappreceipt_/i.test(trimmed)) return null;
-
-  return trimmed.length >= 8 && trimmed.length <= 32 ? trimmed.toUpperCase() : null;
-}
-
-/** Token from CBE mbreciept QR — mobile success uses v2-…, VAT/web receipt uses opaque id. */
-export function extractCbeMbReceiptToken(text) {
-  const trimmed = String(text || '').trim();
-  if (!trimmed) return null;
-
-  const fromPath = trimmed.match(/mbreciept\.cbe\.com\.et\/(v2-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{8,80})/i)?.[1];
-  if (fromPath) return fromPath;
-
-  const match = trimmed.match(/^https?:\/\/mbreciept\.cbe\.com\.et\/([^/?#\s]+)/i);
-  if (match?.[1]) {
-    let token = decodeURIComponent(match[1]).trim();
-    // Guard against glued SMS junk after token
-    const cleaned = token.match(/^(v2-[A-Za-z0-9_-]+|[A-Za-z0-9_-]{8,80})/i)?.[1];
-    token = cleaned || token;
-    if (token && token.length >= 8) return token;
-  }
-
-  // Bare token pasted into Payment ID (new CBE system — no account suffix).
-  const bareV2 = trimmed.match(/^(v2-[A-Za-z0-9_-]{8,80})$/i)?.[1];
-  if (bareV2) return bareV2;
 
   return null;
 }
 
-/** True when input is an mbreciept URL or bare v2-/opaque token (not FT…). */
-export function isCbeMbReceiptTokenInput(text) {
-  return Boolean(extractCbeMbReceiptToken(text));
+export function isCbeMbReceiptQrUrl(value) {
+  if (!value) return false;
+  const raw = String(value).trim();
+  if (raw.startsWith('v2-') && raw.length >= 16) return true;
+  return /mbreciept\.cbe\.com\.et/i.test(raw);
+}
+
+function parseTransactionFromQr(raw) {
+  const telebirrInvoice = extractTelebirrInvoiceFromPayload(raw);
+  if (telebirrInvoice) return telebirrInvoice;
+
+  const boaTrx = raw.match(/[?&]trx=([A-Z0-9]+)/i);
+  if (boaTrx?.[1]) return boaTrx[1].toUpperCase();
+
+  const cbeUrl = raw.match(/https?:\/\/[^\s]+/i);
+  if (cbeUrl) {
+    const idParam = cbeUrl[0].match(/[?&]id=([^&#]+)/i);
+    if (idParam?.[1]) return idParam[1];
+  }
+
+  const parts = raw.split(/[:;,|]/);
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (/^[A-Z0-9]{8,20}$/.test(trimmed) && !/^\d+$/.test(trimmed)) {
+      return trimmed.toUpperCase();
+    }
+  }
+
+  const txMatch = raw.match(/\b([A-Z0-9]{8,20})\b/);
+  return txMatch ? txMatch[1].toUpperCase() : null;
 }
 
 export function parseQrPayload(raw) {
-  const text = String(raw || '').trim();
-  if (!text) {
+  if (!raw) return null;
+  const text = raw.trim();
+
+  const telebirrInvoice = extractTelebirrInvoiceFromPayload(text);
+  if (telebirrInvoice) {
     return {
-      transactionCode: null,
-      verificationUrl: null,
+      transactionCode: telebirrInvoice,
+      verificationUrl: /^https?:\/\//i.test(text) ? text : null,
       verificationToken: null,
       dashenReference: null,
       dashenReceiptToken: null,
@@ -190,7 +174,7 @@ export function parseQrPayload(raw) {
   }
 
   const cbeToken = extractCbeMbReceiptToken(text);
-  if (cbeToken) {
+  if (cbeToken || isCbeMbReceiptQrUrl(text)) {
     return {
       transactionCode: null,
       verificationUrl: text,
@@ -245,23 +229,6 @@ export function parseQrPayload(raw) {
   };
 }
 
-const QR_SCAN_MAX_DIM = isWorkersRuntime() ? 1200 : 2200;
-const QR_SCAN_MIN_DIM = 400;
-
-let cachedZxingReader = null;
-let cachedZxingHints = null;
-
-function getZxingReader() {
-  if (!cachedZxingReader) {
-    cachedZxingHints = new Map();
-    cachedZxingHints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
-    cachedZxingHints.set(DecodeHintType.TRY_HARDER, true);
-    cachedZxingReader = new MultiFormatReader();
-    cachedZxingReader.setHints(cachedZxingHints);
-  }
-  return cachedZxingReader;
-}
-
 function luminanceFromBitmap(bitmap) {
   const { data, width, height } = bitmap;
   const luminance = new Uint8ClampedArray(width * height);
@@ -271,70 +238,117 @@ function luminanceFromBitmap(bitmap) {
   return { luminance, width, height };
 }
 
-function scanJsQR(bitmap, inversionAttempts = 'dontInvert') {
+function scanJsQR(bitmap, inversionAttempts = 'attemptBoth') {
   const { data, width, height } = bitmap;
-  return jsQR(new Uint8ClampedArray(data), width, height, { inversionAttempts });
-}
-
-function scanZXingFromLuminance(luminance, width, height, Binarizer = HybridBinarizer) {
-  const source = new RGBLuminanceSource(luminance, width, height);
-  const binaryBitmap = new BinaryBitmap(new Binarizer(source));
+  const raw = jsQRRaw;
+  const fn = (typeof raw === 'function' ? raw : null)
+    || (typeof raw?.default === 'function' ? raw.default : null)
+    || (typeof raw?.jsQR === 'function' ? raw.jsQR : null)
+    || (typeof jsQR === 'function' ? jsQR : null);
+  if (!fn) {
+    return null;
+  }
   try {
-    return getZxingReader().decode(binaryBitmap).getText();
-  } catch {
+    return fn(new Uint8ClampedArray(data), width, height, { inversionAttempts });
+  } catch (err) {
     return null;
   }
 }
 
 function scanBitmap(bitmap) {
-  const jsResult = scanJsQR(bitmap, 'dontInvert') || scanJsQR(bitmap, 'attemptBoth');
-  if (jsResult?.data) return jsResult.data;
-
-  const { luminance, width, height } = luminanceFromBitmap(bitmap);
-  const zxingHybrid = scanZXingFromLuminance(luminance, width, height, HybridBinarizer);
-  if (zxingHybrid) return zxingHybrid;
-
-  return scanZXingFromLuminance(luminance, width, height, GlobalHistogramBinarizer);
+  if (!bitmap?.data || !bitmap.width || !bitmap.height) return null;
+  const jsResult = scanJsQR(bitmap, 'attemptBoth');
+  return jsResult?.data || null;
 }
 
-/** Normalize image size for faster QR passes without changing decode logic. */
-export async function prepareQrScanImage(buffer) {
-  let image = await Jimp.read(buffer);
-  const { width, height } = image.bitmap;
-  const maxDim = Math.max(width, height);
-  const minDim = Math.min(width, height);
-
-  if (maxDim > QR_SCAN_MAX_DIM) {
-    image = image.clone().scale(QR_SCAN_MAX_DIM / maxDim);
-  } else if (minDim < QR_SCAN_MIN_DIM) {
-    const factor = Math.min(Math.max(QR_SCAN_MIN_DIM / minDim, 400 / width, 400 / height, 1), 3);
-    image = image.clone().scale(factor);
+function cropBitmap(bitmap, x, y, w, h) {
+  const srcW = bitmap.width;
+  const out = new Uint8ClampedArray(w * h * 4);
+  const srcData = bitmap.data;
+  for (let row = 0; row < h; row++) {
+    const srcIdx = ((y + row) * srcW + x) * 4;
+    const dstIdx = row * w * 4;
+    out.set(srcData.subarray(srcIdx, srcIdx + w * 4), dstIdx);
   }
-
-  return image;
+  return { data: out, width: w, height: h };
 }
 
-/** Cheapest variants first — same coverage, faster average exit. */
-function* iterScanVariants(image) {
-  const { width, height } = image.bitmap;
-  const bottomY = Math.floor(height * 0.42);
-  const bottomH = height - bottomY;
-  const bottom55 = Math.floor(height * 0.55);
-  const midY = Math.floor(height * 0.35);
+export function decodeImageToBitmap(buffer) {
+  if (!buffer || buffer.length === 0) return null;
+  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  try {
+    if (buf[0] === 0xff && buf[1] === 0xd8) {
+      const raw = jpeg.decode(buf, { useTArray: true });
+      return { data: raw.data, width: raw.width, height: raw.height };
+    }
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+      const png = PNG.sync.read(buf);
+      return { data: png.data, width: png.width, height: png.height };
+    }
+    try {
+      const raw = jpeg.decode(buf, { useTArray: true });
+      return { data: raw.data, width: raw.width, height: raw.height };
+    } catch {}
+    const png = PNG.sync.read(buf);
+    return { data: png.data, width: png.width, height: png.height };
+  } catch (err) {
+    console.warn('[Image Decode] Fast decode failed:', err.message);
+    return null;
+  }
+}
 
-  yield image;
-  yield image.clone().scale(2);
-  yield image.clone().scale(3);
-  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(2);
-  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(2);
-  yield image.clone().greyscale().scale(2);
-  yield image.clone().crop({ x: 0, y: midY, w: width, h: height - midY }).scale(3);
-  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).scale(3);
-  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).scale(3);
-  yield image.clone().greyscale().scale(3);
-  yield image.clone().crop({ x: 0, y: bottom55, w: width, h: height - bottom55 }).greyscale().invert().scale(4);
-  yield image.clone().crop({ x: Math.floor(width * 0.05), y: bottom55, w: Math.floor(width * 0.9), h: height - bottom55 }).greyscale().invert().scale(4);
-  yield image.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH }).greyscale().scale(4);
+function scaleBitmap(bitmap, factor) {
+  if (factor === 1 || !factor || factor <= 0) return bitmap;
+  const newW = Math.max(1, Math.round(bitmap.width * factor));
+  const newH = Math.max(1, Math.round(bitmap.height * factor));
+  const out = new Uint8ClampedArray(newW * newH * 4);
+  const src = bitmap.data;
+  const srcW = bitmap.width;
+
+  for (let y = 0; y < newH; y += 1) {
+    const srcY = Math.min(bitmap.height - 1, Math.floor(y / factor));
+    for (let x = 0; x < newW; x += 1) {
+      const srcX = Math.min(srcW - 1, Math.floor(x / factor));
+      const srcIdx = (srcY * srcW + srcX) * 4;
+      const dstIdx = (y * newW + x) * 4;
+      out[dstIdx] = src[srcIdx];
+      out[dstIdx + 1] = src[srcIdx + 1];
+      out[dstIdx + 2] = src[srcIdx + 2];
+      out[dstIdx + 3] = src[srcIdx + 3];
+    }
+  }
+  return { data: out, width: newW, height: newH };
+}
+
+/** Lightweight bitmap wrapper compatible with Jimp-style helper calls. */
+export async function prepareQrScanImage(buffer) {
+  const bitmap = decodeImageToBitmap(buffer);
+  if (!bitmap) return null;
+
+  const createWrapper = (b) => ({
+    bitmap: b,
+    clone() {
+      return createWrapper({
+        data: new Uint8ClampedArray(b.data),
+        width: b.width,
+        height: b.height,
+      });
+    },
+    crop({ x = 0, y = 0, w = b.width, h = b.height } = {}) {
+      return createWrapper(cropBitmap(b, Math.max(0, Math.floor(x)), Math.max(0, Math.floor(y)), Math.min(b.width, Math.floor(w)), Math.min(b.height, Math.floor(h))));
+    },
+    scale(factor) {
+      return createWrapper(scaleBitmap(b, factor));
+    },
+    greyscale() {
+      return createWrapper(b);
+    },
+    invert() {
+      return createWrapper(b);
+    },
+  });
+
+  return createWrapper(bitmap);
 }
 
 function buildQrDataFromRaw(data) {
@@ -365,14 +379,25 @@ function buildQrDataFromRaw(data) {
 }
 
 function quickScan(image, shouldStop = () => false, validate = () => true) {
+  if (!image?.bitmap) return null;
   const direct = scanBitmap(image.bitmap);
   if (direct && validate(direct)) return direct;
 
-  for (const variant of iterScanVariants(image)) {
-    if (shouldStop()) break;
-    const data = scanBitmap(variant.bitmap);
-    if (data && validate(data)) return data;
-  }
+  const { width, height } = image.bitmap;
+  const midY = Math.floor(height * 0.18);
+  const midH = Math.floor(height * 0.64);
+  const midCrop = cropBitmap(image.bitmap, 0, midY, width, midH);
+  const hitMid = scanBitmap(midCrop);
+  if (hitMid && validate(hitMid)) return hitMid;
+
+  if (shouldStop()) return null;
+
+  const bottomY = Math.floor(height * 0.50);
+  const bottomH = height - bottomY;
+  const bottomCrop = cropBitmap(image.bitmap, 0, bottomY, width, bottomH);
+  const hitBottom = scanBitmap(bottomCrop);
+  if (hitBottom && validate(hitBottom)) return hitBottom;
+
   return null;
 }
 
@@ -391,9 +416,10 @@ export function scanBitmapForData(bitmap) {
 
 export { buildQrDataFromRaw };
 
-export async function decodeQrFromBuffer(buffer, { maxMs = 9000, image: preparedImage = null } = {}) {
+export async function decodeQrFromBuffer(buffer, { maxMs = DEFAULT_QR_MAX_MS, image: preparedImage = null } = {}) {
   try {
     const image = preparedImage || await prepareQrScanImage(buffer);
+    if (!image) return buildQrDataFromRaw(null);
     const deadline = Date.now() + maxMs;
     const data = quickScan(image, () => Date.now() >= deadline);
     return buildQrDataFromRaw(data);

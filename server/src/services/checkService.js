@@ -1,5 +1,7 @@
 import fs from 'fs/promises';
+import crypto from 'node:crypto';
 import cloudinary from '../config/cloudinary.js';
+import { isWorkersRuntime } from '../config/runtime.js';
 import { db } from '../db/index.js';
 import { balances, receiptChecks, topUpTransactions } from '../db/schema.js';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -140,7 +142,9 @@ async function uploadScreenshotBuffer(buffer, mimeType = 'image/jpeg') {
       const timestamp = Math.round(Date.now() / 1000);
       const textToSign = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
       const enc = new TextEncoder();
-      const digest = await crypto.subtle.digest('SHA-1', enc.encode(textToSign));
+      const subtle = globalThis.crypto?.subtle || crypto?.webcrypto?.subtle || crypto?.subtle;
+      if (!subtle) return { url: null, publicId: null };
+      const digest = await subtle.digest('SHA-1', enc.encode(textToSign));
       const signature = Array.from(new Uint8Array(digest))
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('');
@@ -167,18 +171,18 @@ async function uploadScreenshotBuffer(buffer, mimeType = 'image/jpeg') {
 }
 
 export async function ensureUserBalance(userId) {
-  let row = await db.query.balances.findFirst({ where: eq(balances.userId, userId) });
+  const [row] = await db.select().from(balances).where(eq(balances.userId, userId)).limit(1);
   if (!row) {
     const [created] = await db.insert(balances).values({ userId, amount: 0 }).returning();
-    row = created;
+    return created;
   }
   return row;
 }
 
 export async function getUserBalance(userId) {
-  await ensureRegistrationBonus(userId)
-  const row = await ensureUserBalance(userId)
-  return parseFloat(toMoney(row.amount))
+  await ensureRegistrationBonus(userId);
+  const row = await ensureUserBalance(userId);
+  return parseFloat(toMoney(row.amount));
 }
 
 /**
@@ -189,21 +193,25 @@ async function deductBalanceTx(tx, userId, amount) {
   const debit = parseFloat(toMoney(amount)) || 0;
   if (debit <= 0) {
     const [row] = await tx.select().from(balances).where(eq(balances.userId, userId)).limit(1);
-    return parseFloat(toMoney(row?.amount));
+    return row ? parseFloat(toMoney(row.amount)) : 0;
   }
-  const result = await tx.execute(sql`
-    UPDATE balances
-    SET amount = amount - ${debit}::numeric,
-        updated_at = NOW()
-    WHERE user_id = ${userId}
-      AND amount::numeric >= ${debit}::numeric
-    RETURNING amount
-  `);
-  const row = result?.rows?.[0] || result?.[0];
-  if (!row) {
-    throw new CheckError('Insufficient balance. Top up to continue verifying receipts.', 402);
+
+  const [current] = await tx.select().from(balances).where(eq(balances.userId, userId)).limit(1);
+  const currentAmount = current ? parseFloat(toMoney(current.amount)) : 0;
+
+  if (currentAmount < debit) {
+    throw new CheckError('Insufficient balance. Please top up your wallet.', 402, {
+      currentBalance: currentAmount,
+      required: debit,
+    });
   }
-  return parseFloat(toMoney(row.amount));
+
+  const newAmount = parseFloat(toMoney(currentAmount - debit));
+  await tx.update(balances)
+    .set({ amount: newAmount, updatedAt: new Date() })
+    .where(eq(balances.userId, userId));
+
+  return newAmount;
 }
 
 /**
@@ -236,16 +244,14 @@ async function persistWalletCheck({ userId, checkCost, recordValues, ledgerDescr
 
 export async function findCheckByTxCode(txCode) {
   if (!txCode) return null;
-  return db.query.receiptChecks.findFirst({
-    where: eq(receiptChecks.transactionCode, txCode),
-  });
+  const [row] = await db.select().from(receiptChecks).where(eq(receiptChecks.transactionCode, txCode)).limit(1);
+  return row || null;
 }
 
 export async function findTopUpByTxCode(txCode) {
   if (!txCode) return null;
-  return db.query.topUpTransactions.findFirst({
-    where: eq(topUpTransactions.transactionCode, txCode),
-  });
+  const [row] = await db.select().from(topUpTransactions).where(eq(topUpTransactions.transactionCode, txCode)).limit(1);
+  return row || null;
 }
 
 function buildResolvedDetailsFromCheck(row) {
@@ -390,9 +396,12 @@ async function readScreenshotBuffer(screenshotPath) {
 }
 
 async function resolveScreenshotInput({ screenshotBuffer, screenshotMime, screenshotPath }) {
-  if (screenshotBuffer && Buffer.isBuffer(screenshotBuffer) && screenshotBuffer.length > 0) {
+  if (screenshotBuffer && screenshotBuffer.length > 0) {
+    const buffer = Buffer.isBuffer(screenshotBuffer)
+      ? screenshotBuffer
+      : Buffer.from(screenshotBuffer);
     return {
-      buffer: screenshotBuffer,
+      buffer,
       mime: screenshotMime || 'image/jpeg',
     };
   }
@@ -1026,7 +1035,7 @@ export async function submitSmsCheck({
   };
 }
 
-export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' }) {
+export async function submitTopUp({ userId, screenshotPath, screenshotBuffer, screenshotMime, method = 'telebirr' }) {
   const receiverConfig = await getTopUpReceiverAccount(method);
   if (!receiverConfig) {
     throw new TopUpError('Top-up is only supported for Telebirr, CBE, and Bank of Abyssinia', 400);
@@ -1040,6 +1049,8 @@ export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' 
       method,
       form: {},
       screenshotPath,
+      screenshotBuffer,
+      screenshotMime,
       withDetails: false,
       expectedReceiver: {
         receiverName: receiverConfig.receiverName,
@@ -1068,7 +1079,9 @@ export async function submitTopUp({ userId, screenshotPath, method = 'telebirr' 
 
     details.transactionCode = paymentId;
 
-    const upload = await uploadScreenshot(screenshotPath);
+    const upload = screenshotBuffer
+      ? await uploadScreenshotBuffer(screenshotBuffer, screenshotMime)
+      : await uploadScreenshot(screenshotPath);
     screenshotUrl = upload.url;
     screenshotPublicId = upload.publicId;
 

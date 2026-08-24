@@ -66,7 +66,7 @@ export async function performCheck(req, res) {
         data: err.details,
       });
     }
-    return error(res, 'Receipt check failed', 500, err.message);
+    return error(res, 'Receipt check failed', 500, `${err.message}${err.cause ? ' | ' + err.cause.message : ''}`);
   }
 }
 

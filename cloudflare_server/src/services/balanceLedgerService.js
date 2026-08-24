@@ -33,7 +33,7 @@ export async function ensureRegistrationBonusUniqueIndex() {
 }
 
 export async function getSetting(key, fallback = null) {
-  const row = await db.query.systemSettings.findFirst({ where: eq(systemSettings.key, key) });
+  const [row] = await db.select().from(systemSettings).where(eq(systemSettings.key, key)).limit(1);
   return row?.value ?? fallback;
 }
 
@@ -72,27 +72,29 @@ export async function recordBalanceTransaction({
   balanceAfter,
   referenceType = null,
   referenceId = null,
-  description = null,
-}, executor = db) {
-  const [row] = await executor.insert(balanceTransactions).values({
-    userId,
-    type,
-    amount: toMoney(amount),
-    balanceAfter: toMoney(balanceAfter),
-    referenceType,
-    referenceId,
-    description,
-  }).returning();
+  description = '',
+}, executor = null) {
+  const client = executor || db;
+  const [row] = await client
+    .insert(balanceTransactions)
+    .values({
+      userId,
+      type,
+      amount: toMoney(amount),
+      balanceAfter: toMoney(balanceAfter),
+      referenceType,
+      referenceId: referenceId ? String(referenceId) : null,
+      description,
+    })
+    .returning();
   return row;
 }
 
 export async function hasRegistrationBonus(userId) {
-  const row = await db.query.balanceTransactions.findFirst({
-    where: and(
-      eq(balanceTransactions.userId, userId),
-      eq(balanceTransactions.type, 'registration_bonus'),
-    ),
-  });
+  const [row] = await db.select().from(balanceTransactions).where(and(
+    eq(balanceTransactions.userId, userId),
+    eq(balanceTransactions.type, 'registration_bonus'),
+  )).limit(1);
   return Boolean(row);
 }
 
@@ -115,17 +117,15 @@ export async function ensureRegistrationBonus(userId) {
 
   try {
     return await db.transaction(async (tx) => {
-      const existingBonus = await tx.query.balanceTransactions.findFirst({
-        where: and(
-          eq(balanceTransactions.userId, userId),
-          eq(balanceTransactions.type, 'registration_bonus'),
-        ),
-      });
+      const [existingBonus] = await tx.select().from(balanceTransactions).where(and(
+        eq(balanceTransactions.userId, userId),
+        eq(balanceTransactions.type, 'registration_bonus'),
+      )).limit(1);
       if (existingBonus) {
         return { granted: false, reason: 'already_claimed', amount: settings.amount };
       }
 
-      let balanceRow = await tx.query.balances.findFirst({ where: eq(balances.userId, userId) });
+      let [balanceRow] = await tx.select().from(balances).where(eq(balances.userId, userId)).limit(1);
       if (!balanceRow) {
         [balanceRow] = await tx.insert(balances).values({ userId, amount: '0.00' }).returning();
       }

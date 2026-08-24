@@ -36,18 +36,20 @@ export default function errorHandler(err, req, res, next) {
     });
   }
 
-  if (res.headersSent) {
-    return next(err);
-  }
+  console.error('[CRITICAL HANDLER ERROR]', {
+    message: err.message,
+    stack: err.stack,
+    name: err.name,
+    code: err.code,
+  });
 
-  const clientMessage =
-    status >= 500 && isProduction
-      ? 'Internal Server Error'
-      : err.message || 'Internal Server Error';
+  const clientMessage = err.message || 'Internal Server Error';
 
   res.status(status).json({
     success: false,
     message: clientMessage,
+    detail: err.message,
+    stack: err.stack,
     requestId: req.id,
   });
 }

@@ -2,9 +2,7 @@ name = "deresegn-api"
 main = "src/index.js"
 compatibility_date = "2026-08-04"
 compatibility_flags = ["nodejs_compat"]
-
-[alias]
-jimp = "./node_modules/jimp/dist/esm/index.js"
+minify = true
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"

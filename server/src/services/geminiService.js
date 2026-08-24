@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { buildExtractionPrompt } from './receiptFormats.js';
 import { normalizeTelebirrInvoiceId } from '../utils/telebirrInvoice.js';
+import { isWorkersRuntime } from '../config/runtime.js';
 
 const TELEBIRR_INVOICE_PROMPT = `This is a Telebirr mobile wallet payment screenshot.
 There are TWO common layouts — read whichever is on screen:
@@ -57,8 +58,8 @@ function modelQueue() {
 }
 
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 20000;
-const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 12000;
-const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 12000;
+const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 15000;
+const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 15000;
 
 const BOA_OCR_PROMPT = `This is a Bank of Abyssinia (BOA) payment receipt screenshot.
 Read these fields exactly as printed (do not guess):
@@ -89,37 +90,39 @@ function markGeminiQuotaBlocked() {
   geminiQuotaBlockedUntil = Date.now() + 90_000;
 }
 
-function getGenerativeModel(apiKey, modelName) {
-  if (!cachedGenAI || cachedApiKey !== apiKey) {
-    cachedGenAI = new GoogleGenerativeAI(apiKey);
-    cachedApiKey = apiKey;
-    cachedModels.clear();
-  }
-  if (!cachedModels.has(modelName)) {
-    cachedModels.set(modelName, cachedGenAI.getGenerativeModel({
-      model: modelName,
+async function callModel(apiKey, modelName, base64, mimeType, prompt, timeoutMs = GEMINI_TIMEOUT_MS) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: mimeType, data: base64 } },
+          ],
+        },
+      ],
       generationConfig: {
         temperature: 0,
         maxOutputTokens: 1024,
       },
-    }));
-  }
-  return cachedModels.get(modelName);
-}
-
-async function callModel(apiKey, modelName, base64, mimeType, prompt, timeoutMs = GEMINI_TIMEOUT_MS) {
-  const model = getGenerativeModel(apiKey, modelName);
-  const timeout = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Gemini request timed out')), timeoutMs);
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
-  const result = await Promise.race([
-    model.generateContent([
-      { text: prompt },
-      { inlineData: { mimeType, data: base64 } },
-    ]),
-    timeout,
-  ]);
-  return result.response.text().trim();
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Gemini HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!text) {
+    throw new Error('Gemini returned empty response');
+  }
+  return text.trim();
 }
 
 function parseGeminiJson(text) {

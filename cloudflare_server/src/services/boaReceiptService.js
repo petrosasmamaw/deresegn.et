@@ -227,6 +227,14 @@ async function firstOfficialHit(tasks) {
 }
 
 async function fetchBoaByReference(reference, accounts = []) {
+  if (isWorkersRuntime()) {
+    const suffixes = buildSuffixCandidates(...accounts).slice(0, 2);
+    for (const suffix of suffixes) {
+      const hit = await fetchBoaApiOnce(reference, suffix);
+      if (hit) return hit;
+    }
+    return null;
+  }
   const suffixes = buildSuffixCandidates(...accounts);
   const preferred = suffixes.filter((s) => s === '' || s.length === 5);
   const rest = suffixes.filter((s) => !preferred.includes(s));
@@ -291,9 +299,6 @@ function nearbyReferences(reference) {
 }
 
 async function discoverNearbyOfficial(reference, accounts = [], deadlineMs = NEARBY_BUDGET_MS) {
-  // On Cloudflare Workers, avoid blowing the 50-subrequest limit
-  if (isWorkersRuntime()) return null;
-
   const deadline = Date.now() + deadlineMs;
   const candidates = nearbyReferences(reference);
   const suffixes = buildSuffixCandidates(...accounts).filter((s) => s === '' || s.length === 5);
@@ -381,7 +386,7 @@ export async function resolveBoaOfficialTransaction({
     }
   }
 
-  if (screenshotRef && isBoaPaymentReference(screenshotRef)) {
+  if (!isWorkersRuntime() && screenshotRef && isBoaPaymentReference(screenshotRef)) {
     const nearby = await discoverNearbyOfficial(screenshotRef, accounts);
     if (nearby?.official) {
       const edited = !txCodesMatch(nearby.reference, screenshotRef);

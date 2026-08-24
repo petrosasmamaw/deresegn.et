@@ -305,8 +305,8 @@ export async function resolveTelebirrOfficialReceipt({
     }
   }
 
-  // QR misread: try single-character mutations on the QR-parsed invoice (Node.js only to protect Worker subrequest limit)
-  if (qrInvoice && !isWorkersRuntime()) {
+  // QR misread: try single-character mutations on the QR-parsed invoice
+  if (qrInvoice) {
     const nearby = nearbyTelebirrInvoices(qrInvoice);
     for (let i = 0; i < nearby.length; i += 8) {
       const batch = nearby.slice(i, i + 8);

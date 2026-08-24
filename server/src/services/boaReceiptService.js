@@ -4,6 +4,7 @@ import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { extractBoaFieldsFromQrPayload } from './boaQrCrypto.js';
 import { normalizeTxCode, txCodesMatch } from '../utils/txCode.js';
 import { outboundFetch } from '../utils/outboundFetch.js';
+import { isWorkersRuntime } from '../config/runtime.js';
 
 const BOA_API = 'https://cs.bankofabyssinia.com/api/onlineSlip/getDetails/?id=';
 const API_TIMEOUT_MS = Number(process.env.BOA_API_TIMEOUT_MS) || 8000;
@@ -226,6 +227,14 @@ async function firstOfficialHit(tasks) {
 }
 
 async function fetchBoaByReference(reference, accounts = []) {
+  if (isWorkersRuntime()) {
+    const suffixes = buildSuffixCandidates(...accounts).slice(0, 2);
+    for (const suffix of suffixes) {
+      const hit = await fetchBoaApiOnce(reference, suffix);
+      if (hit) return hit;
+    }
+    return null;
+  }
   const suffixes = buildSuffixCandidates(...accounts);
   const preferred = suffixes.filter((s) => s === '' || s.length === 5);
   const rest = suffixes.filter((s) => !preferred.includes(s));
@@ -377,7 +386,7 @@ export async function resolveBoaOfficialTransaction({
     }
   }
 
-  if (screenshotRef && isBoaPaymentReference(screenshotRef)) {
+  if (!isWorkersRuntime() && screenshotRef && isBoaPaymentReference(screenshotRef)) {
     const nearby = await discoverNearbyOfficial(screenshotRef, accounts);
     if (nearby?.official) {
       const edited = !txCodesMatch(nearby.reference, screenshotRef);
