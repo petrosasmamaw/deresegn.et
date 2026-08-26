@@ -1,0 +1,187 @@
+import { useMemo, useRef, useState } from 'react'
+import { Download, Link2 } from 'lucide-react'
+import { useLocale } from '../i18n/LocaleContext'
+import './VerificationCertificate.css'
+
+function formatDate(value) {
+  if (!value) return '—'
+  return new Date(value).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function displayValue(value) {
+  if (value == null || value === '') return '—'
+  return String(value).trim() || '—'
+}
+
+function drawCertificateToCanvas(cert, labels) {
+  const width = 720
+  const height = 500
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+
+  ctx.fillStyle = '#F4EEDC'
+  ctx.fillRect(0, 0, width, height)
+
+  ctx.strokeStyle = '#1B463A'
+  ctx.lineWidth = 3
+  ctx.strokeRect(18, 18, width - 36, height - 36)
+
+  ctx.strokeStyle = '#C6A24E'
+  ctx.lineWidth = 1
+  ctx.strokeRect(28, 28, width - 56, height - 56)
+
+  ctx.fillStyle = '#0E2420'
+  ctx.font = 'bold 28px Georgia, serif'
+  ctx.fillText(labels.brand, 48, 68)
+
+  ctx.fillStyle = '#3E8F62'
+  ctx.font = 'bold 18px sans-serif'
+  ctx.fillText(labels.verifiedStamp, 48, 100)
+
+  ctx.fillStyle = '#1B463A'
+  ctx.font = '14px sans-serif'
+  const lines = [
+    `Check ID: #${cert.id}`,
+    `${labels.paymentId}: ${displayValue(cert.transactionCode)}`,
+    `${labels.amount}: ${displayValue(cert.amount)} ETB`,
+    `${labels.sender}: ${displayValue(cert.senderName)}`,
+    `${labels.receiver}: ${displayValue(cert.receiverName)}`,
+    `${labels.bank}: ${labels.methodLabel}`,
+    `${labels.confidence}: ${labels.tierLabel}`,
+    `${labels.verified}: ${formatDate(cert.createdAt || cert.verifiedAt)}`,
+  ]
+  lines.forEach((line, i) => ctx.fillText(line, 48, 132 + i * 26))
+
+  ctx.beginPath()
+  ctx.arc(width - 110, height - 110, 52, 0, Math.PI * 2)
+  ctx.strokeStyle = '#3E8F62'
+  ctx.lineWidth = 3
+  ctx.stroke()
+  ctx.fillStyle = '#3E8F62'
+  ctx.font = 'bold 16px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText(labels.valid, width - 110, height - 104)
+
+  return canvas
+}
+
+export default function VerificationCertificate({ check, compact = false, details = null }) {
+  const { t } = useLocale()
+  const cardRef = useRef(null)
+  const [copied, setCopied] = useState(false)
+
+  const methodLabels = useMemo(() => ({
+    telebirr: t('method.telebirr'),
+    cbe: t('method.cbe'),
+    boa: t('method.boa'),
+    dashen: t('method.dashen'),
+  }), [t])
+
+  const tierLabels = useMemo(() => ({
+    verified: t('common.verified'),
+    likely_valid: t('history.likelyValid'),
+    suspicious: t('history.suspicious'),
+  }), [t])
+
+  if (!check) return null
+
+  const shareUrl = check.shareToken
+    ? `${window.location.origin}/verify/${check.shareToken}`
+    : null
+
+  const handleCopyLink = async () => {
+    if (!shareUrl) return
+    await navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleDownload = () => {
+    const canvas = drawCertificateToCanvas(check, {
+      brand: t('cert.brand'),
+      verifiedStamp: t('cert.verifiedPayment'),
+      paymentId: t('field.paymentId'),
+      amount: t('field.amountShort'),
+      sender: t('field.sender'),
+      receiver: t('field.receiver'),
+      bank: t('cert.bankMethod'),
+      methodLabel: methodLabels[check.paymentMethod] || check.paymentMethod,
+      confidence: t('cert.confidence'),
+      tierLabel: tierLabels[check.confidenceTier] || check.confidenceTier,
+      verified: t('cert.verifiedAt'),
+      valid: t('cert.valid').toUpperCase(),
+    })
+    const link = document.createElement('a')
+    link.download = `deresegn-certificate-${check.id}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
+
+  return (
+    <article className={`verify-certificate${compact ? ' verify-certificate--compact' : ''}`} ref={cardRef}>
+      <header className="verify-certificate-header">
+        <div>
+          <h3 className="verify-certificate-title">{t('cert.paymentTitle')}</h3>
+          <p className="verify-certificate-check-id">{t('cert.certificateId', { id: check.id })}</p>
+        </div>
+        <div className="verified-stamp verify-certificate-stamp">{t('cert.valid')}</div>
+      </header>
+
+      <div className="verify-certificate-body">
+        <p className="verify-certificate-amount">
+          {displayValue(check.amount)}
+          <span> ETB</span>
+        </p>
+        <p className="verify-certificate-id font-mono">{displayValue(check.transactionCode)}</p>
+
+        <dl className="verify-certificate-grid">
+          <div>
+            <dt>{t('field.sender')}</dt>
+            <dd>{displayValue(check.senderName)}</dd>
+            {details?.senderAccount && (
+              <dd className="verify-certificate-sub font-mono">{details.senderAccount}</dd>
+            )}
+          </div>
+          <div>
+            <dt>{t('field.receiver')}</dt>
+            <dd>{displayValue(check.receiverName)}</dd>
+            {details?.receiverAccount && (
+              <dd className="verify-certificate-sub font-mono">{details.receiverAccount}</dd>
+            )}
+          </div>
+          <div>
+            <dt>{t('cert.bankMethod')}</dt>
+            <dd>{methodLabels[check.paymentMethod] || check.paymentMethod}</dd>
+          </div>
+          <div>
+            <dt>{t('cert.verifiedAt')}</dt>
+            <dd>{formatDate(check.createdAt)}</dd>
+          </div>
+        </dl>
+
+        <p className="verify-certificate-sign">{t('cert.verifiedBy')}</p>
+      </div>
+
+      {shareUrl && (
+        <div className="verify-certificate-actions">
+          <button type="button" className="verify-certificate-action is-ghost" onClick={handleCopyLink}>
+            <Link2 size={16} />
+            {copied ? t('cert.copied') : t('cert.copy')}
+          </button>
+          <button type="button" className="verify-certificate-action is-ink" onClick={handleDownload}>
+            <Download size={16} />
+            {t('cert.downloadPng')}
+          </button>
+        </div>
+      )}
+    </article>
+  )
+}

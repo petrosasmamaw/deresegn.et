@@ -1,0 +1,15 @@
+{
+  "watch": ["server/src", "server/auth.mjs", "server/auth.config.mjs"],
+  "ext": "js,mjs,json",
+  "ignore": [
+    "server/uploads/**",
+    "node_modules/**",
+    "server/drizzle/**",
+    "dist/**",
+    "*.log"
+  ],
+  "delay": 1500,
+  "legacyWatch": true,
+  "exec": "node server/src/index.js",
+  "signal": "SIGTERM"
+}

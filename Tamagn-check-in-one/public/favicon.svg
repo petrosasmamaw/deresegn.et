@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 200 200" role="img" aria-label="Tamagn Tech — ታማኝ ቸክ icon">
+  <rect x="30" y="20" width="140" height="140" rx="20" fill="#14432A"/>
+  <polygon points="30,160 40,145 50,160 60,145 70,160 80,145 90,160 100,145 110,160 120,145 130,160 140,145 150,160 160,145 170,160 170,182 30,182" fill="#ffffff"/>
+  <path d="M58,100 L86,130 L148,62" fill="none" stroke="#ffffff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CBE">
+  <rect width="64" height="64" rx="12" fill="#4A1D73"/>
+  <path d="M14 42V24l18-8 18 8v18l-18 8-18-8z" fill="#F4C430"/>
+  <path d="M32 18v30M18 28h28" stroke="#4A1D73" stroke-width="2.2"/>
+  <text x="32" y="38" text-anchor="middle" font-family="Georgia, serif" font-size="11" font-weight="700" fill="#4A1D73">CBE</text>
+</svg>

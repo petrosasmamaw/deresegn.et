@@ -1,0 +1,254 @@
+import './loadEnv.js'
+import express from 'express'
+import dotenv from 'dotenv'
+import cors from 'cors'
+import helmet from 'helmet'
+import cookieParser from 'cookie-parser'
+import path from 'path'
+import { fileURLToPath, pathToFileURL } from 'url'
+import balanceRoutes from './routes/balanceRoutes.js'
+import checkRoutes from './routes/checkRoutes.js'
+import appAuthRoutes from './routes/appAuthRoutes.js'
+import adminRoutes from './routes/adminRoutes.js'
+import developerRoutes from './routes/developerRoutes.js'
+import v1ApiRoutes from './routes/v1ApiRoutes.js'
+import meRoutes from './routes/meRoutes.js'
+import errorHandler from './middleware/errorHandler.js'
+import { csrfOriginGuard } from './middleware/csrfOriginGuard.js'
+import {
+  globalApiRateLimiter,
+  authRateLimiter,
+  signupRateLimiter,
+  verifyRateLimiter,
+  topUpRateLimiter,
+  apiV1RateLimiter,
+} from './middleware/rateLimiters.js'
+import { testConnection, closePool } from './db/index.js'
+import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
+import { ensureUserPaymentAccountsTable } from './services/userPaymentAccountService.js'
+import { ensureApiKeysTable } from './services/apiKeyService.js'
+import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerService.js'
+import { isTrustedOrigin } from './config/clientOrigins.js'
+import { assertRequiredEnv } from './config/requiredEnv.js'
+import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
+import { normalizeNativeClientOrigin } from './middleware/normalizeNativeClientOrigin.js'
+import { requestId } from './middleware/requestId.js'
+import { logger } from './config/logger.js'
+import { fromNodeHeaders } from 'better-auth/node'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const SERVER_ROOT = path.join(__dirname, '..')
+const PROJECT_ROOT = path.join(SERVER_ROOT, '..')
+
+// Prefer monorepo root .env (Tamagn-check-in-one), then server/.env
+dotenv.config({ path: path.join(PROJECT_ROOT, '.env') })
+dotenv.config({ path: path.join(SERVER_ROOT, '.env') })
+
+const app = express()
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)
+
+app.set('trust proxy', 1)
+
+// Security headers. This is a JSON API (no server-rendered HTML), so CSP and
+// cross-origin embedder policies are disabled to avoid interfering with CORS,
+// image delivery, or the Better Auth redirect flow. HSTS activates on HTTPS.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
+}))
+
+// Correlate logs per request; echoes X-Request-Id back to the caller.
+app.use(requestId)
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (isTrustedOrigin(origin)) {
+      callback(null, origin);
+      return;
+    }
+    // Expo / React Native may set an Origin that isn't a browser website — allow (not cross-site form CSRF).
+    if (/^exp:\/\//i.test(origin) || /^http:\/\/(10\.0\.2\.2|localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+      callback(null, true);
+      return;
+    }
+    console.warn(`CORS blocked for origin: ${origin}`);
+    callback(null, false);
+  },
+  credentials: true,
+}))
+
+app.use(express.json({ limit: '2mb' }))
+app.use(cookieParser())
+app.use('/api', globalApiRateLimiter)
+app.use('/api', normalizeNativeClientOrigin)
+app.use('/api', csrfOriginGuard)
+
+async function mountAuthHandler() {
+  try {
+    const authModuleUrl = pathToFileURL(path.join(SERVER_ROOT, 'auth.mjs')).href
+    const mod = await import(authModuleUrl)
+
+    app.get('/api/auth/get-session', async (req, res) => {
+      try {
+        const session = await mod.auth.api.getSession({
+          headers: fromNodeHeaders(req.headers),
+        })
+        res.json(session || null)
+      } catch (error) {
+        console.error('[auth] get-session failed:', error.message)
+        res.status(500).json({ error: 'Failed to get session' })
+      }
+    })
+
+    if (mod?.nodeHandler) {
+      app.use('/api/auth', signupRateLimiter, authRateLimiter, mod.nodeHandler)
+      console.log('✅ Mounted Better Auth handler at /api/auth')
+    }
+  } catch (err) {
+    console.error('❌ Failed to mount auth handler', err)
+  }
+}
+
+mountAuthHandler()
+
+app.use('/api/balance/topup', topUpRateLimiter)
+app.use('/api/balance', balanceRoutes)
+app.use('/api/check', verifyRateLimiter, checkRoutes)
+app.use('/api/me', meRoutes)
+app.use('/api/users', appAuthRoutes)
+app.use('/api/admin', adminRoutes)
+app.use('/api/developer', developerRoutes)
+app.use('/api/v1', apiV1RateLimiter, v1ApiRoutes)
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString(),
+    build: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'dev',
+    features: {
+      cbeMbReceiptSms: true,
+      cbeBranchReceiptRef: true,
+      bankProbe: true,
+    },
+  })
+})
+
+app.get('/api/health/banks', async (req, res) => {
+  try {
+    const banks = await probeBankConnectivity()
+    const allOk = banks.every((b) => b.ok)
+    res.status(allOk ? 200 : 503).json({
+      status: allOk ? 'ok' : 'degraded',
+      banks,
+      cached: getBankConnectivityStatus(),
+      time: new Date().toISOString(),
+    })
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message })
+  }
+})
+
+app.use(errorHandler)
+
+const PORT = process.env.PORT || 5000
+
+async function bootstrapDb() {
+  if (process.env.NODE_ENV === 'production') {
+    assertRequiredEnv()
+  }
+
+  const connected = await testConnection()
+  if (!connected) {
+    console.error('⚠️  Warning: Database connection test failed, but starting server anyway')
+  } else {
+    try {
+      await ensureTopUpReceiverDefaults()
+      await ensureApiKeysTable()
+      await ensureUserPaymentAccountsTable()
+      await ensureRegistrationBonusUniqueIndex()
+    } catch (err) {
+      console.error('⚠️  Warning: Could not seed top-up receiver accounts:', err.message)
+    }
+  }
+}
+
+async function start() {
+  await bootstrapDb()
+
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running at http://localhost:${PORT}`)
+    console.log(`📡 API available at http://localhost:${PORT}/api`)
+    console.log(`📱 Android emulator: http://10.0.2.2:${PORT}/api`)
+    if (process.env.NODE_ENV === 'production') {
+      startBankConnectivityMonitor()
+    }
+  })
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `\n❌ Port ${PORT} is already in use — another server instance is still running.\n` +
+          `   Stop it, then start again. To find and kill it:\n` +
+          `   • Windows (PowerShell): Get-NetTCPConnection -LocalPort ${PORT} -State Listen | ` +
+          `ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\n` +
+          `   • macOS/Linux:          lsof -ti tcp:${PORT} | xargs kill -9\n` +
+          `   • Or set a different port: PORT=5001 npm run dev\n`,
+      )
+      process.exit(1)
+    }
+    console.error('Server error:', err)
+    process.exit(1)
+  })
+
+  setupGracefulShutdown(server)
+}
+
+/**
+ * Drain in-flight requests and close the DB pool on Render/host restarts
+ * (SIGTERM) or local Ctrl+C (SIGINT). Forces exit if shutdown stalls.
+ */
+function setupGracefulShutdown(server) {
+  let shuttingDown = false
+  const shutdown = (signal) => {
+    if (shuttingDown) return
+    shuttingDown = true
+    logger.info(`Received ${signal} — shutting down gracefully`)
+
+    const forceTimer = setTimeout(() => {
+      logger.error('Shutdown timed out — forcing exit')
+      process.exit(1)
+    }, 10000)
+    forceTimer.unref?.()
+
+    server.close(async () => {
+      await closePool()
+      logger.info('Shutdown complete')
+      clearTimeout(forceTimer)
+      process.exit(0)
+    })
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
+}
+
+// Local / long-running host: listen on PORT. Vercel: export Express app only.
+if (!isServerless) {
+  start().catch((err) => {
+    console.error('Failed to start server:', err)
+    process.exit(1)
+  })
+} else {
+  bootstrapDb().catch((err) => {
+    console.error('Failed to bootstrap DB on serverless:', err.message)
+  })
+}
+
+export default app
+export { app }

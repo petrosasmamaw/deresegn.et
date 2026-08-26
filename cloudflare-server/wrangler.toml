@@ -1,0 +1,21 @@
+name = "deresegn-server"
+main = "src/worker.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = [ "nodejs_compat" ]
+
+# Set production variables
+[vars]
+NODE_ENV = "production"
+
+# Observe logs in Cloudflare Dashboard
+[observability]
+enabled = true
+
+# Secrets should NOT be committed here. Use `npx wrangler secret put <NAME>` to set:
+# - DATABASE_URL
+# - BETTER_AUTH_SECRET
+# - GEMINI_API_KEY
+# - CLOUDINARY_CLOUD_NAME
+# - CLOUDINARY_API_KEY
+# - CLOUDINARY_API_SECRET
+# - CLIENT_URL

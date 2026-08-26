@@ -1,0 +1,21 @@
+{
+  "name": "Tamagn Check — ታማኝ ቸክ",
+  "short_name": "Tamagn Check",
+  "description": "Verify Ethiopian payment receipts — Telebirr, CBE, Dashen, Bank of Abyssinia.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#14432A",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/deresegn-logo.svg",
+      "sizes": "600x600",
+      "type": "image/svg+xml"
+    }
+  ]
+}

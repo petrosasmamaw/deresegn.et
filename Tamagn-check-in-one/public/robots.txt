@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /developer
+
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /accounts
+
+Sitemap: https://tamagncheck.online/sitemap.xml
