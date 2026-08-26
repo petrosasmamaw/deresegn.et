@@ -1,5 +1,8 @@
 import dns from 'dns/promises';
-import disposableDomainsRaw from 'disposable-email-domains';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const disposableDomainsRaw = require('disposable-email-domains');
 
 const disposableDomains = Array.isArray(disposableDomainsRaw)
   ? disposableDomainsRaw
