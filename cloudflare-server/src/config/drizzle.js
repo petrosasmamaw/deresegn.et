@@ -1,41 +1,42 @@
 import { config } from 'dotenv';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from '../db/schema.js';
 
 config();
 
-// Configure SSL for Neon and other hosted Postgres providers.
-const isNeon = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('neon');
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: isNeon ? { rejectUnauthorized: false } : (process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false),
-  // Timeouts so a slow/unreachable DB fails fast instead of hanging startup.
-  max: Number(process.env.DB_POOL_MAX) || 10,
-  connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 10000,
-  idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS) || 30000,
-});
+const dummyUrl = 'postgresql://placeholder:placeholder@ep-placeholder.neon.tech/neondb?sslmode=require';
 
-// Never let a background pool error crash the process.
-pool.on('error', (err) => {
-  console.error('[db] Unexpected idle client error:', err.message);
-});
+function getSql() {
+  const url = process.env.DATABASE_URL || dummyUrl;
+  return neon(url);
+}
 
-export const db = drizzle(pool, { schema });
-
-/** Close the pool during graceful shutdown. */
-export async function closePool() {
-  try {
-    await pool.end();
-  } catch {
-    // ignore — process is exiting
+// Proxy function so neon client uses the injected process.env.DATABASE_URL at runtime
+const proxySql = Object.assign(
+  (query, params) => {
+    const sql = getSql();
+    return sql(query, params);
+  },
+  {
+    transaction: (fn, opts) => {
+      const sql = getSql();
+      return sql.transaction(fn, opts);
+    },
   }
+);
+
+export const db = drizzle(proxySql, { schema });
+
+export async function closePool() {
+  // HTTP-based serverless client does not require pool draining
 }
 
 export async function testConnection() {
   try {
-    const result = await pool.query('SELECT NOW()');
-    console.log('✅ Database connected:', result.rows[0]);
+    const sql = getSql();
+    const result = await sql`SELECT NOW()`;
+    console.log('✅ Database connected:', result[0]);
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);

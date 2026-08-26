@@ -1,8 +1,10 @@
 import dns from 'dns/promises';
-import { createRequire } from 'module';
+import disposableDomainsRaw from 'disposable-email-domains';
 
-const require = createRequire(import.meta.url);
-let disposableSet = new Set();
+const disposableDomains = Array.isArray(disposableDomainsRaw)
+  ? disposableDomainsRaw
+  : (disposableDomainsRaw?.default || []);
+
 const EXTRA_DISPOSABLE_DOMAINS = [
   'tempmail.com',
   'temp-mail.org',
@@ -32,18 +34,10 @@ const EXTRA_DISPOSABLE_DOMAINS = [
   'minutemailbox.com',
 ];
 
-try {
-  const disposableDomains = require('disposable-email-domains');
-  if (Array.isArray(disposableDomains)) {
-    disposableSet = new Set([
-      ...disposableDomains.map((d) => String(d).toLowerCase().trim()),
-      ...EXTRA_DISPOSABLE_DOMAINS,
-    ]);
-  }
-} catch (err) {
-  console.warn('[emailValidator] Could not load disposable-email-domains package:', err.message);
-  disposableSet = new Set(EXTRA_DISPOSABLE_DOMAINS);
-}
+const disposableSet = new Set([
+  ...disposableDomains.map((d) => String(d).toLowerCase().trim()),
+  ...EXTRA_DISPOSABLE_DOMAINS,
+]);
 
 // Fast-path known trusted email providers to eliminate DNS lookups (0ms latency)
 const TRUSTED_DOMAINS = new Set([

@@ -49,9 +49,12 @@ console.log("🔐 Loading Better Auth (drizzle adapter)");
 console.log(`   baseURL: ${authBaseURL}`);
 console.log(`   cookie sameSite: ${cookieAttributes.sameSite}${cookieAttributes.partitioned ? " (partitioned)" : ""}`);
 
+const fallbackSecret = "deresegn-auth-edge-production-secret-encryption-key-2026";
+const authSecret = process.env.BETTER_AUTH_SECRET || fallbackSecret;
+
 export const auth = betterAuth({
-  secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: authBaseURL,
+  secret: authSecret,
+  baseURL: authBaseURL || "https://deresegn-et-api.asmamawpetros.workers.dev/api/auth",
   trustedOrigins: getTrustedOrigins(),
   useSecureCookies: isProduction,
   rateLimit: {

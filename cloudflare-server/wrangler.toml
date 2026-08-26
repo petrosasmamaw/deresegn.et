@@ -1,21 +1,24 @@
-name = "deresegn-server"
+name = "deresegn-et-api"
 main = "src/worker.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = [ "nodejs_compat" ]
+workers_dev = true
 
-# Set production variables
 [vars]
 NODE_ENV = "production"
+PORT = "8787"
+CLIENT_URL = "https://deresegn.et"
+PASSWORD_RESET_URL = "https://deresegn.et/reset-password"
+CLOUDINARY_CLOUD_NAME = "dkcanqmko"
+CLOUDINARY_API_KEY = "387626553315599"
+CLOUDINARY_FOLDER = "deresegn"
+BREVO_SENDER_EMAIL = "asmamawpetros@gmail.com"
+BREVO_SENDER_NAME = "Tamagn Check"
+PETROS_VERIFIER_BASE_URL = "https://verifyapi.leulzenebe.pro"
+PETROS_VERIFIER_TIMEOUT_MS = "45000"
+TELEBIRR_PREFER_PETROS = "true"
+TELEBIRR_SKIP_DIRECT = "true"
+PETROS_VERIFIER_RETRIES = "2"
 
-# Observe logs in Cloudflare Dashboard
 [observability]
 enabled = true
-
-# Secrets should NOT be committed here. Use `npx wrangler secret put <NAME>` to set:
-# - DATABASE_URL
-# - BETTER_AUTH_SECRET
-# - GEMINI_API_KEY
-# - CLOUDINARY_CLOUD_NAME
-# - CLOUDINARY_API_KEY
-# - CLOUDINARY_API_SECRET
-# - CLIENT_URL

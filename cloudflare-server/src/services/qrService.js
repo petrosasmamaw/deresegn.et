@@ -2,7 +2,6 @@ import fs from 'fs/promises';
 import { PNG } from 'pngjs';
 import jpeg from 'jpeg-js';
 import jsQRRaw from 'jsqr';
-import { Jimp } from 'jimp';
 import {
   MultiFormatReader,
   BarcodeFormat,

@@ -8,6 +8,7 @@
     "dev:node": "nodemon src/index.js",
     "start": "node src/index.js",
     "deploy": "wrangler deploy",
+    "secrets:upload": "node scripts/uploadSecrets.mjs",
     "tail": "wrangler tail",
     "test": "node --test",
     "build": "node scripts/verifyBuild.mjs",
@@ -21,6 +22,8 @@
   "dependencies": {
     "@codegenie/serverless-express": "^4.16.0",
     "@google/generative-ai": "^0.24.0",
+    "@hono/node-server": "^2.1.1",
+    "@neondatabase/serverless": "^1.1.0",
     "@sentry/node": "^10.70.0",
     "@zxing/library": "^0.21.3",
     "better-auth": "^1.2.8",

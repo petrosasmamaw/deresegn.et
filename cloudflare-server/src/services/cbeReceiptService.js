@@ -1,4 +1,3 @@
-import { PDFParse } from 'pdf-parse';
 import fs from 'fs/promises';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { outboundFetch } from '../utils/outboundFetch.js';
