@@ -1,8 +1,16 @@
 import dns from 'dns/promises';
 import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
-const disposableDomainsRaw = require('disposable-email-domains');
+let disposableDomainsRaw = [];
+try {
+  const targetUrl = (typeof import.meta !== 'undefined' && typeof import.meta?.url === 'string')
+    ? import.meta.url
+    : 'file:///app.js';
+  const req = createRequire(targetUrl);
+  disposableDomainsRaw = req('disposable-email-domains');
+} catch {
+  disposableDomainsRaw = [];
+}
 
 const disposableDomains = Array.isArray(disposableDomainsRaw)
   ? disposableDomainsRaw

@@ -30,7 +30,7 @@ let appInstance = null;
 async function getApp() {
   if (!appInstance) {
     const mod = await import('./app.js');
-    appInstance = mod.app;
+    appInstance = mod.app || mod.default;
   }
   return appInstance;
 }
@@ -48,8 +48,20 @@ export default {
       }
 
       const expressApp = await getApp();
+      if (typeof expressApp !== 'function') {
+        throw new Error('Express app failed to load');
+      }
 
-      return await new Promise((resolve, reject) => {
+      // Read incoming body buffer before initializing IncomingMessage
+      let bodyBuffer = null;
+      if (!['GET', 'HEAD'].includes(request.method)) {
+        const ab = await request.arrayBuffer();
+        if (ab.byteLength > 0) {
+          bodyBuffer = Buffer.from(ab);
+        }
+      }
+
+      return await new Promise((resolve) => {
         try {
           const url = new URL(request.url);
           const reqHeaders = {};
@@ -59,19 +71,31 @@ export default {
 
           const ip = request.headers.get('cf-connecting-ip') || '127.0.0.1';
 
-          // 2. Create IncomingMessage
-          const req = new http.IncomingMessage({
+          const socket = {
             encrypted: true,
             readable: true,
             remoteAddress: ip,
             address: () => ({ address: '127.0.0.1', port: 8787, family: 'IPv4' }),
             destroy: () => {},
-          });
+            on: () => {},
+            once: () => {},
+            emit: () => {},
+          };
 
+          // 2. Create IncomingMessage
+          const req = new http.IncomingMessage(socket);
           req.url = url.pathname + url.search;
           req.method = request.method;
           req.headers = reqHeaders;
           req.ip = ip;
+          req.socket = socket;
+          req.connection = socket;
+
+          if (bodyBuffer) {
+            req.push(bodyBuffer);
+          }
+          req.push(null);
+          req.readable = true;
 
           // 3. Create ServerResponse
           const res = new http.ServerResponse(req);
@@ -92,8 +116,8 @@ export default {
             const body = Buffer.concat(res._chunks);
             const headers = new Headers();
 
-            const rawHeaders = res.getHeaders ? res.getHeaders() : {};
-            for (const [key, val] of Object.entries(rawHeaders)) {
+            const responseHeaders = res.getHeaders ? res.getHeaders() : {};
+            for (const [key, val] of Object.entries(responseHeaders)) {
               if (val === undefined || val === null) continue;
               if (Array.isArray(val)) {
                 for (const item of val) headers.append(key, String(item));
@@ -121,26 +145,49 @@ export default {
             return this;
           };
 
-          // Dispatch into Express
-          expressApp(req, res);
+          res.on = function (event, listener) {
+            if (event === 'finish' || event === 'close') {
+              // noop or hook
+            }
+            return this;
+          };
 
-          if (['GET', 'HEAD'].includes(request.method)) {
-            req.push(null);
-          } else {
-            request.arrayBuffer().then((buf) => {
-              if (buf.byteLength > 0) {
-                req.push(Buffer.from(buf));
+          // Dispatch into Express with error callback
+          expressApp(req, res, (err) => {
+            if (err) {
+              console.error('[EXPRESS_ERROR]', err);
+              if (!res._finishedResolving) {
+                res.statusCode = err.status || 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({
+                  success: false,
+                  message: err.message || 'Internal Server Error',
+                }));
               }
-              req.push(null);
-            }).catch(reject);
-          }
-        } catch (err) {
-          reject(err);
+            }
+          });
+        } catch (innerErr) {
+          console.error('[WORKER_INNER_ERROR]', innerErr);
+          resolve(
+            new Response(
+              JSON.stringify({
+                success: false,
+                message: innerErr.message,
+                stack: innerErr.stack,
+              }),
+              {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+              }
+            )
+          );
         }
       });
     } catch (fatalError) {
+      console.error('[WORKER_FATAL_ERROR]', fatalError);
       return new Response(
         JSON.stringify({
+          success: false,
           error: 'FATAL_WORKER_ERROR',
           message: fatalError.message,
           stack: fatalError.stack,
