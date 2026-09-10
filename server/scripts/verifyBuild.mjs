@@ -37,3 +37,4 @@ for (const rel of modules) {
 }
 
 console.log('Server build verification passed.');
+process.exit(0);

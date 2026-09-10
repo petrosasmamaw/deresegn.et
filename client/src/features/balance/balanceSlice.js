@@ -23,7 +23,6 @@ export const submitTopUp = createAsyncThunk(
       formData.append('method', method)
 
       const res = await axios.post('/balance/topup', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 180000,
       })
       const data = unwrap(res)

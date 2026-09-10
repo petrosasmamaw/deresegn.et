@@ -53,7 +53,7 @@ app.use(helmet({
 // Correlate logs per request; echoes X-Request-Id back to the caller.
 app.use(requestId)
 
-app.use(cors({
+const corsOptions = {
   origin(origin, callback) {
     if (!origin) {
       callback(null, true);
@@ -72,7 +72,21 @@ app.use(cors({
     callback(null, false);
   },
   credentials: true,
-}))
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'X-Tamagn-Client',
+    'X-Tamagn-Platform',
+    'X-Api-Key',
+    'Accept',
+    'Origin',
+  ],
+};
+
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 
 app.use(express.json({ limit: '2mb' }))
 app.use(cookieParser())

@@ -1,3 +1,5 @@
+import { getTrustedOrigins } from './clientOrigins.js';
+
 /** Public Better Auth URL — must be the Render API URL in production. */
 export function resolveAuthBaseUrl() {
   let configured = (process.env.BETTER_AUTH_URL || '').trim().replace(/\/+$/, '');
@@ -45,18 +47,12 @@ export function isCrossOriginAuth() {
     return false;
   }
 
-  const candidates = [
-    ...(process.env.CLIENT_URL || '').split(','),
-    ...(process.env.CLIENT_URLS || '').split(','),
-  ]
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  for (const entry of candidates) {
+  const origins = getTrustedOrigins();
+  for (const origin of origins) {
     try {
-      if (new URL(entry).origin !== authOrigin) return true;
+      if (new URL(origin).origin !== authOrigin) return true;
     } catch {
-      // ignore invalid entry
+      if (origin !== authOrigin) return true;
     }
   }
 

@@ -10,7 +10,14 @@ const isProduction = process.env.NODE_ENV === 'production';
  *   production so internals/stack details never leak to clients.
  */
 export default function errorHandler(err, req, res, next) {
-  const status = err.status || err.statusCode || 500;
+  let status = err.status || err.statusCode;
+  if (!status) {
+    if (err.name === 'MulterError' || err.message?.includes('screenshots are allowed') || err.message?.includes('Boundary not found')) {
+      status = 400;
+    } else {
+      status = 500;
+    }
+  }
 
   if (status >= 500) {
     logger.error('Unhandled request error', {
