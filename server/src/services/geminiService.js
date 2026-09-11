@@ -71,39 +71,80 @@ Read these fields exactly as printed (do not guess):
 Return ONLY valid JSON (no markdown):
 { "transactionCode": string or null, "amount": number or null, "senderName": string or null, "senderAccount": string or null, "receiverName": string or null, "receiverAccount": string or null }`;
 
-let cachedGenAI = null;
-let cachedApiKey = null;
-const cachedModels = new Map();
 let geminiQuotaBlockedUntil = 0;
+let geminiAuthInvalid = false;
 
-function assertValidApiKey(apiKey) {
-  if (!apiKey?.trim()) {
-    throw new Error('GEMINI_API_KEY is not configured in server .env');
-  }
+const GEMINI_KEY_HELP = 'Get a new Google AI Studio key at https://aistudio.google.com/apikey (must start with AIza).';
+
+export function resolveGeminiApiKey() {
+  return (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+}
+
+export function isGeminiAuthInvalid() {
+  return geminiAuthInvalid;
 }
 
 export function isGeminiQuotaBlocked() {
-  return Date.now() < geminiQuotaBlockedUntil;
+  return Date.now() < geminiQuotaBlockedUntil || geminiAuthInvalid;
 }
 
 function markGeminiQuotaBlocked() {
   geminiQuotaBlockedUntil = Date.now() + 90_000;
 }
 
-async function callModel(apiKey, modelName, base64, mimeType, prompt, timeoutMs = GEMINI_TIMEOUT_MS) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+function markGeminiAuthInvalid() {
+  geminiAuthInvalid = true;
+}
+
+function assertValidApiKey(apiKey) {
+  if (!apiKey?.trim()) {
+    throw new Error(`GEMINI_API_KEY is not configured in server .env. ${GEMINI_KEY_HELP}`);
+  }
+  if (geminiAuthInvalid) {
+    throw new Error(`GEMINI_API_KEY is invalid or expired. ${GEMINI_KEY_HELP}`);
+  }
+  if (!/^AIza[\w-]+$/.test(apiKey.trim()) && !/^AQ\./.test(apiKey.trim())) {
+    console.warn(
+      `[Gemini] GEMINI_API_KEY format is unusual (expected AIza… or AQ.…). ${GEMINI_KEY_HELP}`,
+    );
+  }
+}
+
+function isAuthError(err) {
+  const msg = String(err?.message || '');
+  return msg.includes('401')
+    || msg.includes('UNAUTHENTICATED')
+    || /invalid authentication credentials/i.test(msg);
+}
+
+function isQuotaError(err) {
+  const msg = String(err?.message || '');
+  return msg.includes('429') || msg.includes('limit: 0');
+}
+
+function isModelNotFoundError(err) {
+  const msg = String(err?.message || '');
+  return msg.includes('404') || /not found/i.test(msg);
+}
+
+function buildGeminiHttpError(status, errorBody) {
+  if (status === 401) {
+    markGeminiAuthInvalid();
+    return new Error(`GEMINI_API_KEY is invalid or expired (HTTP 401). ${GEMINI_KEY_HELP}`);
+  }
+  return new Error(`Gemini HTTP ${status}: ${errorBody.slice(0, 200)}`);
+}
+
+async function callGeminiGenerate(apiKey, modelName, parts, timeoutMs = GEMINI_TIMEOUT_MS) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: mimeType, data: base64 } },
-          ],
-        },
-      ],
+      contents: [{ parts }],
       generationConfig: {
         temperature: 0,
         maxOutputTokens: 1024,
@@ -114,7 +155,7 @@ async function callModel(apiKey, modelName, base64, mimeType, prompt, timeoutMs 
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Gemini HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
+    throw buildGeminiHttpError(response.status, errorBody);
   }
 
   const data = await response.json();
@@ -123,6 +164,41 @@ async function callModel(apiKey, modelName, base64, mimeType, prompt, timeoutMs 
     throw new Error('Gemini returned empty response');
   }
   return text.trim();
+}
+
+async function callModel(apiKey, modelName, base64, mimeType, prompt, timeoutMs = GEMINI_TIMEOUT_MS) {
+  return callGeminiGenerate(
+    apiKey,
+    modelName,
+    [
+      { text: prompt },
+      { inline_data: { mime_type: mimeType, data: base64 } },
+    ],
+    timeoutMs,
+  );
+}
+
+/** Startup / health probe — text-only, no image cost. */
+export async function probeGeminiApiKey() {
+  const apiKey = resolveGeminiApiKey();
+  if (!apiKey) {
+    return { ok: false, error: `GEMINI_API_KEY is not set. ${GEMINI_KEY_HELP}` };
+  }
+  for (const modelName of modelQueue()) {
+    try {
+      await callGeminiGenerate(apiKey, modelName, [{ text: 'Reply with OK only.' }], 12000);
+      return { ok: true, model: modelName };
+    } catch (err) {
+      if (isAuthError(err)) {
+        return { ok: false, error: err.message };
+      }
+      if (!isModelNotFoundError(err)) {
+        return { ok: false, error: err.message };
+      }
+    }
+  }
+
+  return { ok: false, error: 'No Gemini models responded — check API access and billing.' };
 }
 
 function parseGeminiJson(text) {
@@ -140,13 +216,8 @@ function parseGeminiJson(text) {
   };
 }
 
-function isQuotaError(err) {
-  const msg = String(err?.message || '');
-  return msg.includes('429') || msg.includes('limit: 0');
-}
-
 function isRetryableModelError(err) {
-  if (isQuotaError(err)) return false;
+  if (isQuotaError(err) || isAuthError(err)) return false;
   return true;
 }
 
@@ -159,11 +230,14 @@ export async function extractPaymentFromScreenshot(imagePath, method = 'telebirr
 }
 
 export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mimeType = 'image/jpeg') {
-  if (isGeminiQuotaBlocked()) {
-    throw new Error('Gemini quota exceeded — using QR and official Telebirr lookup');
+  if (geminiAuthInvalid) {
+    throw new Error(`GEMINI_API_KEY is invalid or expired. ${GEMINI_KEY_HELP}`);
+  }
+  if (Date.now() < geminiQuotaBlockedUntil) {
+    throw new Error('Gemini quota exceeded — using QR and official bank lookup');
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = resolveGeminiApiKey();
   assertValidApiKey(apiKey);
 
   const base64 = Buffer.from(buffer).toString('base64');
@@ -203,8 +277,8 @@ const EMPTY_TELEBIRR_OCR = {
 export async function extractTelebirrOcrFromBuffer(buffer, mimeType = 'image/jpeg') {
   if (isGeminiQuotaBlocked()) return { ...EMPTY_TELEBIRR_OCR };
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey?.trim()) return { ...EMPTY_TELEBIRR_OCR };
+  const apiKey = resolveGeminiApiKey();
+  if (!apiKey?.trim() || geminiAuthInvalid) return { ...EMPTY_TELEBIRR_OCR };
 
   const base64 = buffer.toString('base64');
 
@@ -248,8 +322,8 @@ export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image
 export async function extractBoaOcrFromBuffer(buffer, mimeType = 'image/jpeg') {
   if (isGeminiQuotaBlocked()) return { ...EMPTY_TELEBIRR_OCR };
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey?.trim()) return { ...EMPTY_TELEBIRR_OCR };
+  const apiKey = resolveGeminiApiKey();
+  if (!apiKey?.trim() || geminiAuthInvalid) return { ...EMPTY_TELEBIRR_OCR };
 
   const base64 = buffer.toString('base64');
 

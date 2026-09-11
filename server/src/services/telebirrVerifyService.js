@@ -17,7 +17,7 @@ import {
 import { extractTelebirrInvoiceFromExtracted } from '../utils/telebirrInvoice.js';
 
 /** QR is backup only — skip heavy Jimp if OCR already has Invoice No. */
-const QR_BACKUP_MS = Number(process.env.TELEBIRR_QR_BUDGET_MS) || 800;
+const QR_BACKUP_MS = Number(process.env.TELEBIRR_QR_BUDGET_MS) || 9000;
 
 const EMPTY_EXTRACTED = {
   senderName: null,

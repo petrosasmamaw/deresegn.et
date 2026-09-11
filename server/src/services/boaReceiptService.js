@@ -12,7 +12,7 @@ const API_RETRIES = Number.isFinite(Number(process.env.BOA_API_RETRIES))
   ? Math.max(0, Number(process.env.BOA_API_RETRIES))
   : 0;
 const NEARBY_BUDGET_MS = Number(process.env.BOA_NEARBY_BUDGET_MS) || 4000;
-const QR_BUDGET_MS = Number(process.env.BOA_QR_BUDGET_MS) || 2500;
+const QR_BUDGET_MS = Number(process.env.BOA_QR_BUDGET_MS) || 9000;
 const OCR_GRACE_MS = 400;
 const inflightBoaFetches = new Map();
 

@@ -30,6 +30,7 @@ import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerServ
 import { isTrustedOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
 import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
+import { probeGeminiApiKey } from './services/geminiService.js'
 import { normalizeNativeClientOrigin } from './middleware/normalizeNativeClientOrigin.js'
 import { requestId } from './middleware/requestId.js'
 import { logger } from './config/logger.js'
@@ -166,6 +167,14 @@ const PORT = process.env.PORT || 5000
 async function start() {
   if (process.env.NODE_ENV === 'production') {
     assertRequiredEnv()
+  }
+
+  const geminiProbe = await probeGeminiApiKey()
+  if (geminiProbe.ok) {
+    console.log(`✅ Gemini OCR ready (model: ${geminiProbe.model})`)
+  } else {
+    console.error(`⚠️  Gemini OCR unavailable — screenshot text reading disabled: ${geminiProbe.error}`)
+    console.error('   Payment ID / SMS / QR verification still works. Update GEMINI_API_KEY in .env and redeploy.')
   }
 
   const connected = await testConnection()

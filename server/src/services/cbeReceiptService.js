@@ -8,7 +8,7 @@ import { extractPaymentFromBuffer } from './geminiService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { fetchCbeViaPetros, isPetrosVerifierConfigured } from './petrosVerifierService.js';
 
-const QR_BUDGET_MS = Number(process.env.CBE_QR_BUDGET_MS) || 3500;
+const QR_BUDGET_MS = Number(process.env.CBE_QR_BUDGET_MS) || 9000;
 const OCR_GRACE_MS = 400;
 /** Branch PDF host (port 100) — keep short so Petros can take over if geo-blocked. */
 const CBE_PDF_TIMEOUT_MS = Number(process.env.CBE_PDF_TIMEOUT_MS) || 12000;

@@ -24,6 +24,18 @@ function issue(type, code, field, message, extra = {}) {
   return { type, code, field, message, ...extra };
 }
 
+function humanizeGeminiError(message) {
+  const text = String(message || '').trim();
+  if (!text) return 'AI screenshot reading was unavailable.';
+  if (/GEMINI_API_KEY|invalid or expired|HTTP 401|UNAUTHENTICATED/i.test(text)) {
+    return 'Screenshot OCR (Gemini) is unavailable on the server — GEMINI_API_KEY is missing, invalid, or expired. QR and official bank lookups were still used where possible.';
+  }
+  if (/quota exceeded/i.test(text)) {
+    return 'Screenshot OCR (Gemini) quota is temporarily exceeded. QR and official bank lookups were still used where possible.';
+  }
+  return text;
+}
+
 function normalizeText(value) {
   return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
@@ -1007,13 +1019,13 @@ export function validateReceiptSubmission({
       }
     } else if (!geminiUsed) {
       issues.push(issue('warning', 'AI_UNAVAILABLE', null,
-        `${geminiError || 'AI screenshot reading was unavailable.'} QR code was still checked.`));
+        `${humanizeGeminiError(geminiError)} QR code was still checked.`));
     }
   }
 
   if (!isTopUp && !withDetails && !screenshotCropped && !geminiUsed) {
     issues.push(issue('warning', 'AI_UNAVAILABLE', null,
-      `${geminiError || 'AI screenshot reading was unavailable.'} QR code was still checked.`));
+      `${humanizeGeminiError(geminiError)} QR code was still checked.`));
   }
 
   if ((qrAuthentic || qrFields?.telebirrApiSource) && !isTopUp
