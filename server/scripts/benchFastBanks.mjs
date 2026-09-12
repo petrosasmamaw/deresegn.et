@@ -1,6 +1,6 @@
 /**
- * Benchmark Telebirr, BOA, and CBE verification speed.
- * Usage: node scripts/trainBanks.mjs
+ * Benchmark Telebirr / BOA / Dashen (CBE left alone per request).
+ * Usage: node scripts/benchFastBanks.mjs
  */
 import fs from 'fs';
 import path from 'path';
@@ -8,7 +8,6 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { verifyTelebirrReceipt } from '../src/services/telebirrVerifyService.js';
 import { verifyBoaReceipt } from '../src/services/boaReceiptService.js';
-import { verifyCbeReceipt } from '../src/services/cbeReceiptService.js';
 import { verifyDashenReceipt } from '../src/services/dashenService.js';
 
 dotenv.config();
@@ -18,11 +17,17 @@ const SAMPLES_DIR = path.join(__dirname, '../training/receipt-samples');
 
 const SAMPLES = [
   { file: 'boa-receipt.png', fn: verifyBoaReceipt, label: 'BOA' },
-  { file: 'cbe-success-card.png', fn: verifyCbeReceipt, label: 'CBE-success' },
-  { file: 'cbe-transaction-summary.png', fn: verifyCbeReceipt, label: 'CBE-summary' },
   { file: 'dashen-success-paid.png', fn: verifyDashenReceipt, label: 'Dashen-success' },
   { file: 'dashen-vat-receipt.png', fn: verifyDashenReceipt, label: 'Dashen-VAT' },
 ];
+
+// Optional telebirr sample if present
+for (const name of ['telebirr-receipt.png', 'telebirr.png', 'telebirr-invoice.png']) {
+  if (fs.existsSync(path.join(SAMPLES_DIR, name))) {
+    SAMPLES.unshift({ file: name, fn: verifyTelebirrReceipt, label: 'Telebirr' });
+    break;
+  }
+}
 
 let failed = 0;
 
@@ -40,12 +45,13 @@ for (const sample of SAMPLES) {
   const amount = result.qrFields?.amount ?? result.extracted?.amount ?? 'none';
   const qr = result.qrData?.raw ? 'yes' : 'no';
   const official = result.qrFields?.boaApiSource
-    || result.qrFields?.cbeApiSource
+    || result.qrFields?.boaQrDecrypted
     || result.qrFields?.telebirrApiSource
-    || result.cbeOfficial
-    || result.boaResolve?.official
-    || result.telebirrResolve?.official;
-  const pass = Boolean(official || result.qrData?.raw);
+    || result.qrFields?.dashenApiSource
+    || result.qrFields?.dashenSuperAppSource
+    || result.telebirrResolve?.official
+    || result.boaResolve?.official;
+  const pass = Boolean(official || result.qrData?.raw || result.telebirrResolve?.matchedInvoice);
   if (!pass) failed += 1;
   console.log(
     pass ? '✓' : '✗',
@@ -53,7 +59,7 @@ for (const sample of SAMPLES) {
     `${ms}ms`,
     `qr=${qr}`,
     `official=${official ? 'yes' : 'no'}`,
-    `tx=${String(tx).slice(0, 20)}`,
+    `tx=${String(tx).slice(0, 28)}`,
     `amount=${amount}`,
   );
 }

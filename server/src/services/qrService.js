@@ -299,11 +299,17 @@ function scanZXingFromLuminance(luminance, width, height, Binarizer = HybridBina
   }
 }
 
+function scanBitmapJsOnly(bitmap) {
+  if (!bitmap?.data || !bitmap.width || !bitmap.height) return null;
+  const jsResult = scanJsQR(bitmap, 'dontInvert') || scanJsQR(bitmap, 'attemptBoth');
+  return jsResult?.data || null;
+}
+
 function scanBitmap(bitmap) {
   if (!bitmap?.data || !bitmap.width || !bitmap.height) return null;
 
-  const jsResult = scanJsQR(bitmap, 'dontInvert') || scanJsQR(bitmap, 'attemptBoth');
-  if (jsResult?.data) return jsResult.data;
+  const jsHit = scanBitmapJsOnly(bitmap);
+  if (jsHit) return jsHit;
 
   if (IS_WORKERS) return null;
 
@@ -572,6 +578,30 @@ export function scanImageForQrValidated(image, shouldStop = () => false, validat
 /** Shared bitmap decoder for bank-specific QR scanners (jsQR + ZXing). */
 export function scanBitmapForData(bitmap) {
   return scanBitmap(bitmap);
+}
+
+/** Fast jsQR-only pass — skip ZXing for bank paths that need low latency. */
+export function scanBitmapJsOnlyForData(bitmap) {
+  return scanBitmapJsOnly(bitmap);
+}
+
+export function scanImageForQrJsOnly(image, shouldStop = () => false, validate = () => true) {
+  if (!image?.bitmap) return null;
+  const direct = scanBitmapJsOnly(image.bitmap);
+  if (direct && validate(direct)) return direct;
+
+  const { width, height } = image.bitmap;
+  const crops = [
+    { y: Math.floor(height * 0.18), h: Math.floor(height * 0.64) },
+    { y: Math.floor(height * 0.50), h: height - Math.floor(height * 0.50) },
+    { y: Math.floor(height * 0.35), h: height - Math.floor(height * 0.35) },
+  ];
+  for (const crop of crops) {
+    if (shouldStop()) return null;
+    const hit = scanBitmapJsOnly(cropBitmap(image.bitmap, 0, crop.y, width, crop.h));
+    if (hit && validate(hit)) return hit;
+  }
+  return null;
 }
 
 export { buildQrDataFromRaw };

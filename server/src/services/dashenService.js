@@ -8,21 +8,45 @@ import {
   parseQrPayload,
   buildQrDataFromRaw,
   prepareQrScanImage,
+  scanImageForQrJsOnly,
+  scanBitmapForData,
   scanImageForQrValidated,
 } from './qrService.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { analyzeQrAuthenticity } from './qrAuthenticityService.js';
 import { extractPaymentFromBuffer } from './geminiService.js';
+import { prepareReceiptWork } from '../utils/prepareReceiptWork.js';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { isWorkersRuntime } from '../config/runtime.js';
 import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../utils/outboundFetch.js';
 
 const RECEIPT_BASE = 'https://receipt.dashensuperapp.com/receipt';
 const DASHEN_REF_RE = /\b(\d{3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i;
-const QR_BUDGET_MS = isWorkersRuntime() ? 3500 : 9000;
-const DASHEN_PDF_TIMEOUT_MS = isWorkersRuntime() ? 5000 : 6000;
+const QR_BUDGET_MS = isWorkersRuntime() ? 3500 : 7000;
+const DASHEN_PDF_TIMEOUT_MS = isWorkersRuntime() ? 4000 : 4500;
 const PDF_TIMEOUT_MS = BANK_FETCH_TIMEOUT_MS;
-const SUPERAPP_OCR_GRACE_MS = 800;
+const SUPERAPP_OCR_GRACE_MS = Number(process.env.DASHEN_SUPERAPP_OCR_GRACE_MS) || 0;
+const DASHEN_JSQR_MS = Number(process.env.DASHEN_JSQR_MS) || 800;
+
+function firstTruthy(...promises) {
+  return new Promise((resolve) => {
+    let pending = promises.length;
+    const done = (val) => {
+      if (val) {
+        resolve(val);
+        return;
+      }
+      pending -= 1;
+      if (pending === 0) resolve(null);
+    };
+    for (const p of promises) {
+      Promise.resolve(p).then(done).catch(() => {
+        pending -= 1;
+        if (pending === 0) resolve(null);
+      });
+    }
+  });
+}
 
 const inflightPdfFetches = new Map();
 
@@ -61,6 +85,17 @@ const PDF_FIELD_RES = {
 
 export function isDashenSuperAppReceiptToken(value) {
   return /^superappreceipt_/i.test(String(value || '').trim());
+}
+
+/** Success-screen QR — token prefix or dashensuperapp.com receipt URL (not VAT IPSS ref). */
+export function isDashenSuccessScreenQr(qrData) {
+  const raw = String(qrData?.raw || '').trim();
+  if (isDashenSuperAppReceiptToken(raw) || isDashenSuperAppReceiptToken(qrData?.dashenReceiptToken)) {
+    return true;
+  }
+  if (/receipt\.dashensuperapp\.com\/receipt\/superappreceipt_/i.test(raw)) return true;
+  if (/receipt\.dashensuperapp\.com/i.test(raw) && !DASHEN_REF_RE.test(raw)) return true;
+  return false;
 }
 
 export function isAcceptedDashenQrPayload(raw) {
@@ -296,8 +331,8 @@ function buildOfficialFallbackQr(reference, officialFields) {
   };
 }
 
-function tryVariant(image, mode) {
-  const deadline = Date.now() + QR_BUDGET_MS;
+function tryVariant(image, mode, budgetMs = QR_BUDGET_MS) {
+  const deadline = Date.now() + budgetMs;
   const raw = scanImageForQrValidated(
     image,
     () => Date.now() >= deadline,
@@ -351,20 +386,21 @@ function scanDashenVatBottomQr(prepared) {
 }
 
 /** Success screen — QR centered on tall mobile screenshots. */
-function scanDashenSuccessQr(prepared) {
+function scanDashenSuccessQr(prepared, budgetMs = QR_BUDGET_MS) {
   if (!prepared?.bitmap) return null;
-  const hit = tryVariant(prepared, 'success');
+  const deadline = Date.now() + budgetMs;
+  const hit = tryVariant(prepared, 'success', Math.max(0, deadline - Date.now()));
   if (hit) return hit;
 
   const { width, height } = prepared.bitmap;
   const midY = Math.floor(height * 0.20);
   const midH = Math.floor(height * 0.60);
   const midCrop = prepared.crop({ x: 0, y: midY, w: width, h: midH });
-  return tryVariant(midCrop, 'success');
+  return tryVariant(midCrop, 'success', Math.max(0, deadline - Date.now()));
 }
 
 /**
- * Dashen QR decode — full variant scan (success screen + VAT crops).
+ * Dashen QR decode — jsQR first, then a short priority list of scaled crops (ZXing).
  */
 async function decodeDashenQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, preparedImage = null } = {}) {
   try {
@@ -373,16 +409,46 @@ async function decodeDashenQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepared
 
     const deadline = Date.now() + maxMs;
     const shouldStop = () => Date.now() >= deadline;
+    const accept = (payload) => Boolean(acceptRaw(payload, 'any'));
 
-    const immediate = tryVariant(prepared, 'any');
-    if (immediate) {
-      console.log('[Dashen] QR decoded (immediate)');
-      return immediate;
+    const jsqrDeadline = Date.now() + Math.min(DASHEN_JSQR_MS, maxMs);
+    const jsqrRaw = scanImageForQrJsOnly(prepared, () => Date.now() >= jsqrDeadline, accept);
+    const jsqrHit = acceptRaw(jsqrRaw, 'any');
+    if (jsqrHit) {
+      console.log('[Dashen] QR decoded (jsQR)');
+      return jsqrHit;
     }
 
     if (shouldStop()) return buildQrDataFromRaw(null);
 
-    const hitSuccess = scanDashenSuccessQr(prepared);
+    const { width, height } = prepared.bitmap;
+    const midY = Math.floor(height * 0.18);
+    const midH = Math.floor(height * 0.64);
+    const bottomY = Math.floor(height * 0.50);
+    // scale(3) full image is the reliable hit for tall Dashen success screenshots.
+    const priority = [
+      prepared.clone().scale(3),
+      prepared.clone().scale(2),
+      prepared,
+      prepared.clone().crop({ x: 0, y: midY, w: width, h: midH }).scale(3),
+      prepared.clone().crop({ x: 0, y: midY, w: width, h: midH }).scale(2),
+      prepared.clone().crop({ x: 0, y: bottomY, w: width, h: height - bottomY }).scale(3),
+      prepared.clone().crop({ x: 0, y: bottomY, w: width, h: height - bottomY }).scale(2),
+    ];
+
+    for (const variant of priority) {
+      if (shouldStop()) break;
+      const raw = scanBitmapForData(variant.bitmap);
+      const hit = acceptRaw(raw, 'any');
+      if (hit) {
+        console.log('[Dashen] QR decoded (priority)');
+        return hit;
+      }
+    }
+
+    if (shouldStop()) return buildQrDataFromRaw(null);
+
+    const hitSuccess = scanDashenSuccessQr(prepared, Math.max(0, deadline - Date.now()));
     if (hitSuccess) return hitSuccess;
 
     if (shouldStop()) return buildQrDataFromRaw(null);
@@ -397,9 +463,9 @@ async function decodeDashenQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepared
 }
 
 export function detectDashenReceiptType(extracted, qrData) {
-  if (isDashenSuperAppReceiptToken(qrData?.raw)) return 'success_screen';
+  if (isDashenSuccessScreenQr(qrData)) return 'success_screen';
   if (extractDashenReferenceFromText(extracted?.transactionCode)) return 'vat_receipt';
-  if (qrData?.dashenReference && !isDashenSuperAppReceiptToken(qrData?.raw)) return 'vat_receipt';
+  if (qrData?.dashenReference && !isDashenSuccessScreenQr(qrData)) return 'vat_receipt';
   if (extracted?.transactionCode && DASHEN_REF_RE.test(extracted.transactionCode)) return 'vat_receipt';
   if (extracted?.amount && !extracted?.transactionCode) return 'success_screen';
   return null;
@@ -420,7 +486,7 @@ function enrichOcrFallbackFields(qrData, qrFields, extracted, reference) {
 }
 
 function enrichSuccessFields(qrData, qrFields, extracted = null) {
-  if (!isDashenSuperAppReceiptToken(qrData?.raw)) return qrFields;
+  if (!isDashenSuccessScreenQr(qrData)) return qrFields;
 
   const enriched = {
     ...qrFields,
@@ -464,12 +530,107 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
   let geminiUsed = false;
   let geminiError = null;
 
-  const qrPromise = decodeDashenQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS });
-  const geminiPromise = extractPaymentFromBuffer(buffer, 'dashen', mime)
+  const workPromise = prepareReceiptWork(buffer, mime);
+  const qrPromise = workPromise.then(({ qrImage }) => (
+    decodeDashenQrFromBuffer(buffer, { maxMs: QR_BUDGET_MS, preparedImage: qrImage })
+  ));
+
+  const geminiPromise = workPromise
+    .then(({ ocrBuffer, ocrMime }) => (
+      extractPaymentFromBuffer(ocrBuffer, 'dashen', ocrMime, { skipOcrPrep: true })
+    ))
     .then((data) => ({ data, used: true }))
     .catch((err) => ({ data: { ...EMPTY_EXTRACTED }, used: false, error: err.message }));
 
-  const [qrDataRaw, geminiOutcome] = await Promise.all([qrPromise, geminiPromise]);
+  const officialFromQrPromise = qrPromise.then(async (qrData) => {
+    const ref = extractDashenReferenceFromQr(qrData);
+    if (!ref || isDashenSuccessScreenQr(qrData)) return null;
+    return fetchDashenTransactionByReference(ref);
+  });
+
+  const officialFromOcrPromise = geminiPromise.then(async (outcome) => {
+    const ref = extractDashenReferenceFromText(outcome.data?.transactionCode);
+    if (!ref) return null;
+    return fetchDashenTransactionByReference(ref);
+  });
+
+  const officialFieldsPromise = qrPromise.then((qrData) => {
+    if (isDashenSuccessScreenQr(qrData)) return null;
+    return firstTruthy(officialFromQrPromise, officialFromOcrPromise);
+  });
+
+  const fullPipelinePromise = Promise.all([
+    qrPromise,
+    geminiPromise,
+    officialFieldsPromise,
+  ]).then(([qrDataRaw, geminiOutcome, officialFields]) => ({
+    qrDataRaw,
+    geminiOutcome,
+    officialFields,
+  }));
+
+  const pipeline = await new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    qrPromise.then(async (qrData) => {
+      if (!isDashenSuccessScreenQr(qrData)) return;
+      // Success-screen QR is enough — do not wait on Gemini/PDF.
+      let geminiOutcome = { data: { ...EMPTY_EXTRACTED }, used: false, error: null };
+      if (SUPERAPP_OCR_GRACE_MS > 0) {
+        geminiOutcome = await Promise.race([
+          geminiPromise,
+          new Promise((r) => setTimeout(
+            () => r({ data: { ...EMPTY_EXTRACTED }, used: false, error: null }),
+            SUPERAPP_OCR_GRACE_MS,
+          )),
+        ]);
+      }
+      finish({ qrDataRaw: qrData, geminiOutcome, officialFields: null });
+    });
+
+    // VAT / IPSS QR — finish as soon as PDF or OCR amount is ready.
+    qrPromise.then(async (qrData) => {
+      if (isDashenSuccessScreenQr(qrData)) return;
+      const ref = extractDashenReferenceFromQr(qrData);
+      if (!ref) return;
+
+      const officialFields = await Promise.race([
+        officialFromQrPromise,
+        new Promise((r) => setTimeout(() => r(null), DASHEN_PDF_TIMEOUT_MS + 200)),
+      ]);
+
+      if (officialFields) {
+        const geminiOutcome = await Promise.race([
+          geminiPromise,
+          new Promise((r) => setTimeout(
+            () => r({ data: { ...EMPTY_EXTRACTED }, used: false, error: null }),
+            400,
+          )),
+        ]);
+        finish({ qrDataRaw: qrData, geminiOutcome, officialFields });
+        return;
+      }
+
+      // PDF miss/502 — need OCR amount, but cap wait.
+      const geminiOutcome = await Promise.race([
+        geminiPromise,
+        new Promise((r) => setTimeout(
+          () => r({ data: { ...EMPTY_EXTRACTED }, used: false, error: null }),
+          6500,
+        )),
+      ]);
+      finish({ qrDataRaw: qrData, geminiOutcome, officialFields: null });
+    });
+
+    fullPipelinePromise.then(finish);
+  });
+
+  const { qrDataRaw, geminiOutcome, officialFields } = pipeline;
 
   let qrData = qrDataRaw;
   const extracted = geminiOutcome.data;
@@ -481,11 +642,6 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
   const refFromText = extractDashenReferenceFromText(extracted?.transactionCode);
   const officialRef = refFromQr || refFromText;
 
-  let officialFields = null;
-  if (officialRef && !isDashenSuperAppReceiptToken(qrData?.raw)) {
-    officialFields = await fetchDashenTransactionByReference(officialRef);
-  }
-
   if (officialFields && !qrData?.raw) {
     qrData = buildOfficialFallbackQr(officialRef, officialFields);
   } else if (!qrData?.raw && refFromText && extracted?.amount != null) {
@@ -496,7 +652,7 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
   }
 
   let qrFields = extractQrReceiptFields('dashen', qrData);
-  if (isDashenSuperAppReceiptToken(qrData?.raw)) {
+  if (isDashenSuccessScreenQr(qrData)) {
     qrFields = enrichSuccessFields(qrData, qrFields, extracted);
   } else if (officialFields) {
     qrFields = mergeDashenOfficialFields(qrFields, officialFields);

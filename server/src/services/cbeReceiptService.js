@@ -5,6 +5,7 @@ import { outboundFetch } from '../utils/outboundFetch.js';
 import { httpsGet } from '../utils/httpsGet.js';
 import { extractCbeMbReceiptToken, decodeQrFromBuffer, prepareQrScanImage, buildQrDataFromRaw } from './qrService.js';
 import { extractPaymentFromBuffer } from './geminiService.js';
+import { prepareReceiptWork } from '../utils/prepareReceiptWork.js';
 import { extractQrReceiptFields } from './qrFieldExtractor.js';
 import { fetchCbeViaPetros, isPetrosVerifierConfigured } from './petrosVerifierService.js';
 
@@ -391,9 +392,13 @@ export async function verifyCbeReceipt({ buffer, mime = 'image/jpeg', screenshot
   let geminiUsed = true;
   let geminiError = null;
 
-  const preparedPromise = prepareQrScanImage(buffer);
+  const workPromise = prepareReceiptWork(buffer, mime);
+  const preparedPromise = workPromise.then((work) => work.qrImage);
 
-  const geminiPromise = extractPaymentFromBuffer(buffer, 'cbe', mime)
+  const geminiPromise = workPromise
+    .then(({ ocrBuffer, ocrMime }) => (
+      extractPaymentFromBuffer(ocrBuffer, 'cbe', ocrMime, { skipOcrPrep: true })
+    ))
     .then((data) => ({ data }))
     .catch((err) => {
       geminiError = err.message;

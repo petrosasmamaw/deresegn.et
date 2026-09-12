@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { buildExtractionPrompt } from './receiptFormats.js';
 import { normalizeTelebirrInvoiceId } from '../utils/telebirrInvoice.js';
 import { isWorkersRuntime } from '../config/runtime.js';
+import { prepareOcrBuffer } from '../utils/prepareOcrBuffer.js';
 
 const TELEBIRR_INVOICE_PROMPT = `This is a Telebirr mobile wallet payment screenshot.
 There are TWO common layouts — read whichever is on screen:
@@ -57,9 +57,9 @@ function modelQueue() {
   return [...new Set([primary, ...FALLBACK_MODELS].filter((id) => id && !SHUT_DOWN_MODELS.has(id)))];
 }
 
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 20000;
-const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 15000;
-const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 15000;
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 8000;
+const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 7000;
+const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 7000;
 
 const BOA_OCR_PROMPT = `This is a Bank of Abyssinia (BOA) payment receipt screenshot.
 Read these fields exactly as printed (do not guess):
@@ -125,6 +125,16 @@ function isQuotaError(err) {
 function isModelNotFoundError(err) {
   const msg = String(err?.message || '');
   return msg.includes('404') || /not found/i.test(msg);
+}
+
+function isTimeoutError(err) {
+  const msg = String(err?.message || err?.name || '');
+  return err?.name === 'AbortError' || /aborted|timeout|ETIMEDOUT/i.test(msg);
+}
+
+async function ocrReadyBuffer(buffer, mimeType = 'image/jpeg') {
+  const ready = await prepareOcrBuffer(buffer, mimeType);
+  return ready;
 }
 
 function buildGeminiHttpError(status, errorBody) {
@@ -217,8 +227,8 @@ function parseGeminiJson(text) {
 }
 
 function isRetryableModelError(err) {
-  if (isQuotaError(err) || isAuthError(err)) return false;
-  return true;
+  if (isQuotaError(err) || isAuthError(err) || isTimeoutError(err)) return false;
+  return isModelNotFoundError(err);
 }
 
 export async function extractPaymentFromScreenshot(imagePath, method = 'telebirr') {
@@ -229,7 +239,7 @@ export async function extractPaymentFromScreenshot(imagePath, method = 'telebirr
   return extractPaymentFromBuffer(buffer, method, mimeType);
 }
 
-export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mimeType = 'image/jpeg') {
+export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mimeType = 'image/jpeg', options = {}) {
   if (geminiAuthInvalid) {
     throw new Error(`GEMINI_API_KEY is invalid or expired. ${GEMINI_KEY_HELP}`);
   }
@@ -240,13 +250,16 @@ export async function extractPaymentFromBuffer(buffer, method = 'telebirr', mime
   const apiKey = resolveGeminiApiKey();
   assertValidApiKey(apiKey);
 
-  const base64 = Buffer.from(buffer).toString('base64');
+  const { buffer: ocrBuffer, mime: ocrMime } = options.skipOcrPrep
+    ? { buffer, mime: mimeType }
+    : await ocrReadyBuffer(buffer, mimeType);
+  const base64 = Buffer.from(ocrBuffer).toString('base64');
   const prompt = buildExtractionPrompt(method);
 
   let lastError = null;
   for (const modelName of modelQueue()) {
     try {
-      const text = await callModel(apiKey, modelName, base64, mimeType, prompt);
+      const text = await callModel(apiKey, modelName, base64, ocrMime, prompt);
       return parseGeminiJson(text);
     } catch (err) {
       lastError = err;
@@ -274,13 +287,16 @@ const EMPTY_TELEBIRR_OCR = {
 };
 
 /** One fast Gemini call for Telebirr Invoice No. + printed names/amount. Primary model only. */
-export async function extractTelebirrOcrFromBuffer(buffer, mimeType = 'image/jpeg') {
+export async function extractTelebirrOcrFromBuffer(buffer, mimeType = 'image/jpeg', options = {}) {
   if (isGeminiQuotaBlocked()) return { ...EMPTY_TELEBIRR_OCR };
 
   const apiKey = resolveGeminiApiKey();
   if (!apiKey?.trim() || geminiAuthInvalid) return { ...EMPTY_TELEBIRR_OCR };
 
-  const base64 = buffer.toString('base64');
+  const { buffer: ocrBuffer, mime: ocrMime } = options.skipOcrPrep
+    ? { buffer, mime: mimeType }
+    : await ocrReadyBuffer(buffer, mimeType);
+  const base64 = ocrBuffer.toString('base64');
 
   for (const modelName of modelQueue()) {
     try {
@@ -288,7 +304,7 @@ export async function extractTelebirrOcrFromBuffer(buffer, mimeType = 'image/jpe
         apiKey,
         modelName,
         base64,
-        mimeType,
+        ocrMime,
         TELEBIRR_INVOICE_PROMPT,
         TELEBIRR_INVOICE_TIMEOUT_MS,
       );
@@ -299,15 +315,14 @@ export async function extractTelebirrOcrFromBuffer(buffer, mimeType = 'image/jpe
         console.log('[Gemini] Telebirr OCR:', invoice, 'via', modelName);
         return parsed;
       }
-      if (parsed.amount != null || parsed.senderName || parsed.receiverName) {
-        return parsed;
-      }
+      return parsed;
     } catch (err) {
       console.warn(`[Gemini] Telebirr OCR ${modelName}:`, err.message);
       if (isQuotaError(err)) {
         markGeminiQuotaBlocked();
         break;
       }
+      if (!isRetryableModelError(err)) break;
     }
   }
 
@@ -319,13 +334,16 @@ export async function extractTelebirrInvoiceFromBuffer(buffer, mimeType = 'image
   return normalizeTelebirrInvoiceId(parsed.transactionCode) || null;
 }
 
-export async function extractBoaOcrFromBuffer(buffer, mimeType = 'image/jpeg') {
+export async function extractBoaOcrFromBuffer(buffer, mimeType = 'image/jpeg', options = {}) {
   if (isGeminiQuotaBlocked()) return { ...EMPTY_TELEBIRR_OCR };
 
   const apiKey = resolveGeminiApiKey();
   if (!apiKey?.trim() || geminiAuthInvalid) return { ...EMPTY_TELEBIRR_OCR };
 
-  const base64 = buffer.toString('base64');
+  const { buffer: ocrBuffer, mime: ocrMime } = options.skipOcrPrep
+    ? { buffer, mime: mimeType }
+    : await ocrReadyBuffer(buffer, mimeType);
+  const base64 = ocrBuffer.toString('base64');
 
   for (const modelName of modelQueue()) {
     try {
@@ -333,7 +351,7 @@ export async function extractBoaOcrFromBuffer(buffer, mimeType = 'image/jpeg') {
         apiKey,
         modelName,
         base64,
-        mimeType,
+        ocrMime,
         BOA_OCR_PROMPT,
         BOA_OCR_TIMEOUT_MS,
       );
@@ -342,15 +360,14 @@ export async function extractBoaOcrFromBuffer(buffer, mimeType = 'image/jpeg') {
         console.log('[Gemini] BOA OCR:', parsed.transactionCode, 'via', modelName);
         return parsed;
       }
-      if (parsed.amount != null || parsed.senderName || parsed.receiverName) {
-        return parsed;
-      }
+      return parsed;
     } catch (err) {
       console.warn(`[Gemini] BOA OCR ${modelName}:`, err.message);
       if (isQuotaError(err)) {
         markGeminiQuotaBlocked();
         break;
       }
+      if (!isRetryableModelError(err)) break;
     }
   }
 
