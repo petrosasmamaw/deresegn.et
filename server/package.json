@@ -8,6 +8,7 @@
     "start": "node src/index.js",
     "test": "node --test",
     "build": "node scripts/verifyBuild.mjs",
+    "bundle:zip": "node scripts/bundleServer.mjs",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:reset": "node src/init/resetAuthTables.js",

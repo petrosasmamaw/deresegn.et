@@ -4,7 +4,8 @@ import cors from 'cors'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import path from 'path'
-import { pathToFileURL } from 'url'
+import fs from 'fs'
+import { pathToFileURL, fileURLToPath } from 'url'
 import balanceRoutes from './routes/balanceRoutes.js'
 import checkRoutes from './routes/checkRoutes.js'
 import appAuthRoutes from './routes/appAuthRoutes.js'
@@ -97,7 +98,11 @@ app.use('/api', csrfOriginGuard)
 
 async function mountAuthHandler() {
   try {
-    const authModuleUrl = pathToFileURL(path.join(process.cwd(), './auth.mjs')).href
+    const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+    const cwdAuth = path.join(process.cwd(), './auth.mjs')
+    const rootAuth = path.join(serverRoot, 'auth.mjs')
+    const authPath = fs.existsSync(cwdAuth) ? cwdAuth : rootAuth
+    const authModuleUrl = pathToFileURL(authPath).href
     const mod = await import(authModuleUrl)
 
     app.get('/api/auth/get-session', async (req, res) => {
@@ -191,14 +196,23 @@ async function start() {
     }
   }
 
-  const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`)
-    console.log(`📡 API available at http://localhost:${PORT}/api`)
-    console.log(`📱 Android emulator: http://10.0.2.2:${PORT}/api`)
-    if (process.env.NODE_ENV === 'production') {
-      startBankConnectivityMonitor()
-    }
-  })
+  const isSocket = typeof PORT === 'string' && isNaN(Number(PORT))
+  const server = isSocket
+    ? app.listen(PORT, () => {
+        console.log(`🚀 Server running on socket ${PORT}`)
+        console.log(`📡 API available on Passenger socket`)
+        if (process.env.NODE_ENV === 'production') {
+          startBankConnectivityMonitor()
+        }
+      })
+    : app.listen(Number(PORT), '0.0.0.0', () => {
+        console.log(`🚀 Server running at http://localhost:${PORT}`)
+        console.log(`📡 API available at http://localhost:${PORT}/api`)
+        console.log(`📱 Android emulator: http://10.0.2.2:${PORT}/api`)
+        if (process.env.NODE_ENV === 'production') {
+          startBankConnectivityMonitor()
+        }
+      })
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
