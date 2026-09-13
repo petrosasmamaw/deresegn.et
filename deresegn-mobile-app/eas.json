@@ -16,8 +16,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://deresegn-et.onrender.com/api",
-        "EXPO_PUBLIC_AUTH_URL": "https://deresegn-et.onrender.com/api/auth",
+        "EXPO_PUBLIC_API_URL": "https://tamagntech.pro.et/api",
+        "EXPO_PUBLIC_AUTH_URL": "https://tamagntech.pro.et/api/auth",
         "EXPO_PUBLIC_WEB_URL": "https://tamagncheck.online"
       }
     },
@@ -27,8 +27,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://deresegn-et.onrender.com/api",
-        "EXPO_PUBLIC_AUTH_URL": "https://deresegn-et.onrender.com/api/auth",
+        "EXPO_PUBLIC_API_URL": "https://tamagntech.pro.et/api",
+        "EXPO_PUBLIC_AUTH_URL": "https://tamagntech.pro.et/api/auth",
         "EXPO_PUBLIC_WEB_URL": "https://tamagncheck.online"
       }
     }
