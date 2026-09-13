@@ -7,7 +7,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/ec8ccc17-7c68-4eb6-a87c-7ca759d109f4"
+      "url": "https://u.expo.dev/2c77cbd0-e138-4741-b7ea-aa7de802dc9e"
     },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -71,8 +71,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "ec8ccc17-7c68-4eb6-a87c-7ca759d109f4"
+        "projectId": "2c77cbd0-e138-4741-b7ea-aa7de802dc9e"
       }
-    }
+    },
+    "owner": "petrosasmamaw2"
   }
 }
