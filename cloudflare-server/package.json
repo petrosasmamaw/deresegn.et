@@ -1,0 +1,36 @@
+{
+  "name": "deresegn-cloudflare-server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "wrangler deploy --dry-run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Deresegn Receipt Checker Backend - Cloudflare Workers + Hono",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "@neondatabase/serverless": "^0.10.4",
+    "@zxing/library": "^0.21.3",
+    "better-auth": "^1.2.8",
+    "cloudinary": "^2.6.1",
+    "disposable-email-domains": "^1.0.62",
+    "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.7.2",
+    "jimp": "^1.6.1",
+    "jpeg-js": "^0.4.4",
+    "jsqr": "^1.4.0",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.16.0",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10",
+    "wrangler": "^3.114.0"
+  }
+}

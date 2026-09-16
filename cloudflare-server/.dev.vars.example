@@ -1,0 +1,53 @@
+# ==============================================================================
+# Cloudflare Workers Environment Variables (.dev.vars)
+# ==============================================================================
+# Copy this file to `.dev.vars` inside `cloudflare-server/` for local development
+# with `wrangler dev`.
+#
+# For production deployment on Cloudflare Workers, add secrets using:
+#   npx wrangler secret put DATABASE_URL
+#   npx wrangler secret put BETTER_AUTH_SECRET
+#   npx wrangler secret put BETTER_AUTH_URL
+#   npx wrangler secret put CLIENT_URL
+#   npx wrangler secret put GEMINI_API_KEY
+#   npx wrangler secret put CLOUDINARY_CLOUD_NAME
+#   npx wrangler secret put CLOUDINARY_API_KEY
+#   npx wrangler secret put CLOUDINARY_API_SECRET
+#   npx wrangler secret put BREVO_API_KEY
+# ==============================================================================
+
+NODE_ENV=production
+
+# PostgreSQL Database (Neon / Supabase / WebSocket-enabled PostgreSQL)
+DATABASE_URL=postgresql://username:password@ep-your-database-pooler.region.neon.tech/deresegn?sslmode=require
+
+# Frontend Client URL
+CLIENT_URL=https://tamagncheck.online
+CLIENT_URLS=https://tamagncheck.online,https://www.tamagncheck.online,https://tamagntech.pro.et
+
+# Better Auth Configuration
+BETTER_AUTH_SECRET=replace-with-at-least-32-characters-random-secret
+# BETTER_AUTH_URL should point to your Worker domain or custom domain (e.g. https://worker-name.workers.dev/api/auth)
+BETTER_AUTH_URL=https://tamagntech.pro.et/api/auth
+
+# API Key Encryption Secret
+API_KEY_ENCRYPTION_SECRET=replace-with-at-least-32-characters-random-secret
+
+# Google Gemini API Key (Required for AI receipt OCR extraction)
+GEMINI_API_KEY=AIzaSyYourGeminiApiKeyHere
+
+# Cloudinary (Required for receipt screenshot uploads)
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-cloudinary-api-key
+CLOUDINARY_API_SECRET=your-cloudinary-api-secret
+CLOUDINARY_FOLDER=deresegn
+
+# Brevo (Transactional Email for password resets)
+BREVO_API_KEY=xkeysib-your-brevo-api-key
+BREVO_SENDER_EMAIL=no-reply@tamagncheck.online
+BREVO_SENDER_NAME=Deresegn Check
+PASSWORD_RESET_URL=https://tamagncheck.online/reset-password
+
+# Petros Ethiopian Bank Verifier Service (optional proxy)
+# PETROS_VERIFIER_BASE_URL=https://verifier.example.et
+# PETROS_VERIFIER_API_KEY=your-petros-api-key

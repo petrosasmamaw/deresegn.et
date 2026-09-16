@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "deresegn-cloudflare-server",
+  "main": "src/index.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "NODE_ENV": "production",
+    "CLOUDINARY_FOLDER": "deresegn",
+    "TELEBIRR_PREFER_PETROS": "true",
+    "TELEBIRR_SKIP_DIRECT": "true",
+    "PETROS_VERIFIER_RETRIES": "2",
+    "PETROS_VERIFIER_TIMEOUT_MS": "45000",
+    "PETROS_VERIFIER_BASE_URL": "https://verifyapi.leulzenebe.pro",
+    "BREVO_SENDER_EMAIL": "asmamawpetros@gmail.com",
+    "BREVO_SENDER_NAME": "Tamagn Check",
+    "PASSWORD_RESET_URL": "https://tamagncheck.online/reset-password",
+    "CLIENT_URL": "https://tamagncheck.online"
+  }
+}
