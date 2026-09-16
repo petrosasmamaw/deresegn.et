@@ -3,7 +3,7 @@ import { getSetting, setSetting } from './balanceLedgerService.js';
 export const VERIFY_BANKS = ['telebirr', 'cbe', 'boa', 'dashen'];
 export const VERIFY_MODES = ['screenshot', 'reference', 'sms'];
 export const SMS_BANKS = new Set(['telebirr', 'cbe', 'boa', 'dashen']);
-const CHANNELS_SCHEMA_VERSION = 2;
+const CHANNELS_SCHEMA_VERSION = 3;
 
 const SETTING_KEY = 'verify_channels';
 
@@ -50,8 +50,12 @@ export function normalizeVerifyChannels(raw) {
     };
   }
   const storedVersion = Number(parsed._v) || 1;
-  if (storedVersion < CHANNELS_SCHEMA_VERSION) {
+  if (storedVersion < 2) {
     next.dashen.sms = true;
+  }
+  if (storedVersion < 3) {
+    next.cbe.reference = true;
+    next.cbe.enabled = true;
   }
   next._v = Math.max(storedVersion, CHANNELS_SCHEMA_VERSION);
   return next;

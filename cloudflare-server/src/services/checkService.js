@@ -180,9 +180,13 @@ export async function ensureUserBalance(userId) {
 }
 
 export async function getUserBalance(userId) {
+  const [row] = await db.select().from(balances).where(eq(balances.userId, userId)).limit(1);
+  if (row) {
+    return parseFloat(toMoney(row.amount));
+  }
   await ensureRegistrationBonus(userId);
-  const row = await ensureUserBalance(userId);
-  return parseFloat(toMoney(row.amount));
+  const created = await ensureUserBalance(userId);
+  return parseFloat(toMoney(created.amount));
 }
 
 /**

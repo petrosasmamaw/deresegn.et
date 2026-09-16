@@ -11,11 +11,10 @@ export async function authenticateUser(c, next) {
       return c.json({ success: false, message: 'Unauthorized' }, 401);
     }
 
-    const profile = await getUserById(session.user.id);
-    const user = profile || session.user;
+    const user = session.user;
     c.set('user', user);
-    c.set('userId', session.user.id);
-    c.set('userRole', user.role);
+    c.set('userId', user.id);
+    c.set('userRole', user.role || 'user');
     await next();
   } catch (err) {
     console.error('[AUTH]', err);

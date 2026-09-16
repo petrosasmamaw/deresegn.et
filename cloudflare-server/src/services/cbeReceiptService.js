@@ -1,4 +1,3 @@
-import fs from 'fs/promises';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { outboundFetch } from '../utils/outboundFetch.js';
 import { httpsGet } from '../utils/httpsGet.js';
@@ -206,12 +205,18 @@ function parseCbeBranchPdfText(text) {
 }
 
 async function parseCbePdfBuffer(buffer) {
-  const parser = new PDFParse({ data: buffer });
   try {
-    const textResult = await parser.getText();
-    return parseCbePdfText(textResult.text || '');
-  } finally {
-    await parser.destroy();
+    const { PDFParse } = await import('pdf-parse');
+    const parser = new PDFParse({ data: buffer });
+    try {
+      const textResult = await parser.getText();
+      return parseCbePdfText(textResult.text || '');
+    } finally {
+      await parser.destroy();
+    }
+  } catch (err) {
+    console.warn('[CBE PDF] PDFParse error:', err.message);
+    return null;
   }
 }
 
@@ -379,7 +384,10 @@ export function mergeCbeApiIntoQrFields(qrFields, cbeApiFields) {
  */
 export async function verifyCbeReceipt({ buffer, mime = 'image/jpeg', screenshotPath }) {
   if (!buffer && screenshotPath) {
-    buffer = await fs.readFile(screenshotPath);
+    try {
+      const { readFile } = await import('node:fs/promises');
+      buffer = await readFile(screenshotPath);
+    } catch {}
   }
   if (!buffer?.length) {
     throw new Error('CBE verification requires a screenshot buffer');

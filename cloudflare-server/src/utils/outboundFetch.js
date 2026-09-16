@@ -1,5 +1,3 @@
-import dns from 'node:dns';
-
 const DEFAULT_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   Accept: 'application/json, text/html, application/pdf, */*',
@@ -8,8 +6,13 @@ const DEFAULT_HEADERS = {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Cloud hosts (Render) often fail on broken IPv6 routes to .et domains.
-dns.setDefaultResultOrder('ipv4first');
+// On Node.js (Render), force IPv4 for .et domains. On Workers, dns module doesn't exist.
+try {
+  const dns = await import('node:dns');
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Cloudflare Workers — no dns module needed
+}
 
 export const BANK_FETCH_TIMEOUT_MS = Number(process.env.BANK_FETCH_TIMEOUT_MS)
   || (isProduction ? 25000 : 15000);

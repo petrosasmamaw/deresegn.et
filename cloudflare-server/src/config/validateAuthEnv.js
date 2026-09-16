@@ -10,7 +10,7 @@ export function validateAuthEnv() {
   if (!isProduction) return;
 
   if (!authUrl) {
-    console.error('❌ BETTER_AUTH_URL is missing on Render.');
+    console.error('❌ BETTER_AUTH_URL is missing in production.');
     return;
   }
 

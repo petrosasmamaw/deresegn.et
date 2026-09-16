@@ -123,7 +123,38 @@ app.get('/api/auth/get-session', async (c) => {
 });
 
 app.all('/api/auth/*', signupRateLimiter, authRateLimiter, async (c) => {
-  return auth.handler(c.req.raw);
+  const res = await auth.handler(c.req.raw);
+  const setCookies = typeof res.headers.getSetCookie === 'function'
+    ? res.headers.getSetCookie()
+    : res.headers.get('set-cookie')
+      ? [res.headers.get('set-cookie')]
+      : [];
+
+  if (setCookies.length > 0) {
+    const newHeaders = new Headers(res.headers);
+    newHeaders.delete('set-cookie');
+    for (const cookieStr of setCookies) {
+      let patched = cookieStr;
+      if (/SameSite=(Lax|Strict)/i.test(patched)) {
+        patched = patched.replace(/SameSite=(Lax|Strict)/i, 'SameSite=None');
+      } else if (!/SameSite=/i.test(patched)) {
+        patched += '; SameSite=None';
+      }
+      if (!/Secure/i.test(patched)) {
+        patched += '; Secure';
+      }
+      if (!/Partitioned/i.test(patched)) {
+        patched += '; Partitioned';
+      }
+      newHeaders.append('set-cookie', patched);
+    }
+    return new Response(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: newHeaders,
+    });
+  }
+  return res;
 });
 
 // 5. Application routes

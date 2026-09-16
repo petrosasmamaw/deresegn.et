@@ -38,10 +38,19 @@ function buildPasswordResetUrl(url, token) {
 }
 
 let _auth = null;
+let _authBaseURL = null;
 
 export function getAuth() {
+  const currentBaseURL = resolveAuthBaseUrl();
+  
+  // Reinitialize if the base URL changed (e.g. process.env was repopulated)
+  if (_auth && _authBaseURL !== currentBaseURL) {
+    _auth = null;
+  }
+
   if (!_auth) {
-    const authBaseURL = resolveAuthBaseUrl();
+    const authBaseURL = currentBaseURL;
+    _authBaseURL = authBaseURL;
     const isProduction = process.env.NODE_ENV === "production";
     const cookieAttributes = getAuthCookieAttributes(isProduction);
 
@@ -66,6 +75,14 @@ export function getAuth() {
       },
       advanced: {
         defaultCookieAttributes: cookieAttributes,
+        cookies: {
+          session_token: {
+            attributes: cookieAttributes,
+          },
+          session_data: {
+            attributes: cookieAttributes,
+          },
+        },
       },
       defaultCookieAttributes: cookieAttributes,
       database: drizzleAdapter(db, {

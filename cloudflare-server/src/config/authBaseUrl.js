@@ -1,6 +1,9 @@
 import { getTrustedOrigins } from './clientOrigins.js';
 
-/** Public Better Auth URL — must be the Render API URL in production. */
+/**
+ * Public Better Auth URL — resolves from BETTER_AUTH_URL env.
+ * Works on both Render (RENDER_EXTERNAL_URL fallback) and Cloudflare Workers.
+ */
 export function resolveAuthBaseUrl() {
   let configured = (process.env.BETTER_AUTH_URL || '').trim().replace(/\/+$/, '');
   const renderBase = (process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/+$/, '');
@@ -15,7 +18,6 @@ export function resolveAuthBaseUrl() {
         console.warn(
           '⚠️  BETTER_AUTH_URL was pointing at Vercel — auto-corrected to:',
           configured,
-          '\n   Set BETTER_AUTH_URL to this value in Render env and redeploy.',
         );
       }
     } catch {
@@ -30,12 +32,15 @@ export function resolveAuthBaseUrl() {
   }
 
   if (isProduction) {
-    console.warn('⚠️  BETTER_AUTH_URL not set — using localhost fallback (set in Render env).');
+    console.warn('⚠️  BETTER_AUTH_URL not set — using localhost fallback.');
   }
   return 'http://localhost:5000/api/auth';
 }
 
-/** Frontend(s) + Render API = cross-origin cookies (SameSite=None). */
+/**
+ * Returns true when the API origin differs from ANY production frontend origin.
+ * This means cross-origin cookies (SameSite=None) are required.
+ */
 export function isCrossOriginAuth() {
   const authUrl = resolveAuthBaseUrl();
   if (!authUrl) return false;
@@ -47,8 +52,13 @@ export function isCrossOriginAuth() {
     return false;
   }
 
-  const origins = getTrustedOrigins();
-  for (const origin of origins) {
+  // Check if any non-localhost trusted origin is on a different host
+  const productionOrigins = getTrustedOrigins().filter(
+    (o) => !/(localhost|127\.0\.0\.1|::1)/i.test(o),
+  );
+
+  // If we have production origins and the auth URL is on a different origin → cross-origin
+  for (const origin of productionOrigins) {
     try {
       if (new URL(origin).origin !== authOrigin) return true;
     } catch {
@@ -61,6 +71,9 @@ export function isCrossOriginAuth() {
 
 export function getAuthCookieAttributes(isProduction) {
   const crossOrigin = isProduction && isCrossOriginAuth();
+  if (crossOrigin) {
+    console.log('🍪 Cross-origin auth detected — using SameSite=None + Partitioned');
+  }
   return {
     httpOnly: true,
     secure: isProduction || crossOrigin,
@@ -70,3 +83,4 @@ export function getAuthCookieAttributes(isProduction) {
     path: '/',
   };
 }
+
