@@ -22,11 +22,11 @@ import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../uti
 
 const RECEIPT_BASE = 'https://receipt.dashensuperapp.com/receipt';
 const DASHEN_REF_RE = /\b(\d{3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i;
-const QR_BUDGET_MS = isWorkersRuntime() ? 3500 : 7000;
-const DASHEN_PDF_TIMEOUT_MS = isWorkersRuntime() ? 4000 : 4500;
+const QR_BUDGET_MS = 3000;
+const DASHEN_PDF_TIMEOUT_MS = 2500;
 const PDF_TIMEOUT_MS = BANK_FETCH_TIMEOUT_MS;
 const SUPERAPP_OCR_GRACE_MS = Number(process.env.DASHEN_SUPERAPP_OCR_GRACE_MS) || 0;
-const DASHEN_JSQR_MS = Number(process.env.DASHEN_JSQR_MS) || 800;
+const DASHEN_JSQR_MS = Number(process.env.DASHEN_JSQR_MS) || 600;
 
 function firstTruthy(...promises) {
   return new Promise((resolve) => {
@@ -381,7 +381,7 @@ function scanDashenVatBottomQr(prepared) {
   const { width, height } = prepared.bitmap;
   const bottomY = Math.floor(height * 0.55);
   const bottomH = height - bottomY;
-  const bottomCrop = prepared.crop({ x: 0, y: bottomY, w: width, h: bottomH });
+  const bottomCrop = prepared.clone().crop({ x: 0, y: bottomY, w: width, h: bottomH });
   return tryVariant(bottomCrop, 'vat');
 }
 
@@ -395,7 +395,7 @@ function scanDashenSuccessQr(prepared, budgetMs = QR_BUDGET_MS) {
   const { width, height } = prepared.bitmap;
   const midY = Math.floor(height * 0.20);
   const midH = Math.floor(height * 0.60);
-  const midCrop = prepared.crop({ x: 0, y: midY, w: width, h: midH });
+  const midCrop = prepared.clone().crop({ x: 0, y: midY, w: width, h: midH });
   return tryVariant(midCrop, 'success', Math.max(0, deadline - Date.now()));
 }
 
@@ -421,43 +421,13 @@ async function decodeDashenQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepared
 
     if (shouldStop()) return buildQrDataFromRaw(null);
 
-    const { width, height } = prepared.bitmap;
-    const midY = Math.floor(height * 0.18);
-    const midH = Math.floor(height * 0.64);
-    const bottomY = Math.floor(height * 0.50);
-
-    const getVariants = function* () {
-      yield prepared;
-      const mid = prepared.crop({ x: 0, y: midY, w: width, h: midH });
-      yield mid;
-      yield mid.clone().scale(2);
-      const bottom = prepared.crop({ x: 0, y: bottomY, w: width, h: height - bottomY });
-      yield bottom;
-      yield bottom.clone().scale(2);
-      if (!isWorkersRuntime()) {
-        yield prepared.clone().scale(2);
-      }
-    };
-
-    for (const variant of getVariants()) {
-      if (shouldStop()) break;
-      const raw = scanBitmapForData(variant.bitmap);
-      const hit = acceptRaw(raw, 'any');
-      if (hit) {
-        console.log('[Dashen] QR decoded (priority)');
-        return hit;
-      }
+    await new Promise((r) => setTimeout(r, 0));
+    const raw = scanImageForQrValidated(prepared, shouldStop, accept);
+    const hit = acceptRaw(raw, 'any');
+    if (hit) {
+      console.log('[Dashen] QR decoded (multi-pass)');
+      return hit;
     }
-
-    if (shouldStop()) return buildQrDataFromRaw(null);
-
-    const hitSuccess = scanDashenSuccessQr(prepared, Math.max(0, deadline - Date.now()));
-    if (hitSuccess) return hitSuccess;
-
-    if (shouldStop()) return buildQrDataFromRaw(null);
-
-    const hitVat = scanDashenVatBottomQr(prepared);
-    if (hitVat) return hitVat;
   } catch (err) {
     console.warn('[Dashen] QR scan error:', err.message);
   }
@@ -574,11 +544,32 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
 
   const pipeline = await new Promise((resolve) => {
     let settled = false;
+    let watchdogTimer = null;
     const finish = (result) => {
       if (settled) return;
       settled = true;
+      if (watchdogTimer) clearTimeout(watchdogTimer);
       resolve(result);
     };
+
+    watchdogTimer = setTimeout(async () => {
+      try {
+        const [qrData, geminiOutcome] = await Promise.all([
+          Promise.race([qrPromise, Promise.resolve(buildQrDataFromRaw(null))]),
+          Promise.race([
+            geminiPromise,
+            Promise.resolve({ data: { ...EMPTY_EXTRACTED }, used: false, error: 'Dashen timeout' }),
+          ]),
+        ]);
+        finish({ qrDataRaw: qrData, geminiOutcome, officialFields: null });
+      } catch {
+        finish({
+          qrDataRaw: buildQrDataFromRaw(null),
+          geminiOutcome: { data: { ...EMPTY_EXTRACTED }, used: false, error: 'Dashen timeout' },
+          officialFields: null,
+        });
+      }
+    }, 12000);
 
     qrPromise.then(async (qrData) => {
       if (!isDashenSuccessScreenQr(qrData)) return;
@@ -594,7 +585,7 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
         ]);
       }
       finish({ qrDataRaw: qrData, geminiOutcome, officialFields: null });
-    });
+    }).catch(() => {});
 
     // VAT / IPSS QR — finish as soon as PDF or OCR amount is ready.
     qrPromise.then(async (qrData) => {
@@ -624,13 +615,33 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
         geminiPromise,
         new Promise((r) => setTimeout(
           () => r({ data: { ...EMPTY_EXTRACTED }, used: false, error: null }),
-          6500,
+          3500,
         )),
       ]);
       finish({ qrDataRaw: qrData, geminiOutcome, officialFields: null });
-    });
+    }).catch(() => {});
 
-    fullPipelinePromise.then(finish);
+    // OCR early resolution: when Gemini extracts Dashen reference & amount, race PDF briefly
+    geminiPromise.then(async (geminiOutcome) => {
+      const ref = extractDashenReferenceFromText(geminiOutcome?.data?.transactionCode);
+      if (!ref || geminiOutcome?.data?.amount == null) return;
+      const qrData = await Promise.race([qrPromise, Promise.resolve(buildQrDataFromRaw(null))]);
+      if (isDashenSuccessScreenQr(qrData)) return; // Handled by success screen branch
+
+      const officialFields = await Promise.race([
+        officialFromOcrPromise,
+        new Promise((r) => setTimeout(() => r(null), 800)),
+      ]);
+      finish({ qrDataRaw: qrData, geminiOutcome, officialFields });
+    }).catch(() => {});
+
+    fullPipelinePromise.then(finish).catch((err) => {
+      finish({
+        qrDataRaw: buildQrDataFromRaw(null),
+        geminiOutcome: { data: { ...EMPTY_EXTRACTED }, used: false, error: err?.message },
+        officialFields: null,
+      });
+    });
   });
 
   const { qrDataRaw, geminiOutcome, officialFields } = pipeline;

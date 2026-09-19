@@ -1,5 +1,6 @@
 import { Jimp } from './jimp.js';
 import { isWorkersRuntime } from '../config/runtime.js';
+import { prepareQrScanImage } from '../services/qrService.js';
 
 const OCR_MAX_EDGE = 1600;
 const OCR_JPEG_QUALITY = 78;
@@ -15,6 +16,11 @@ const QR_SCAN_MIN_DIM = 400;
 export async function prepareReceiptWork(buffer, mime = 'image/jpeg') {
   if (!buffer?.length) {
     return { qrImage: null, ocrBuffer: buffer, ocrMime: mime };
+  }
+
+  if (IS_WORKERS) {
+    const qrImage = await prepareQrScanImage(buffer);
+    return { qrImage, ocrBuffer: buffer, ocrMime: mime };
   }
 
   try {

@@ -34,10 +34,10 @@ async function decodeBoaQrFast(buffer, preparedImage, maxMs = QR_BUDGET_MS) {
 
     const getBoaVariants = function* () {
       yield image;
-      const mid = image.crop({ x: 0, y: midY, w: width, h: midH });
+      const mid = image.clone().crop({ x: 0, y: midY, w: width, h: midH });
       yield mid;
       yield mid.clone().scale(2);
-      const bottom = image.crop({ x: 0, y: bottomY, w: width, h: height - bottomY });
+      const bottom = image.clone().crop({ x: 0, y: bottomY, w: width, h: height - bottomY });
       yield bottom;
       yield bottom.clone().scale(2);
       if (!isWorkersRuntime()) {
@@ -516,7 +516,7 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
   ));
 
   const qrPrefetchPromise = qrPromise.then(async (qrData) => {
-    const decrypted = extractBoaFieldsFromQrPayload(qrData?.raw);
+    const decrypted = await extractBoaFieldsFromQrPayload(qrData?.raw);
     const ref = extractBoaReferenceFromQr(qrData)
       || normalizeTxCode(decrypted?.transactionCode);
     if (!ref) return null;
@@ -550,7 +550,7 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
 
     // Encrypted QR decrypt is enough to finish — briefly race API, don't block on it.
     qrPromise.then(async (qrData) => {
-      const decrypted = extractBoaFieldsFromQrPayload(qrData?.raw);
+      const decrypted = await extractBoaFieldsFromQrPayload(qrData?.raw);
       if (!decrypted?.transactionCode) return;
       const [geminiOutcome, qrPrefetch] = await Promise.all([
         Promise.race([
@@ -589,7 +589,7 @@ export async function verifyBoaReceipt({ buffer, mime = 'image/jpeg', screenshot
   if (geminiError) console.warn('[Gemini]', geminiError);
 
   let qrFields = extractQrReceiptFields('boa', qrData);
-  const decryptedQr = extractBoaFieldsFromQrPayload(qrData?.raw);
+  const decryptedQr = await extractBoaFieldsFromQrPayload(qrData?.raw);
   if (decryptedQr) {
     qrFields = mergeBoaQrDecryptedFields(qrFields, decryptedQr);
     console.log('[BOA] QR decrypted:', decryptedQr.transactionCode, 'amount', decryptedQr.amount);

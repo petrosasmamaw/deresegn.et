@@ -4,8 +4,9 @@ import png from '@jimp/js-png';
 import bmp from '@jimp/js-bmp';
 import * as resize from '@jimp/plugin-resize';
 import * as crop from '@jimp/plugin-crop';
+import * as color from '@jimp/plugin-color';
 
 export const Jimp = createJimp({
   formats: [jpeg, png, bmp],
-  plugins: [resize.methods, crop.methods],
+  plugins: [resize.methods, crop.methods, color.methods],
 });

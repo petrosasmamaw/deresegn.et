@@ -57,9 +57,9 @@ function modelQueue() {
   return [...new Set([primary, ...FALLBACK_MODELS].filter((id) => id && !SHUT_DOWN_MODELS.has(id)))];
 }
 
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 8000;
-const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 7000;
-const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 7000;
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 12000;
+const TELEBIRR_INVOICE_TIMEOUT_MS = Number(process.env.TELEBIRR_INVOICE_TIMEOUT_MS) || 8000;
+const BOA_OCR_TIMEOUT_MS = Number(process.env.BOA_OCR_TIMEOUT_MS) || 10000;
 
 const BOA_OCR_PROMPT = `This is a Bank of Abyssinia (BOA) payment receipt screenshot.
 Read these fields exactly as printed (do not guess):
