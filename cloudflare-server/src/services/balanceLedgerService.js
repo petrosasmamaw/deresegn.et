@@ -102,8 +102,6 @@ export async function hasRegistrationBonus(userId) {
  * Grant welcome bonus at most once per user (unique index + atomic wallet credit).
  */
 export async function ensureRegistrationBonus(userId) {
-  await ensureRegistrationBonusUniqueIndex();
-
   const settings = await getRegistrationBonusSettings();
   if (!settings.enabled || settings.amount <= 0) {
     return { granted: false, reason: 'disabled', amount: settings.amount };

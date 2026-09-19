@@ -1,7 +1,7 @@
 import { auth } from '../../auth.mjs';
 import { db } from '../config/drizzle.js';
 import * as schema from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 
 export async function authenticateUser(c, next) {
   try {
@@ -36,10 +36,11 @@ export async function authenticateUser(c, next) {
 
       if (token) {
         try {
+          const rawToken = token.includes('.') ? token.split('.')[0] : token;
           const sessions = await db
             .select()
             .from(schema.session)
-            .where(eq(schema.session.token, token))
+            .where(or(eq(schema.session.token, token), eq(schema.session.token, rawToken)))
             .limit(1);
 
           if (sessions.length > 0) {

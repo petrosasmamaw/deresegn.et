@@ -35,7 +35,7 @@ import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerServ
 import { testConnection } from './db/index.js';
 import { db } from './config/drizzle.js';
 import * as schema from './db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 
 const app = new Hono();
 
@@ -156,10 +156,11 @@ app.get('/api/auth/get-session', async (c) => {
 
       if (token) {
         try {
+          const rawToken = token.includes('.') ? token.split('.')[0] : token;
           const sessions = await db
             .select()
             .from(schema.session)
-            .where(eq(schema.session.token, token))
+            .where(or(eq(schema.session.token, token), eq(schema.session.token, rawToken)))
             .limit(1);
 
           if (sessions.length > 0) {
