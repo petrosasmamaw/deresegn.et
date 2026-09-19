@@ -15,6 +15,27 @@ function mapSessionUser(sessionUser) {
   }
 }
 
+function saveSessionToken(data) {
+  try {
+    const token = data?.token || data?.session?.token || data?.sessionToken
+    if (token && typeof window !== 'undefined') {
+      localStorage.setItem('tamagn_auth_token', token)
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function clearSessionToken() {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tamagn_auth_token')
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWithValue, dispatch }) => {
   try {
     const { data, error } = await authClient.signUp.email({
@@ -28,6 +49,8 @@ export const signup = createAsyncThunk('auth/signup', async (payload, { rejectWi
     if (!data?.user) {
       return rejectWithValue('Signup failed — no user returned')
     }
+
+    saveSessionToken(data)
 
     // Prefer sign-up payload; only probe session if needed.
     const sessionUser = data.user
@@ -52,6 +75,8 @@ export const login = createAsyncThunk('auth/login', async (payload, { rejectWith
       return rejectWithValue('Login failed — no user returned')
     }
 
+    saveSessionToken(data)
+
     // Fast path: trust sign-in user immediately; hydrate profile in background.
     const user = mapSessionUser(data.user)
     dispatch(hydrateProfile())
@@ -74,24 +99,57 @@ export const hydrateProfile = createAsyncThunk('auth/hydrateProfile', async () =
 })
 
 /**
- * Fast session gate: one cookie round-trip via better-auth getSession.
- * Full /users/me profile hydrates in the background so splash never waits on it.
+ * Fast session gate: check getSession with Bearer token & cookie,
+ * with graceful /users/me fallback so cross-origin auth never loses session.
  */
 export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatch }) => {
   try {
-    const { data: session } = await authClient.getSession()
-    if (!session?.user) return null
+    const token = typeof window !== 'undefined' ? localStorage.getItem('tamagn_auth_token') : null
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
-    const user = mapSessionUser(session.user)
-    dispatch(hydrateProfile())
-    return user
+    const { data: session } = await authClient.getSession({
+      fetchOptions: {
+        headers,
+      },
+    })
+
+    if (session?.user) {
+      saveSessionToken(session)
+      const user = mapSessionUser(session.user)
+      dispatch(hydrateProfile())
+      return user
+    }
+
+    // Fallback: If getSession didn't return user, but we have a stored token, try /users/me
+    if (token) {
+      try {
+        const res = await axios.get('/users/me', {
+          headers: { Authorization: `Bearer ${token}` },
+          skipAuthExpire: true,
+          timeout: 6000,
+        })
+        const data = unwrap(res)
+        if (data?.user) {
+          return mapSessionUser(data.user)
+        }
+      } catch {
+        clearSessionToken()
+      }
+    }
+
+    return null
   } catch {
     return null
   }
 })
 
 export const logout = createAsyncThunk('auth/logout', async () => {
-  await authClient.signOut()
+  clearSessionToken()
+  try {
+    await authClient.signOut()
+  } catch {
+    // ignore
+  }
 })
 
 const slice = createSlice({
@@ -105,6 +163,7 @@ const slice = createSlice({
     // Triggered by a 401 on any API call — drops the stale user so guarded
     // routes redirect to /login. Does NOT touch the verify/auth request flow.
     sessionExpired(state) {
+      clearSessionToken()
       state.user = null
       state.initializing = false
       state.submitting = false

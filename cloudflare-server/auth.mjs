@@ -11,6 +11,7 @@ import { resolveAuthBaseUrl, getAuthCookieAttributes } from "./src/config/authBa
 import { sendPasswordResetEmail } from "./src/services/emailService.js";
 import { validateEmailForRegistration } from "./src/utils/emailValidator.js";
 import { APIError } from "better-auth/api";
+import { bearer } from "better-auth/plugins";
 
 dotenv.config();
 validateAuthEnv();
@@ -67,6 +68,7 @@ export function getAuth() {
       baseURL: authBaseURL,
       trustedOrigins: getTrustedOrigins(),
       useSecureCookies: isProduction,
+      plugins: [bearer()],
       rateLimit: {
         enabled: true,
         window: 60,

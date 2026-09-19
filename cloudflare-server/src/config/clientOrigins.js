@@ -59,7 +59,25 @@ export function getTrustedOrigins() {
 
 export function isTrustedOrigin(origin) {
   if (!origin) return true; // non-browser / same-origin tools (curl, health checks)
-  return getTrustedOrigins().includes(normalizeOrigin(origin));
+  const norm = normalizeOrigin(origin);
+  if (!norm) return false;
+  if (getTrustedOrigins().includes(norm)) return true;
+  try {
+    const { hostname } = new URL(norm);
+    if (
+      hostname === 'tamagncheck.online' ||
+      hostname.endsWith('.tamagncheck.online') ||
+      hostname === 'tamagntech.pro.et' ||
+      hostname.endsWith('.tamagntech.pro.et') ||
+      hostname.endsWith('.vercel.app') ||
+      hostname.endsWith('.pages.dev')
+    ) {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
 }
 
 export function getPrimaryClientOrigin() {

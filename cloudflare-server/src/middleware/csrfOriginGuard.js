@@ -14,7 +14,7 @@ export async function csrfOriginGuard(c, next) {
 
   const apiKey = c.req.header('x-api-key');
   const authHeader = c.req.header('authorization') || '';
-  if (apiKey || authHeader.toLowerCase().startsWith('bearer dk_live_')) {
+  if (apiKey || authHeader.toLowerCase().startsWith('bearer ')) {
     return next();
   }
 

@@ -25,14 +25,19 @@ export function resolveAuthBaseUrl() {
     }
   }
 
-  if (configured) return configured;
+  if (configured) {
+    if (!configured.endsWith('/api/auth')) {
+      configured = `${configured}/api/auth`;
+    }
+    return configured;
+  }
 
   if (isProduction && renderBase) {
     return `${renderBase}/api/auth`;
   }
 
   if (isProduction) {
-    console.warn('⚠️  BETTER_AUTH_URL not set — using localhost fallback.');
+    return 'https://deresegn-cloudflare-server.asmamawpetros.workers.dev/api/auth';
   }
   return 'http://localhost:5000/api/auth';
 }
@@ -64,6 +69,10 @@ export function isCrossOriginAuth() {
     } catch {
       if (origin !== authOrigin) return true;
     }
+  }
+
+  if (authOrigin && authOrigin.includes('workers.dev')) {
+    return true;
   }
 
   return false;

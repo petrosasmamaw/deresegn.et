@@ -20,6 +20,7 @@
     "BREVO_SENDER_EMAIL": "asmamawpetros@gmail.com",
     "BREVO_SENDER_NAME": "Tamagn Check",
     "PASSWORD_RESET_URL": "https://tamagncheck.online/reset-password",
-    "CLIENT_URL": "https://tamagncheck.online"
+    "CLIENT_URL": "https://tamagncheck.online",
+    "BETTER_AUTH_URL": "https://deresegn-cloudflare-server.asmamawpetros.workers.dev/api/auth"
   }
 }

@@ -14,7 +14,7 @@ import {
 const app = new Hono();
 
 app.get('/certificate/:token', adapt(getPublicCertificate));
-app.get('/channels', authenticateUser, adapt(getVerifyChannelsCatalog));
+app.get('/channels', adapt(getVerifyChannelsCatalog));
 app.post('/', authenticateUser, adapt(performCheck));
 app.post('/reference', authenticateUser, adapt(performReferenceCheck));
 app.post('/sms', authenticateUser, adapt(performSmsCheck));

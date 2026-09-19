@@ -33,6 +33,9 @@ import { ensureUserPaymentAccountsTable } from './services/userPaymentAccountSer
 import { ensureApiKeysTable } from './services/apiKeyService.js';
 import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerService.js';
 import { testConnection } from './db/index.js';
+import { db } from './config/drizzle.js';
+import * as schema from './db/schema.js';
+import { eq } from 'drizzle-orm';
 
 const app = new Hono();
 
@@ -93,14 +96,24 @@ app.use(
     allowHeaders: [
       'Content-Type',
       'Authorization',
+      'authorization',
       'X-Requested-With',
       'X-Tamagn-Client',
       'X-Tamagn-Platform',
       'X-Api-Key',
+      'X-Session-Token',
       'Accept',
       'Origin',
     ],
-    exposeHeaders: ['X-Request-Id', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+    exposeHeaders: [
+      'X-Request-Id',
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+      'X-Auth-Token',
+      'x-auth-token',
+      'Set-Cookie',
+    ],
   }),
 );
 
@@ -112,9 +125,67 @@ app.use('/api/*', csrfOriginGuard);
 // 4. Better Auth handlers (Native Web Standards on Cloudflare Workers)
 app.get('/api/auth/get-session', async (c) => {
   try {
-    const session = await auth.api.getSession({
-      headers: c.req.raw.headers,
-    });
+    let session = null;
+
+    // 1. Try Better Auth's native getSession
+    try {
+      session = await auth.api.getSession({
+        headers: c.req.raw.headers,
+      });
+    } catch (authErr) {
+      console.warn('[auth] get-session native error:', authErr.message);
+    }
+
+    // 2. Fallback: extract token if Better Auth native getSession did not resolve
+    if (!session?.user) {
+      const authHeader = c.req.header('authorization') || c.req.header('Authorization');
+      let token = null;
+
+      if (authHeader && /^Bearer\s+/i.test(authHeader)) {
+        token = authHeader.replace(/^Bearer\s+/i, '').trim();
+      } else {
+        token = c.req.header('x-session-token');
+        if (!token) {
+          const cookieHeader = c.req.header('cookie') || '';
+          const match = cookieHeader.match(/(?:better-auth\.session_token|__Secure-better-auth\.session_token)=([^;]+)/);
+          if (match) {
+            token = decodeURIComponent(match[1].trim());
+          }
+        }
+      }
+
+      if (token) {
+        try {
+          const sessions = await db
+            .select()
+            .from(schema.session)
+            .where(eq(schema.session.token, token))
+            .limit(1);
+
+          if (sessions.length > 0) {
+            const dbSession = sessions[0];
+            const expiresAt = new Date(dbSession.expiresAt).getTime();
+            if (expiresAt > Date.now()) {
+              const users = await db
+                .select()
+                .from(schema.user)
+                .where(eq(schema.user.id, dbSession.userId))
+                .limit(1);
+
+              if (users.length > 0) {
+                session = {
+                  session: dbSession,
+                  user: users[0],
+                };
+              }
+            }
+          }
+        } catch (dbErr) {
+          console.warn('[auth] get-session DB fallback error:', dbErr.message);
+        }
+      }
+    }
+
     return c.json(session || null);
   } catch (error) {
     console.error('[auth] get-session failed:', error.message);
@@ -130,8 +201,18 @@ app.all('/api/auth/*', signupRateLimiter, authRateLimiter, async (c) => {
       ? [res.headers.get('set-cookie')]
       : [];
 
+  const origin = c.req.header('origin');
+  const trusted = origin && isTrustedOrigin(origin);
+  const newHeaders = new Headers(res.headers);
+
+  if (origin && trusted) {
+    newHeaders.set('Access-Control-Allow-Origin', origin);
+    newHeaders.set('Access-Control-Allow-Credentials', 'true');
+  }
+
+  let sessionToken = null;
+
   if (setCookies.length > 0) {
-    const newHeaders = new Headers(res.headers);
     newHeaders.delete('set-cookie');
     for (const cookieStr of setCookies) {
       let patched = cookieStr;
@@ -147,14 +228,51 @@ app.all('/api/auth/*', signupRateLimiter, authRateLimiter, async (c) => {
         patched += '; Partitioned';
       }
       newHeaders.append('set-cookie', patched);
+
+      const m = cookieStr.match(/(?:better-auth\.session_token|__Secure-better-auth\.session_token)=([^;]+)/);
+      if (m) {
+        sessionToken = decodeURIComponent(m[1].trim());
+      }
     }
-    return new Response(res.body, {
-      status: res.status,
-      statusText: res.statusText,
-      headers: newHeaders,
-    });
   }
-  return res;
+
+  if (sessionToken) {
+    newHeaders.set('X-Auth-Token', sessionToken);
+  }
+
+  // If response is JSON, ensure token is attached to JSON body so frontend can easily store it
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      const text = await res.text();
+      let bodyData = JSON.parse(text);
+      if (typeof bodyData === 'object' && bodyData !== null) {
+        if (!bodyData.token && sessionToken) {
+          bodyData.token = sessionToken;
+        }
+        const updatedBody = JSON.stringify(bodyData);
+        newHeaders.set('Content-Length', String(new TextEncoder().encode(updatedBody).length));
+        return new Response(updatedBody, {
+          status: res.status,
+          statusText: res.statusText,
+          headers: newHeaders,
+        });
+      }
+      return new Response(text, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: newHeaders,
+      });
+    } catch {
+      // ignore parse error, return as is
+    }
+  }
+
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: newHeaders,
+  });
 });
 
 // 5. Application routes
