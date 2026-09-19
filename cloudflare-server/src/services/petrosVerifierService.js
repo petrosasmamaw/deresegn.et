@@ -3,24 +3,22 @@ import { normalizeTelebirrInvoiceId } from '../utils/telebirrInvoice.js';
 import { normalizeTxCode } from '../utils/txCode.js';
 import { reportPetrosFailure } from '../config/petrosMonitor.js';
 
-const PETROS_BASE_URL = String(process.env.PETROS_VERIFIER_BASE_URL || '')
-  .trim()
-  .replace(/\/$/, '');
-const PETROS_API_KEY = String(
-  process.env.PETROS_VERIFIER_API_KEY
-  || process.env.VERIFIER_API_KEY
-  || '',
-).trim();
-const PETROS_TIMEOUT_MS = Number(process.env.PETROS_VERIFIER_TIMEOUT_MS) || 45000;
-const PETROS_RETRIES = Number(process.env.PETROS_VERIFIER_RETRIES);
-const PETROS_RETRY_COUNT = Number.isFinite(PETROS_RETRIES) ? Math.max(0, PETROS_RETRIES) : 2;
+export function getPetrosBaseUrl() {
+  return String(process.env.PETROS_VERIFIER_BASE_URL || 'https://verifyapi.leulzenebe.pro')
+    .trim()
+    .replace(/\/$/, '');
+}
 
-const PETROS_HOST = (() => {
-  try { return new URL(PETROS_BASE_URL).hostname; } catch { return ''; }
-})();
+export function getPetrosApiKey() {
+  return String(
+    process.env.PETROS_VERIFIER_API_KEY
+    || process.env.VERIFIER_API_KEY
+    || '',
+  ).trim();
+}
 
 export function isPetrosVerifierConfigured() {
-  return Boolean(PETROS_API_KEY && PETROS_BASE_URL);
+  return Boolean(getPetrosApiKey() && getPetrosBaseUrl());
 }
 
 /** Never print upstream host/brand names in terminal or client-facing errors. */
@@ -84,10 +82,12 @@ export function mapPetrosTelebirrPayload(data, invoiceId) {
 }
 
 async function postPetrosVerify(path, body, invoiceId, {
-  timeoutMs = PETROS_TIMEOUT_MS,
-  retries = PETROS_RETRY_COUNT,
+  timeoutMs = Number(process.env.PETROS_VERIFIER_TIMEOUT_MS) || 45000,
+  retries = Number.isFinite(Number(process.env.PETROS_VERIFIER_RETRIES)) ? Math.max(0, Number(process.env.PETROS_VERIFIER_RETRIES)) : 2,
 } = {}) {
-  const response = await outboundFetch(`${PETROS_BASE_URL}${path}`, {
+  const baseUrl = getPetrosBaseUrl();
+  const apiKey = getPetrosApiKey();
+  const response = await outboundFetch(`${baseUrl}${path}`, {
     method: 'POST',
     timeoutMs,
     retries,
@@ -95,7 +95,7 @@ async function postPetrosVerify(path, body, invoiceId, {
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'x-api-key': PETROS_API_KEY,
+      'x-api-key': apiKey,
       Connection: 'close',
     },
     body: JSON.stringify(body),

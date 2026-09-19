@@ -62,10 +62,7 @@ export function resolvePaymentId(method, { validation, qrData, extracted }) {
     return qrTx || screenshotTx || qrData?.dashenReference || qrData?.dashenReceiptToken || qrData?.verificationToken || fallbackTx || validation?.resolvedDetails?.transactionCode || null;
   }
   if (method === 'boa') {
-    if (qrFields?.boaApiSource || qrFields?.boaQrDecrypted) {
-      return qrTx || fallbackTx || screenshotTx || null;
-    }
-    return null;
+    return qrTx || fallbackTx || screenshotTx || null;
   }
   return qrTx || screenshotTx || fallbackTx || null;
 }

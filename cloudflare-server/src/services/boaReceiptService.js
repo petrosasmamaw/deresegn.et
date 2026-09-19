@@ -30,18 +30,22 @@ async function decodeBoaQrFast(buffer, preparedImage, maxMs = QR_BUDGET_MS) {
     const { width, height } = image.bitmap;
     const midY = Math.floor(height * 0.25);
     const midH = Math.floor(height * 0.55);
-    const priority = [
-      image,
-      image.clone().crop({ x: 0, y: midY, w: width, h: midH }).scale(2),
-      image.clone().scale(2),
-      image.clone().crop({
-        x: 0,
-        y: Math.floor(height * 0.45),
-        w: width,
-        h: height - Math.floor(height * 0.45),
-      }).scale(2),
-    ];
-    for (const variant of priority) {
+    const bottomY = Math.floor(height * 0.45);
+
+    const getBoaVariants = function* () {
+      yield image;
+      const mid = image.crop({ x: 0, y: midY, w: width, h: midH });
+      yield mid;
+      yield mid.clone().scale(2);
+      const bottom = image.crop({ x: 0, y: bottomY, w: width, h: height - bottomY });
+      yield bottom;
+      yield bottom.clone().scale(2);
+      if (!isWorkersRuntime()) {
+        yield image.clone().scale(2);
+      }
+    };
+
+    for (const variant of getBoaVariants()) {
       if (shouldStop()) break;
       const data = scanBitmapForData(variant.bitmap);
       if (data) return buildQrDataFromRaw(data);

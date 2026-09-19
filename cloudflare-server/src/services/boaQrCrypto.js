@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { normalizeTxCode } from '../utils/txCode.js';
 
 /** Keys extracted from cs.bankofabyssinia.com/slip SPA (same as receipt QR generation). */
@@ -42,7 +42,7 @@ export function decryptBoaQrPayload(raw) {
     const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
     const plain = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
     if (!plain || plain.length < 8) return null;
-    if (!/FT[A-Z0-9]{6,}/i.test(plain)) return null;
+    if (!/(FT|TT)[A-Z0-9]{6,}/i.test(plain)) return null;
     return plain;
   } catch {
     return null;

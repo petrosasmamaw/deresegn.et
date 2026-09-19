@@ -21,6 +21,7 @@
     "BREVO_SENDER_NAME": "Tamagn Check",
     "PASSWORD_RESET_URL": "https://tamagncheck.online/reset-password",
     "CLIENT_URL": "https://tamagncheck.online",
-    "BETTER_AUTH_URL": "https://deresegn-cloudflare-server.asmamawpetros.workers.dev/api/auth"
+    "BETTER_AUTH_URL": "https://deresegn-cloudflare-server.asmamawpetros.workers.dev/api/auth",
+    "PETROS_VERIFIER_API_KEY": "sk_live_2f14b367a05d496b43a4c5e4062645e93dbc8e3d50bbb42f"
   }
 }

@@ -425,18 +425,21 @@ async function decodeDashenQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepared
     const midY = Math.floor(height * 0.18);
     const midH = Math.floor(height * 0.64);
     const bottomY = Math.floor(height * 0.50);
-    // scale(3) full image is the reliable hit for tall Dashen success screenshots.
-    const priority = [
-      prepared.clone().scale(3),
-      prepared.clone().scale(2),
-      prepared,
-      prepared.clone().crop({ x: 0, y: midY, w: width, h: midH }).scale(3),
-      prepared.clone().crop({ x: 0, y: midY, w: width, h: midH }).scale(2),
-      prepared.clone().crop({ x: 0, y: bottomY, w: width, h: height - bottomY }).scale(3),
-      prepared.clone().crop({ x: 0, y: bottomY, w: width, h: height - bottomY }).scale(2),
-    ];
 
-    for (const variant of priority) {
+    const getVariants = function* () {
+      yield prepared;
+      const mid = prepared.crop({ x: 0, y: midY, w: width, h: midH });
+      yield mid;
+      yield mid.clone().scale(2);
+      const bottom = prepared.crop({ x: 0, y: bottomY, w: width, h: height - bottomY });
+      yield bottom;
+      yield bottom.clone().scale(2);
+      if (!isWorkersRuntime()) {
+        yield prepared.clone().scale(2);
+      }
+    };
+
+    for (const variant of getVariants()) {
       if (shouldStop()) break;
       const raw = scanBitmapForData(variant.bitmap);
       const hit = acceptRaw(raw, 'any');

@@ -1,3 +1,5 @@
+import { isTrustedOrigin } from '../config/clientOrigins.js';
+
 /**
  * Express-to-Hono route handler adapter for Cloudflare Workers.
  *
@@ -101,10 +103,17 @@ export function adapt(handler) {
       },
     };
 
+    const origin = c.req.header('origin');
+    const trusted = origin && isTrustedOrigin(origin);
+
     try {
       await handler(req, res);
     } catch (err) {
       console.error('[HonoAdapter Error]', err);
+      if (trusted) {
+        c.header('Access-Control-Allow-Origin', origin);
+        c.header('Access-Control-Allow-Credentials', 'true');
+      }
       return c.json(
         {
           success: false,
@@ -114,12 +123,17 @@ export function adapt(handler) {
       );
     }
 
+    if (trusted) {
+      c.header('Access-Control-Allow-Origin', origin);
+      c.header('Access-Control-Allow-Credentials', 'true');
+    }
+
     for (const [key, value] of Object.entries(responseHeaders)) {
       c.header(key, value);
     }
 
     if (isJson) {
-      return c.body(responseBody, statusCode, { 'Content-Type': 'application/json' });
+      c.header('Content-Type', 'application/json');
     }
 
     return c.body(responseBody, statusCode);

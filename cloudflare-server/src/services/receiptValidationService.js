@@ -680,7 +680,7 @@ function validateBoaOfficialReceipt({
   geminiUsed,
   boaResolve,
 }) {
-  const hasQrTruth = Boolean(qrFields?.boaQrDecrypted);
+  const hasQrTruth = Boolean(qrFields?.boaQrDecrypted || qrFields?.transactionCode);
   const hasApiTruth = Boolean(qrFields?.boaApiSource && boaResolve?.official);
   const hasTruth = hasQrTruth || hasApiTruth;
   const truthLabel = hasApiTruth

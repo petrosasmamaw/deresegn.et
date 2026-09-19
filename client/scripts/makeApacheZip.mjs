@@ -194,14 +194,14 @@ const jsFiles = relFiles.filter((f) => f.split(path.sep).join('/').startsWith('a
 let baked = false;
 for (const f of jsFiles) {
   const text = fs.readFileSync(path.join(distDir, f), 'utf8');
-  if (text.includes('deresegn-et.onrender.com')) {
+  if (text.includes('deresegn-cloudflare-server.asmamawpetros.workers.dev') || text.includes('workers.dev')) {
     baked = true;
     break;
   }
 }
 console.log('api_url_baked:', baked);
 if (!baked) {
-  console.error('Production API URL not found in built JS');
+  console.error('Production Cloudflare API URL not found in built JS');
   process.exit(1);
 }
 console.log('OK archive.zip ready');

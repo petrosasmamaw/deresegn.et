@@ -18,13 +18,16 @@ const TELEBIRR_TIMEOUT_MS = Number(process.env.TELEBIRR_FETCH_TIMEOUT_MS)
   || (isProduction ? 30000 : 12000);
 const TELEBIRR_RETRIES = Number(process.env.TELEBIRR_FETCH_RETRIES)
   || (isProduction ? 2 : 0);
-/** Prefer Petros verifier (works from US/Render). Direct Ethio Telecom is fallback / local. */
-const TELEBIRR_PREFER_PETROS = !/^(0|false|no)$/i.test(
-  String(process.env.TELEBIRR_PREFER_PETROS ?? 'true'),
-);
-const TELEBIRR_SKIP_DIRECT = /^(1|true|yes)$/i.test(
-  String(process.env.TELEBIRR_SKIP_DIRECT || ''),
-);
+function shouldPreferPetros() {
+  return !/^(0|false|no)$/i.test(
+    String(process.env.TELEBIRR_PREFER_PETROS ?? 'true'),
+  );
+}
+function shouldSkipDirect() {
+  return /^(1|true|yes)$/i.test(
+    String(process.env.TELEBIRR_SKIP_DIRECT || ''),
+  );
+}
 const inflightReceiptFetches = new Map();
 
 function sleep(ms) {
@@ -168,7 +171,7 @@ export async function fetchTelebirrReceipt(invoiceId) {
   const fetchPromise = (async () => {
     try {
       // 1) Petros verifier (payment ID → official Telebirr record)
-      if (TELEBIRR_PREFER_PETROS && isPetrosVerifierConfigured()) {
+      if (shouldPreferPetros() && isPetrosVerifierConfigured()) {
         const fromPetros = await fetchTelebirrViaPetros(id);
         if (fromPetros) {
           console.log('[Telebirr] Official receipt loaded:', id, 'amount', fromPetros.amount, 'via petros');
@@ -180,7 +183,7 @@ export async function fetchTelebirrReceipt(invoiceId) {
         }
       }
 
-      if (TELEBIRR_SKIP_DIRECT) {
+      if (shouldSkipDirect()) {
         console.warn('[Telebirr] Petros miss and TELEBIRR_SKIP_DIRECT=true — skipping Ethio Telecom');
         return null;
       }
@@ -190,7 +193,7 @@ export async function fetchTelebirrReceipt(invoiceId) {
       const html = await fetchTelebirrHtml(url, id);
       if (!html) {
         // 3) Petros fallback if prefer was false or first call failed
-        if (!TELEBIRR_PREFER_PETROS && isPetrosVerifierConfigured()) {
+        if (!shouldPreferPetros() && isPetrosVerifierConfigured()) {
           const fromPetros = await fetchTelebirrViaPetros(id);
           if (fromPetros) {
             console.log('[Telebirr] Official receipt loaded:', id, 'amount', fromPetros.amount, 'via petros-fallback');

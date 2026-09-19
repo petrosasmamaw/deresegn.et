@@ -19,13 +19,13 @@ const jsQR = typeof jsQRRaw === 'function' ? jsQRRaw : (jsQRRaw?.default || jsQR
 
 const IS_WORKERS = isWorkersRuntime();
 const QR_SCAN_MAX_DIM = IS_WORKERS
-  ? Number(process.env.QR_SCAN_MAX_DIM) || 600
+  ? Number(process.env.QR_SCAN_MAX_DIM) || 1400
   : Number(process.env.QR_SCAN_MAX_DIM) || 2200;
 const QR_SCAN_MIN_DIM = 400;
-const WORKERS_QR_VARIANT_CAP = 1;
+const WORKERS_QR_VARIANT_CAP = 4;
 
 const DEFAULT_QR_MAX_MS = IS_WORKERS
-  ? Number(process.env.QR_MAX_MS) || 600
+  ? Number(process.env.QR_MAX_MS) || 4000
   : Number(process.env.QR_MAX_MS) || 9000;
 
 let cachedZxingReader = null;
