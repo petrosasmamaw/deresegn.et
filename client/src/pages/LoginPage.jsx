@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { login } from '../features/auth/authSlice'
+import { fetchSession, login } from '../features/auth/authSlice'
 import { ArrowRight } from 'lucide-react'
 import AuthSeoBlurb from '../components/AuthSeoBlurb'
 import LangToggle from '../components/LangToggle'
@@ -24,6 +24,10 @@ export default function LoginPage() {
   const { user, initializing, submitting, error } = useSelector((s) => s.auth)
   const { t, locale } = useLocale()
   const from = location.state?.from
+
+  useEffect(() => {
+    dispatch(fetchSession())
+  }, [dispatch])
 
   if (user) {
     return <Navigate to={postLoginPath(user.role, from)} replace />

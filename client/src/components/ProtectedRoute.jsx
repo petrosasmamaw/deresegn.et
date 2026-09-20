@@ -1,5 +1,7 @@
-import { useSelector } from 'react-redux'
+import { useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Navigate, useLocation } from 'react-router-dom'
+import { fetchSession } from '../features/auth/authSlice'
 
 function DashboardSkeleton() {
   return (
@@ -30,6 +32,13 @@ function DashboardSkeleton() {
 export default function ProtectedRoute({ children, requireAdmin = false }) {
   const { user, initializing } = useSelector((s) => s.auth)
   const location = useLocation()
+  const dispatch = useDispatch()
+
+  useEffect(() => {
+    if (initializing) {
+      dispatch(fetchSession())
+    }
+  }, [dispatch, initializing])
 
   if (initializing) {
     return <DashboardSkeleton />

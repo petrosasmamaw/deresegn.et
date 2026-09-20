@@ -106,8 +106,8 @@ export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatc
   const started = Date.now()
   const ensureMinHold = async () => {
     const elapsed = Date.now() - started
-    if (elapsed < 350) {
-      await new Promise((r) => setTimeout(r, 350 - elapsed))
+    if (elapsed < 600) {
+      await new Promise((r) => setTimeout(r, 600 - elapsed))
     }
   }
 
