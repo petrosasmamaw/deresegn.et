@@ -293,6 +293,21 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+.input.is-authenticating {
+  letter-spacing: 0.22em;
+  background-color: var(--color-bg-subtle);
+  color: var(--color-birr-green);
+  cursor: wait;
+  user-select: none;
+  border-color: var(--color-border);
+  transition: all var(--transition-normal);
+}
+
+.btn-primary.is-authenticating {
+  opacity: 0.92 !important;
+  cursor: wait !important;
+}
+
 .auth-footer-links {
   text-align: center;
   font-size: var(--text-sm);

@@ -103,6 +103,14 @@ export const hydrateProfile = createAsyncThunk('auth/hydrateProfile', async () =
  * with graceful /users/me fallback so cross-origin auth never loses session.
  */
 export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatch }) => {
+  const started = Date.now()
+  const ensureMinHold = async () => {
+    const elapsed = Date.now() - started
+    if (elapsed < 350) {
+      await new Promise((r) => setTimeout(r, 350 - elapsed))
+    }
+  }
+
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('tamagn_auth_token') : null
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
@@ -117,6 +125,7 @@ export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatc
       saveSessionToken(session)
       const user = mapSessionUser(session.user)
       dispatch(hydrateProfile())
+      await ensureMinHold()
       return user
     }
 
@@ -130,6 +139,7 @@ export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatc
         })
         const data = unwrap(res)
         if (data?.user) {
+          await ensureMinHold()
           return mapSessionUser(data.user)
         }
       } catch {
@@ -137,8 +147,10 @@ export const fetchSession = createAsyncThunk('auth/session', async (_, { dispatc
       }
     }
 
+    await ensureMinHold()
     return null
   } catch {
+    await ensureMinHold()
     return null
   }
 })

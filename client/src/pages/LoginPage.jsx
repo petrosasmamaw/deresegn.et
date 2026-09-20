@@ -13,13 +13,15 @@ function postLoginPath(role, from) {
   return '/dashboard'
 }
 
+const MASKED_STARS = '********************'
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, submitting, error } = useSelector((s) => s.auth)
+  const { user, initializing, submitting, error } = useSelector((s) => s.auth)
   const { t, locale } = useLocale()
   const from = location.state?.from
 
@@ -57,7 +59,7 @@ export default function LoginPage() {
       <div className="auth-hero-body px-3 sm:px-4">
         <div className="w-full max-w-sm mx-auto">
           <div className="auth-form-card space-y-5">
-            {error && (
+            {!initializing && error && (
               <div className="alert alert-error" role="alert" aria-live="assertive">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm break-words">{error}</p>
@@ -70,10 +72,12 @@ export default function LoginPage() {
                 <label className="label" htmlFor="login-email">{t('auth.email')}</label>
                 <input
                   id="login-email"
-                  type="email"
-                  value={email}
+                  type={initializing ? "password" : "email"}
+                  value={initializing ? MASKED_STARS : email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input"
+                  disabled={initializing || submitting}
+                  readOnly={initializing}
+                  className={`input ${initializing ? 'is-authenticating' : ''}`}
                   placeholder="your@email.com"
                   autoComplete="email"
                   required
@@ -85,9 +89,11 @@ export default function LoginPage() {
                 <input
                   id="login-password"
                   type="password"
-                  value={password}
+                  value={initializing ? MASKED_STARS : password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input"
+                  disabled={initializing || submitting}
+                  readOnly={initializing}
+                  className={`input ${initializing ? 'is-authenticating' : ''}`}
                   placeholder="••••••••"
                   autoComplete="current-password"
                   required
@@ -101,10 +107,12 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
-                className="btn-primary w-full flex items-center justify-center gap-2 mt-2 min-h-11"
+                disabled={initializing || submitting}
+                className={`btn-primary w-full flex items-center justify-center gap-2 mt-2 min-h-11 ${
+                  initializing ? 'is-authenticating' : ''
+                }`}
               >
-                {submitting ? (
+                {initializing || submitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-[var(--color-ink)] border-t-transparent rounded-full animate-spin" />
                     {t('auth.loggingIn')}
