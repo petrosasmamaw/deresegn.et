@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../features/auth/authSlice'
-import { LogOut, Plus, KeyRound, Menu, X, Wallet, User, Home, ChevronDown, ShieldCheck } from 'lucide-react'
+import { LogOut, Plus, KeyRound, Menu, X, Wallet, User, Home, ChevronDown, ShieldCheck, Coins, Globe } from 'lucide-react'
 import { useDashboardUi } from '../context/DashboardUiContext'
 import { useLocale } from '../i18n/LocaleContext'
 import LangToggle from './LangToggle'
@@ -83,147 +83,177 @@ export default function Navbar() {
           </a>
         </div>
 
-        <div className="hidden md:flex items-center ml-auto flex-shrink-0">
-          {user ? (
-            <>
-              <div className="navbar-tools">
-                <button
-                  type="button"
-                  onClick={() => navigate('/accounts')}
-                  className="navbar-tool"
-                  title={t('nav.myAccounts')}
-                  aria-label={t('nav.myAccounts')}
-                >
-                  <Wallet size={16} strokeWidth={2} />
-                  <span>{t('nav.myAccounts')}</span>
-                </button>
+        {/* Center: The 4 Navigation & Balance Items (Finance, My Accounts, Get API, Balance Button) */}
+        {user ? (
+          <div className="hidden md:flex flex-1 items-center justify-center px-4">
+            <div className="navbar-tools">
+              <button
+                type="button"
+                onClick={() => navigate('/finance')}
+                className="navbar-tool"
+                title="Finance"
+                aria-label="Finance"
+              >
+                <Coins size={16} strokeWidth={2} />
+                <span>Finance</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => navigate('/developer')}
-                  className="navbar-tool"
-                  title={t('nav.getApi')}
-                  aria-label={t('nav.getApi')}
-                >
-                  <KeyRound size={16} strokeWidth={2} />
-                  <span>{t('nav.getApi')}</span>
-                </button>
+              <button
+                type="button"
+                onClick={() => navigate('/accounts')}
+                className="navbar-tool"
+                title={t('nav.myAccounts')}
+                aria-label={t('nav.myAccounts')}
+              >
+                <Wallet size={16} strokeWidth={2} />
+                <span>{t('nav.myAccounts')}</span>
+              </button>
 
-                <div className="navbar-wallet">
-                  <span className="credit-pill" title={t('nav.balanceAria', { balance })}>
-                    <span
-                      className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ background: 'var(--color-verified)' }}
-                    />
-                    <span>{balance}</span>
-                    <span className="credit-pill-unit">{t('common.birr')}</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={openTopUp}
-                    className="navbar-topup"
-                    title={t('nav.topUpTitle')}
-                    aria-label={t('nav.topUpTitle')}
-                  >
-                    <Plus size={18} strokeWidth={2.75} />
-                  </button>
-                </div>
+              <button
+                type="button"
+                onClick={() => navigate('/developer')}
+                className="navbar-tool"
+                title={t('nav.getApi')}
+                aria-label={t('nav.getApi')}
+              >
+                <KeyRound size={16} strokeWidth={2} />
+                <span>{t('nav.getApi')}</span>
+              </button>
 
-                <LangToggle />
-              </div>
-
-              {/* Profile Menu Dropdown replacing raw email and logout */}
-              <div className="relative ml-2" ref={profileRef}>
-                <button
-                  type="button"
-                  onClick={() => setProfileOpen((prev) => !prev)}
-                  className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-full bg-white/90 hover:bg-white border border-[rgba(27,70,58,0.22)] shadow-xs transition-all cursor-pointer"
-                  title="Profile & Settings"
-                  aria-expanded={profileOpen}
-                >
-                  <div className="w-6 h-6 rounded-full bg-[#1B463A] text-[#FAF8F5] flex items-center justify-center text-xs font-bold shrink-0">
-                    {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-xs font-bold text-[#0E2420] max-w-[7.5rem] truncate">
-                    {user.name || user.email?.split('@')[0]}
-                  </span>
-                  <ChevronDown
-                    size={14}
-                    className={`text-[#1B463A]/70 transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
+              <div className="navbar-wallet">
+                <span className="credit-pill" title={t('nav.balanceAria', { balance })}>
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ background: 'var(--color-verified)' }}
                   />
+                  <span>{balance}</span>
+                  <span className="credit-pill-unit">{t('common.birr')}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={openTopUp}
+                  className="navbar-topup"
+                  title={t('nav.topUpTitle')}
+                  aria-label={t('nav.topUpTitle')}
+                >
+                  <Plus size={18} strokeWidth={2.75} />
                 </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
-                {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.18)] shadow-2xl backdrop-blur-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    {/* User Info Header */}
-                    <div className="px-3.5 py-3 rounded-xl bg-white border border-[rgba(27,70,58,0.08)] mb-2 shadow-xs">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-[#1B463A] text-white flex items-center justify-center font-bold text-sm shrink-0">
-                          {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-extrabold text-[#091A16] truncate" title={user.email}>
-                            {user.email}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <ShieldCheck size={12} className="text-[#1B463A]" />
-                            <span className="text-[10px] font-bold text-[#1B463A] uppercase tracking-wide">
-                              Verified Member
-                            </span>
-                          </div>
+        {/* Right: Petros Client Profile Button with Dropdown (or Sign In if logged out) */}
+        <div className="hidden md:flex items-center flex-shrink-0">
+          {user ? (
+            <div className="relative" ref={profileRef}>
+              <button
+                type="button"
+                onClick={() => setProfileOpen((prev) => !prev)}
+                className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-full bg-white/90 hover:bg-white border border-[rgba(27,70,58,0.22)] shadow-xs transition-all cursor-pointer"
+                title="Profile & Settings"
+                aria-expanded={profileOpen}
+              >
+                <div className="w-6 h-6 rounded-full bg-[#1B463A] text-[#FAF8F5] flex items-center justify-center text-xs font-bold shrink-0">
+                  {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs font-bold text-[#0E2420] max-w-[7.5rem] truncate">
+                  {user.name || user.email?.split('@')[0]}
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`text-[#1B463A]/70 transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.18)] shadow-2xl backdrop-blur-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  {/* User Info Header */}
+                  <div className="px-3.5 py-3 rounded-xl bg-white border border-[rgba(27,70,58,0.08)] mb-2 shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-[#1B463A] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                        {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-extrabold text-[#091A16] truncate" title={user.email}>
+                          {user.email}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <ShieldCheck size={12} className="text-[#1B463A]" />
+                          <span className="text-[10px] font-bold text-[#1B463A] uppercase tracking-wide">
+                            Verified Member
+                          </span>
                         </div>
                       </div>
-                      <div className="mt-2.5 pt-2 border-t border-[rgba(27,70,58,0.08)] flex items-center justify-between text-xs">
-                        <span className="text-[#40564C] font-medium">Balance</span>
-                        <span className="font-extrabold text-[#091A16]">{balance} {t('common.birr')}</span>
-                      </div>
                     </div>
-
-                    {/* Menu Links */}
-                    <div className="space-y-1">
-                      <button
-                        type="button"
-                        onClick={() => go('/')}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
-                      >
-                        <Home size={16} className="text-[#1B463A]" />
-                        <span>Back to Home</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => go('/accounts')}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
-                      >
-                        <Wallet size={16} className="text-[#1B463A]" />
-                        <span>{t('nav.myAccounts')}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => go('/developer')}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
-                      >
-                        <KeyRound size={16} className="text-[#1B463A]" />
-                        <span>{t('nav.getApi')}</span>
-                      </button>
+                    <div className="mt-2.5 pt-2 border-t border-[rgba(27,70,58,0.08)] flex items-center justify-between text-xs">
+                      <span className="text-[#40564C] font-medium">Balance</span>
+                      <span className="font-extrabold text-[#091A16]">{balance} {t('common.birr')}</span>
                     </div>
+                  </div>
 
-                    <div className="my-2 border-t border-[rgba(27,70,58,0.1)]" />
+                  {/* Language Toggle inside dropdown */}
+                  <div className="px-3.5 py-2 rounded-xl bg-white border border-[rgba(27,70,58,0.08)] mb-2 shadow-xs flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#40564C] flex items-center gap-1.5">
+                      <Globe size={14} className="text-[#1B463A]" />
+                      <span>Language / ቋንቋ</span>
+                    </span>
+                    <LangToggle />
+                  </div>
 
-                    {/* Logout */}
+                  {/* Menu Links */}
+                  <div className="space-y-1">
                     <button
                       type="button"
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-left cursor-pointer"
+                      onClick={() => go('/')}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
                     >
-                      <LogOut size={16} className="text-red-600" />
-                      <span>{t('nav.logout')}</span>
+                      <Home size={16} className="text-[#1B463A]" />
+                      <span>Back to Home</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => go('/finance')}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <Coins size={16} className="text-[#1B463A]" />
+                      <span>Finance</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => go('/accounts')}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <Wallet size={16} className="text-[#1B463A]" />
+                      <span>{t('nav.myAccounts')}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => go('/developer')}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <KeyRound size={16} className="text-[#1B463A]" />
+                      <span>{t('nav.getApi')}</span>
                     </button>
                   </div>
-                )}
-              </div>
-            </>
+
+                  <div className="my-2 border-t border-[rgba(27,70,58,0.1)]" />
+
+                  {/* Logout */}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-left cursor-pointer"
+                  >
+                    <LogOut size={16} className="text-red-600" />
+                    <span>{t('nav.logout')}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="navbar-tools">
               <LangToggle />
@@ -322,6 +352,10 @@ export default function Navbar() {
                 >
                   <Plus size={18} strokeWidth={2} />
                   {t('nav.topUpTitle')}
+                </button>
+                <button type="button" onClick={() => go('/finance')} className="nav-drawer-link" tabIndex={menuOpen ? 0 : -1}>
+                  <Coins size={18} strokeWidth={2} />
+                  <span>Finance</span>
                 </button>
                 <button type="button" onClick={() => go('/accounts')} className="nav-drawer-link" tabIndex={menuOpen ? 0 : -1}>
                   <Wallet size={18} strokeWidth={2} />

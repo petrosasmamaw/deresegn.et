@@ -3651,5 +3651,58 @@ body {
   color: #0E2420;
 }
 
+/* ── AI OCR Laser Scanline & Verification Hub Elevators ── */
+@keyframes laser-scan {
+  0% {
+    top: 2%;
+    opacity: 0.85;
+  }
+  50% {
+    top: 94%;
+    opacity: 1;
+  }
+  100% {
+    top: 2%;
+    opacity: 0.85;
+  }
+}
+
+.laser-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, transparent, #10B981 25%, #34D399 50%, #10B981 75%, transparent);
+  box-shadow: 0 0 14px 3px rgba(16, 185, 129, 0.8), 0 0 4px 1px rgba(52, 211, 153, 0.95);
+  animation: laser-scan 2.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.laser-scan-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(16, 185, 129, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+@keyframes shimmer-slow {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-active {
+  background: linear-gradient(90deg, rgba(27, 70, 58, 0.9) 0%, rgba(198, 162, 78, 0.85) 50%, rgba(27, 70, 58, 0.9) 100%);
+  background-size: 200% 100%;
+  animation: shimmer-slow 2.4s infinite linear;
+}
+
 
 

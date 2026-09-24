@@ -188,24 +188,21 @@ export default function DashboardPage() {
   )
 
   const historySection = (
-    <section className="dash-history">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-5">
+    <section className="dash-history mt-10">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
         <div className="min-w-0">
-          <h2 className="section-title flex items-center gap-2">
-            <TrendingUp size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} className="shrink-0" />
-            {t('dash.historyTitle')}
-          </h2>
-          <p className="section-lead mb-0">{t('dash.historySubtitle')}</p>
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp size={20} className="text-[#C6A24E] shrink-0" strokeWidth={2.2} />
+            <h2 className="text-xl sm:text-2xl font-black text-[#091A16] tracking-tight">
+              {t('dash.historyTitle') || 'Verification History'}
+            </h2>
+          </div>
+          <p className="text-xs sm:text-sm text-[#40564C] font-medium leading-relaxed">
+            {t('dash.historySubtitle') || 'Official cryptographic audit ledger of checked Ethiopian bank payments & receipts.'}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={() => dispatch(fetchCheckHistory())}
-          className="btn-secondary text-sm shrink-0"
-        >
-          {t('common.refresh')}
-        </button>
       </div>
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-3xl border border-[rgba(27,70,58,0.14)] overflow-hidden shadow-sm">
         <CheckHistory
           checks={checks}
           loading={checksLoading}
@@ -223,11 +220,11 @@ export default function DashboardPage() {
       <div className="absolute top-40 -right-20 w-96 h-96 bg-[#C6A24E]/8 rounded-full blur-3xl pointer-events-none" />
 
       <div className={mobileTab === 'history' ? 'hidden md:block dash-shell relative z-10' : 'dash-shell relative z-10'}>
-        <div className="dash-stage space-y-6">
+        <div className="dash-stage space-y-6 max-w-4xl mx-auto">
           {verifyPanel}
           <BalanceCard balance={balance} error={balanceLoadError} onTopUpClick={() => setTopupOpen(true)} />
         </div>
-        <div className="hidden md:block mt-8">
+        <div className="hidden md:block mt-8 max-w-4xl mx-auto">
           {historySection}
         </div>
       </div>

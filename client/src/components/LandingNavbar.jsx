@@ -115,14 +115,7 @@ export default function LandingNavbar() {
         <div className="hidden sm:flex items-center gap-3">
           <LangToggle />
 
-          {user ? (
-            <Link
-              to={user.role === 'admin' ? '/admin' : '/dashboard'}
-              className="landing-btn-signin text-sm font-medium px-3.5 py-1.5 rounded-lg transition-all duration-200"
-            >
-              {t('home.navDashboard')}
-            </Link>
-          ) : (
+          {!user && (
             <Link
               to="/login"
               className="landing-btn-signin text-sm font-medium px-3.5 py-1.5 rounded-lg transition-all duration-200"
@@ -204,15 +197,7 @@ export default function LandingNavbar() {
               <span>{t('home.navVerify')}</span>
             </button>
 
-            {user ? (
-              <Link
-                to={user.role === 'admin' ? '/admin' : '/dashboard'}
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2.5 text-center text-sm font-bold rounded-lg transition-all border border-[#1B463A] text-[#1B463A] hover:bg-[#1B463A] hover:text-white"
-              >
-                {t('home.navDashboard')}
-              </Link>
-            ) : (
+            {!user && (
               <Link
                 to="/login"
                 onClick={() => setMobileMenuOpen(false)}

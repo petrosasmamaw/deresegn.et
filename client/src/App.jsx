@@ -19,6 +19,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const CertificatePublicPage = lazy(() => import('./pages/CertificatePublicPage'))
 const DeveloperApiPage = lazy(() => import('./pages/DeveloperApiPage'))
 const MyAccountsPage = lazy(() => import('./pages/MyAccountsPage'))
+const FinancialDashboardPage = lazy(() => import('./pages/FinancialDashboardPage'))
 
 export default function App() {
   const dispatch = useDispatch()
@@ -43,6 +44,8 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify/:token" element={<CertificatePublicPage />} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/finance" element={<ProtectedRoute><FinancialDashboardPage /></ProtectedRoute>} />
+            <Route path="/financial" element={<ProtectedRoute><FinancialDashboardPage /></ProtectedRoute>} />
             <Route path="/developer" element={<ProtectedRoute><DeveloperApiPage /></ProtectedRoute>} />
             <Route path="/accounts" element={<ProtectedRoute><MyAccountsPage /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />

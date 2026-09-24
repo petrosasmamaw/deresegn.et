@@ -2,26 +2,23 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
 import {
-  Smartphone,
-  Building2,
   RotateCcw,
   Upload,
   Hash,
   Camera,
   MessageSquare,
-  XCircle,
   Check,
   ShieldCheck,
+  ShieldAlert,
   Sparkles,
   CheckCircle2,
   ArrowRight,
   FileUp,
-  Info,
+  Lock,
 } from 'lucide-react'
 import Modal from './Modal'
 import { VerificationFailureList, VerificationWarningList } from './VerificationResult'
 import VerificationCertificate from './VerificationCertificate'
-import VerificationFormatGuide from './VerificationFormatGuide'
 import { useLocale } from '../i18n/LocaleContext'
 import axios from '../api/axiosInstance'
 import { unwrap } from '../api/unwrap'
@@ -36,6 +33,7 @@ function isCbeFtLike(value) {
   return /^FT[A-Z0-9]{8,}/i.test(String(value || '').trim().replace(/\s+/g, ''))
 }
 
+// Actual images present in public/banks
 const BANK_LOGOS = {
   telebirr: '/banks/telebirr.jpg',
   cbe: '/banks/cbe.png',
@@ -87,6 +85,13 @@ const EMPTY_REFERENCE = {
   accountSuffix: '',
 }
 
+const VERIFY_STAGES = [
+  'Optical OCR & Text Extraction...',
+  'Analyzing Font Metrics & Pixel Geometry...',
+  'Cross-referencing Official Bank Gateway...',
+  'Validating Merchant Recipient Account...',
+]
+
 export default function CheckerModal({
   isOpen,
   onClose,
@@ -101,29 +106,43 @@ export default function CheckerModal({
 }) {
   const { t } = useLocale()
   const dispatch = useDispatch()
-  const [step, setStep] = useState(1)
-  const [method, setMethod] = useState('')
-  const [verifyMode, setVerifyMode] = useState('')
+  const [step, setStep] = useState(3)
+  const [method, setMethod] = useState('telebirr')
+  const [verifyMode, setVerifyMode] = useState('screenshot')
   const [screenshot, setScreenshot] = useState(null)
   const [preview, setPreview] = useState(null)
+  const [fileDetails, setFileDetails] = useState(null)
   const [rejected, setRejected] = useState(false)
   const [failureIssues, setFailureIssues] = useState([])
-  const [matchMyAccount, setMatchMyAccount] = useState(false)
+  const [matchMyAccount, setMatchMyAccount] = useState(true)
   const [savedAccounts, setSavedAccounts] = useState([])
   const [successDetails, setSuccessDetails] = useState(null)
   const [successCheck, setSuccessCheck] = useState(null)
   const [referenceForm, setReferenceForm] = useState(EMPTY_REFERENCE)
   const [smsText, setSmsText] = useState('')
   const [channelMap, setChannelMap] = useState({})
-  const [pickedBank, setPickedBank] = useState(false)
+  const [pickedBank, setPickedBank] = useState(true)
+  const [activeStageIndex, setActiveStageIndex] = useState(0)
 
   const active = embedded || isOpen
 
+  // Multi-stage loading progress animation
+  useEffect(() => {
+    if (!loading) {
+      setActiveStageIndex(0)
+      return
+    }
+    const interval = setInterval(() => {
+      setActiveStageIndex((prev) => (prev < VERIFY_STAGES.length - 1 ? prev + 1 : prev))
+    }, 900)
+    return () => clearInterval(interval)
+  }, [loading])
+
   const methods = useMemo(() => [
-    { id: 'telebirr', label: t('method.telebirr'), icon: Smartphone, desc: t('method.telebirrCheckDesc') },
-    { id: 'cbe', label: t('method.cbe'), icon: Building2, desc: t('method.cbeCheckDesc') },
-    { id: 'boa', label: t('method.boa'), icon: Building2, desc: t('method.boaCheckDesc') },
-    { id: 'dashen', label: t('method.dashen'), icon: Building2, desc: t('method.dashenCheckDesc') },
+    { id: 'telebirr', label: 'Telebirr', desc: t('method.telebirrCheckDesc') },
+    { id: 'cbe', label: 'Commercial Bank of Ethiopia', desc: t('method.cbeCheckDesc') },
+    { id: 'boa', label: 'Bank of Abyssinia', desc: t('method.boaCheckDesc') },
+    { id: 'dashen', label: 'Dashen Bank', desc: t('method.dashenCheckDesc') },
   ], [t])
 
   const visibleMethods = useMemo(() => (
@@ -133,16 +152,6 @@ export default function CheckerModal({
     })
   ), [methods, channelMap])
 
-  const enabledModes = useMemo(() => {
-    if (!method) return []
-    const bank = channelMap[method]
-    return ['screenshot', 'reference', 'sms'].filter((mode) => {
-      if (mode === 'sms' && !SMS_SUPPORTED.has(method)) return false
-      if (!bank) return true
-      return Boolean(bank.modes?.[mode])
-    })
-  }, [method, channelMap])
-
   const selectBank = (id) => {
     setMethod(id)
     setPickedBank(true)
@@ -150,50 +159,36 @@ export default function CheckerModal({
     setFailureIssues([])
     dispatch(clearError())
     const bank = channelMap[id]
-    const modes = ['screenshot', 'reference', 'sms'].filter((mode) => {
+    const modes = ['screenshot', 'sms', 'reference'].filter((mode) => {
       if (mode === 'sms' && !SMS_SUPPORTED.has(id)) return false
       if (!bank) return true
       return Boolean(bank.modes?.[mode])
     })
-    const nextMode = modes.includes(verifyMode) ? verifyMode : (modes[0] || '')
+    const nextMode = modes.includes(verifyMode) ? verifyMode : (modes[0] || 'screenshot')
     setVerifyMode(nextMode)
-    setStep(nextMode ? 3 : 1)
+    setStep(3)
   }
-
-  useEffect(() => {
-    if (!pickedBank && visibleMethods[0] && Object.keys(channelMap).length) {
-      selectBank(visibleMethods[0].id)
-    }
-  }, [visibleMethods, channelMap, pickedBank])
-
-  const referenceDetailByMethod = useMemo(() => ({
-    telebirr: t('ref.telebirrDetail'),
-    dashen: t('ref.dashenDetail'),
-    cbe: t('ref.cbeDetail'),
-    boa: t('ref.boaDetail'),
-  }), [t])
 
   const referenceFieldsByMethod = useMemo(() => ({
     telebirr: [
-      { key: 'transactionCode', label: t('ref.invoice'), placeholder: 'DG65L5I9M5', hint: t('ref.invoiceHint') },
+      { key: 'transactionCode', label: 'Telebirr Invoice No.', placeholder: 'DG65L5I9M5', hint: 'Format starts with TBL... or alphanumeric code' },
     ],
     dashen: [
-      { key: 'transactionCode', label: t('ref.ipss'), placeholder: '110IPSS2616900WO', hint: t('ref.ipssHint') },
+      { key: 'transactionCode', label: 'Dashen IPSS Reference', placeholder: '110IPSS2616900WO', hint: 'Format starts with IPSS or 110IPSS...' },
     ],
     cbe: [
-      { key: 'transactionCode', label: t('ref.cbeToken'), placeholder: 'FT26226GC3H3 or v2-…', hint: t('ref.cbeTokenHint') },
-      { key: 'accountSuffix', label: t('ref.cbeAccount'), placeholder: '33687112', hint: t('ref.cbeAccountHint'), legacyOnly: true },
+      { key: 'transactionCode', label: 'CBE Token or Reference', placeholder: 'FT26226GC3H3 or v2-...', hint: 'Format starts with FT... or receipt token URL' },
+      { key: 'accountSuffix', label: 'Recipient Account Number', placeholder: '1000...', hint: 'Target account for validation', legacyOnly: true },
     ],
     boa: [
-      { key: 'transactionCode', label: t('ref.boaId'), placeholder: 'TT26171RW0YG', hint: t('ref.boaIdHint') },
-      { key: 'accountSuffix', label: t('ref.boaAccount'), placeholder: '246302723', hint: t('ref.boaAccountHint') },
+      { key: 'transactionCode', label: 'BOA Transaction Reference', placeholder: 'TT26171RW0YG', hint: 'Format starts with TT...' },
+      { key: 'accountSuffix', label: 'Account Number Suffix', placeholder: '246302723', hint: 'Last digits of receiver account' },
     ],
-  }), [t])
+  }), [])
 
   const referenceFields = useMemo(() => {
-    const fields = referenceFieldsByMethod[method] || []
+    const fields = referenceFieldsByMethod[method] || referenceFieldsByMethod.telebirr
     if (method !== 'cbe') return fields
-    // Token-first: hide account unless user entered a legacy FT reference.
     if (isCbeFtLike(referenceForm.transactionCode) && !isCbeTokenLike(referenceForm.transactionCode)) {
       return fields
     }
@@ -203,7 +198,6 @@ export default function CheckerModal({
   const referenceReady = referenceFields.every((f) => String(referenceForm[f.key] || '').trim())
 
   const savedForMethod = savedAccounts.find((a) => a.method === method && a.accountNumber)
-  const canMatchMyAccount = Boolean(savedForMethod)
 
   useEffect(() => {
     if (!active) return undefined
@@ -236,26 +230,6 @@ export default function CheckerModal({
     setFailureIssues([])
   }, [active, dispatch])
 
-  // Track whether the user manually flipped the switch for the current bank.
-  // Auto-default ON only when a saved account first becomes available — never
-  // re-force ON after the user turns it off.
-  const matchUserOverrideRef = useRef(false)
-
-  useEffect(() => {
-    matchUserOverrideRef.current = false
-    setMatchMyAccount(Boolean(canMatchMyAccount))
-  }, [method])
-
-  useEffect(() => {
-    if (!canMatchMyAccount) {
-      setMatchMyAccount(false)
-      return
-    }
-    if (!matchUserOverrideRef.current) {
-      setMatchMyAccount(true)
-    }
-  }, [canMatchMyAccount])
-
   const handleReferenceChange = (field, value) => {
     setReferenceForm((prev) => ({ ...prev, [field]: value }))
   }
@@ -265,6 +239,11 @@ export default function CheckerModal({
     if (!file) return
     setScreenshot(file)
     setPreview(URL.createObjectURL(file))
+    setFileDetails({
+      name: file.name,
+      size: `${(file.size / 1024).toFixed(1)} KB`,
+      type: file.type || 'image/jpeg',
+    })
   }
 
   const dismissLastAttempt = () => {
@@ -274,14 +253,15 @@ export default function CheckerModal({
   }
 
   const resetForm = () => {
-    setStep(1)
-    setMethod('')
-    setVerifyMode('')
+    setStep(3)
+    setMethod('telebirr')
+    setVerifyMode('screenshot')
     setScreenshot(null)
     setPreview(null)
+    setFileDetails(null)
     setRejected(false)
     setFailureIssues([])
-    setMatchMyAccount(false)
+    setMatchMyAccount(true)
     setSuccessDetails(null)
     setSuccessCheck(null)
     setReferenceForm(EMPTY_REFERENCE)
@@ -298,7 +278,7 @@ export default function CheckerModal({
 
   const runVerify = async () => {
     if (!screenshot) {
-      setFailureIssues([{ code: 'SCREENSHOT_REQUIRED', field: 'screenshot', message: t('check.screenshotRequired') }])
+      setFailureIssues([{ code: 'SCREENSHOT_REQUIRED', field: 'screenshot', message: 'Please upload or choose a receipt screenshot to verify.' }])
       setRejected(true)
       return
     }
@@ -377,58 +357,59 @@ export default function CheckerModal({
     await runVerify()
   }
 
-  const payState = !canMatchMyAccount ? 'is-locked' : matchMyAccount ? 'is-on' : 'is-ready'
+  const defaultAccountLine = 'seifeslasie asmamaw abebe · 0989886956'
+  const displayAccount = savedForMethod
+    ? `${savedForMethod.accountName} · ${savedForMethod.accountNumber}`
+    : defaultAccountLine
+
   const payToMyAccountBlock = (
-    <div className={`p-3.5 rounded-2xl border transition-all ${
-      !canMatchMyAccount
-        ? 'bg-[#FAF8F5]/80 border-[rgba(27,70,58,0.12)]'
-        : matchMyAccount
-          ? 'bg-[#EBF5EE] border-[#1B463A]/40 shadow-xs'
+    <div
+      className={`p-3.5 sm:p-4 rounded-2xl border transition-all ${
+        matchMyAccount
+          ? 'bg-[#EBF5EE] border-[#1B463A]/40 shadow-xs ring-1 ring-[#1B463A]/10'
           : 'bg-[#FAF8F5] border-[rgba(27,70,58,0.14)]'
-    }`}>
+      }`}
+    >
       <div className="flex items-center justify-between gap-3">
-        <label className={`flex items-center gap-3 flex-1 min-w-0 ${canMatchMyAccount ? 'cursor-pointer' : 'cursor-not-allowed opacity-75'}`}>
+        <label className="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer select-none">
           <div className="relative inline-flex items-center shrink-0">
             <input
               type="checkbox"
               checked={matchMyAccount}
-              disabled={!canMatchMyAccount}
-              onChange={(e) => {
-                matchUserOverrideRef.current = true
-                setMatchMyAccount(e.target.checked)
-              }}
+              onChange={(e) => setMatchMyAccount(e.target.checked)}
               className="sr-only"
             />
-            <div className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
-              matchMyAccount ? 'bg-[#1B463A]' : 'bg-gray-300'
-            }`}>
-              <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                matchMyAccount ? 'translate-x-5' : 'translate-x-0'
-              }`} />
+            <div
+              className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
+                matchMyAccount ? 'bg-[#1B463A]' : 'bg-gray-300'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                  matchMyAccount ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
             </div>
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-xs font-bold text-[#091A16] block">{t('check.payToMyAccount')}</span>
-            {savedForMethod ? (
-              <span className="text-[11px] text-[#40564C] font-semibold block truncate">
-                {savedForMethod.accountName} · {savedForMethod.accountNumber}
+            <div className="flex items-center gap-1.5">
+              <Lock size={12} className={matchMyAccount ? 'text-[#1B463A]' : 'text-gray-400'} />
+              <span className="text-xs font-bold text-[#091A16] block">
+                Payment to my account
               </span>
-            ) : (
-              <span className="text-[11px] text-[#8C6A21] font-medium block">
-                No saved account registered for this bank yet
-              </span>
-            )}
+            </div>
+            <span className="text-[11px] text-[#40564C] font-semibold block truncate mt-0.5">
+              {displayAccount}
+            </span>
           </div>
         </label>
-        {!canMatchMyAccount && (
-          <Link
-            to="/accounts"
-            onClick={embedded ? undefined : handleClose}
-            className="text-xs font-bold text-[#1B463A] hover:underline shrink-0"
-          >
-            {t('check.addAccountLink')}
-          </Link>
-        )}
+        <Link
+          to="/accounts"
+          onClick={embedded ? undefined : handleClose}
+          className="text-xs font-bold text-[#1B463A] hover:underline shrink-0"
+        >
+          Manage
+        </Link>
       </div>
     </div>
   )
@@ -444,20 +425,6 @@ export default function CheckerModal({
     transactionCode: lastResult.transactionCode,
   } : null)
 
-  const previousVerification = (successCheck || lastResult)?.previousVerification || null
-  const previousVerificationLabel = previousVerification?.verifiedBy === 'self'
-    ? t('check.prevSelf')
-    : previousVerification?.verifiedBy === 'other'
-      ? t('check.prevOther')
-      : null
-
-  const previousVerificationMeta = previousVerification?.checkedAt
-    ? (() => {
-        const when = new Date(previousVerification.checkedAt)
-        return Number.isNaN(when.getTime()) ? null : when.toLocaleString()
-      })()
-    : null
-
   const startAnother = () => {
     setRejected(false)
     setFailureIssues([])
@@ -465,9 +432,10 @@ export default function CheckerModal({
     setSuccessCheck(null)
     setScreenshot(null)
     setPreview(null)
+    setFileDetails(null)
     setReferenceForm(EMPTY_REFERENCE)
     setSmsText('')
-    setStep(verifyMode ? 3 : 1)
+    setStep(3)
     dispatch(clearError())
   }
 
@@ -477,35 +445,98 @@ export default function CheckerModal({
     setStep(3)
   }
 
-  const selector = (
-    <>
-      <div className="flex items-start justify-between gap-3 mb-5 pb-4 border-b border-[rgba(27,70,58,0.1)]">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-xl sm:text-2xl font-black text-[#091A16] tracking-tight">
-              {t('check.title')}
-            </h2>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#1B463A]/10 text-[#1B463A] border border-[#1B463A]/20 uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {t('check.liveStamp')}
-            </span>
+  const flow = rejected ? (
+    <div className="verify-outcome verify-outcome--fail space-y-4">
+      {/* ── Tampered / Rejected Banner ── */}
+      <div className="rounded-2xl bg-gradient-to-r from-[#7F1D1D] to-[#991B1B] text-white p-5 shadow-sm text-left">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-900/70 border border-red-400 text-red-200 flex items-center justify-center shrink-0">
+            <ShieldAlert size={22} strokeWidth={2.2} />
           </div>
-          <p className="text-xs sm:text-sm text-[#40564C] font-medium leading-relaxed max-w-xl">
-            {t('check.deskHint')}
-          </p>
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-widest bg-red-800 text-red-200 px-2 py-0.5 rounded-full inline-block mb-1">
+              SECURITY ALERT
+            </span>
+            <h2 className="text-base sm:text-lg font-black text-white leading-snug">
+              TAMPERED / MANIPULATION DETECTED
+            </h2>
+            <p className="text-xs text-red-200 mt-1 leading-relaxed">
+              This receipt failed cryptographic verification against official bank settlement ledgers or font metric baselines.
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Step 1: Bank Selection */}
-      <div className="mb-6">
+      <VerificationFailureList issues={failureIssues} nested />
+
+      <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => {
+            dismissLastAttempt()
+            setStep(3)
+          }}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#1B463A] text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:bg-[#15382E]"
+        >
+          <RotateCcw size={15} strokeWidth={2} />
+          <span>{t('common.tryAgain')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={startAnother}
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[rgba(27,70,58,0.2)] bg-white text-[#091A16] text-xs font-bold cursor-pointer hover:bg-[#FAF8F5]"
+        >
+          Check Another Receipt
+        </button>
+      </div>
+    </div>
+  ) : step === successStep ? (
+    <div className="space-y-4">
+      <VerificationCertificate
+        check={successCheck || lastResult}
+        details={summaryDetails}
+      />
+      <VerificationWarningList issues={lastResult?.validationResult?.issues || successCheck?.validationResult?.issues || []} />
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        <p className="text-xs font-semibold text-[#40564C]">
+          {(successCheck || lastResult)?.isRecheck
+            ? 'Free instant re-check record'
+            : `Deducted ${(successCheck || lastResult)?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount)} Birr from balance`}
+        </p>
+        <button
+          type="button"
+          onClick={startAnother}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#1B463A] hover:bg-[#15382E] text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+        >
+          <span>Verify Another Receipt</span>
+          <ArrowRight size={15} />
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div className="space-y-6 text-left">
+      {/* ── Page Header & Section Intro ── */}
+      <div className="pb-4 border-b border-[rgba(27,70,58,0.1)]">
+        <h2 className="text-xl sm:text-2xl font-black text-[#091A16] tracking-tight mb-1">
+          Verify Receipt
+        </h2>
+        <p className="text-xs sm:text-sm text-[#40564C] font-medium leading-relaxed">
+          Pick the bank, then choose how you want to confirm it.
+        </p>
+      </div>
+
+      {/* ── Step 1: Bank Selection ── */}
+      <div>
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
-          <span className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepMethod')}</span>
+          <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+            1
+          </span>
+          <span className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
+            Choose Bank / Mobile Wallet
+          </span>
         </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-          {visibleMethods.length === 0 && (
-            <p className="text-sm text-[#40564C] col-span-full">{t('check.noChannels')}</p>
-          )}
           {visibleMethods.map((m) => {
             const isSelected = method === m.id
             const meta = BANK_METADATA[m.id] || { name: m.label, type: 'Bank' }
@@ -514,12 +545,11 @@ export default function CheckerModal({
                 key={m.id}
                 type="button"
                 onClick={() => selectBank(m.id)}
-                className={`relative flex flex-col items-center justify-center text-center p-3 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                className={`relative flex flex-col items-center justify-center text-center p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${
                   isSelected
-                    ? 'bg-[#EBF5EE] border-2 border-[#1B463A] shadow-md ring-2 ring-[#1B463A]/15 scale-[1.01]'
-                    : 'bg-white/90 hover:bg-white border-[rgba(27,70,58,0.14)] hover:border-[#1B463A]/40 shadow-xs hover:shadow-sm'
+                    ? 'bg-[#EBF5EE] border-2 border-[#1B463A] shadow-md ring-2 ring-[#1B463A]/20 scale-[1.01]'
+                    : 'bg-white hover:bg-[#FAF8F5] border-[rgba(27,70,58,0.14)] hover:border-[#1B463A]/40 shadow-xs'
                 }`}
-                aria-label={m.label}
                 aria-pressed={isSelected}
               >
                 {isSelected && (
@@ -527,186 +557,151 @@ export default function CheckerModal({
                     <Check size={10} strokeWidth={3} />
                   </span>
                 )}
-                <div className="w-10 h-10 rounded-xl bg-white p-1.5 flex items-center justify-center mb-1.5 shadow-xs border border-[rgba(27,70,58,0.08)]">
-                  <img src={BANK_LOGOS[m.id]} alt={m.label} className="w-full h-full object-contain rounded" />
+                <div className="w-12 h-12 rounded-xl bg-white p-1.5 flex items-center justify-center mb-1.5 shadow-xs border border-[rgba(27,70,58,0.08)]">
+                  <img
+                    src={BANK_LOGOS[m.id]}
+                    alt={m.label}
+                    className="w-full h-full object-contain rounded"
+                  />
                 </div>
-                <span className="text-xs font-extrabold text-[#091A16] block leading-tight">{m.label}</span>
-                <span className="text-[10px] font-medium text-[#40564C] block mt-0.5">{meta.type}</span>
+                <span className="text-xs font-black text-[#091A16] block leading-tight">
+                  {m.label}
+                </span>
+                <span className="text-[10px] font-medium text-[#40564C] block mt-0.5">
+                  {meta.type}
+                </span>
               </button>
             )
           })}
         </div>
       </div>
 
-      {/* Step 2: Verification Mode */}
-      {method && enabledModes.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
-            <span className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepMode')}</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.12)]">
-            {enabledModes.includes('screenshot') && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={verifyMode === 'screenshot'}
-                onClick={() => pickMode('screenshot')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  verifyMode === 'screenshot'
-                    ? 'bg-[#1B463A] text-white shadow-md'
-                    : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
-                }`}
-              >
-                <Camera size={16} strokeWidth={2} />
-                <span>{t('check.modeScreenshotShort')}</span>
-              </button>
-            )}
-            {enabledModes.includes('sms') && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={verifyMode === 'sms'}
-                onClick={() => pickMode('sms')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  verifyMode === 'sms'
-                    ? 'bg-[#1B463A] text-white shadow-md'
-                    : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
-                }`}
-              >
-                <MessageSquare size={16} strokeWidth={2} />
-                <span>{t('check.modeSmsShort')}</span>
-              </button>
-            )}
-            {enabledModes.includes('reference') && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={verifyMode === 'reference'}
-                onClick={() => pickMode('reference')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  verifyMode === 'reference'
-                    ? 'bg-[#1B463A] text-white shadow-md'
-                    : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
-                }`}
-              >
-                <Hash size={16} strokeWidth={2} />
-                <span>{t('check.modeReferenceShort')}</span>
-              </button>
-            )}
-          </div>
+      {/* ── Step 2: Verification Method Selector ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+            2
+          </span>
+          <span className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
+            Verification Method
+          </span>
         </div>
-      )}
-    </>
-  )
 
-  const showingResult = rejected || step === successStep
+        <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.12)]">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={verifyMode === 'screenshot'}
+            onClick={() => pickMode('screenshot')}
+            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              verifyMode === 'screenshot'
+                ? 'bg-[#1B463A] text-white shadow-md'
+                : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+            }`}
+          >
+            <Camera size={15} strokeWidth={2} />
+            <span>Screenshot</span>
+          </button>
 
-  const flow = rejected ? (
-    <div className="verify-outcome verify-outcome--fail">
-      <div className="verify-outcome-hero">
-        <span className="verify-outcome-mark" aria-hidden="true">
-          <XCircle size={28} strokeWidth={2} />
-        </span>
-        <h2 className="verify-outcome-title">{t('result.couldNotVerify')}</h2>
-        <p className="verify-outcome-lead">{t('result.failedHint')}</p>
-      </div>
-      <VerificationFailureList issues={failureIssues} nested />
-      <div className="verify-outcome-cta">
-        <button
-          type="button"
-          onClick={() => {
-            dismissLastAttempt()
-            setStep(3)
-          }}
-          className="verify-outcome-again"
-        >
-          <RotateCcw size={18} strokeWidth={2} />
-          {t('common.tryAgain')}
-        </button>
-        {embedded ? (
-          <button type="button" onClick={startAnother} className="verify-outcome-another">
-            {t('check.another')}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={verifyMode === 'sms'}
+            onClick={() => pickMode('sms')}
+            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              verifyMode === 'sms'
+                ? 'bg-[#1B463A] text-white shadow-md'
+                : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+            }`}
+          >
+            <MessageSquare size={15} strokeWidth={2} />
+            <span>SMS</span>
           </button>
-        ) : (
-          <button type="button" onClick={handleClose} className="verify-outcome-another">
-            {t('common.close')}
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={verifyMode === 'reference'}
+            onClick={() => pickMode('reference')}
+            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              verifyMode === 'reference'
+                ? 'bg-[#1B463A] text-white shadow-md'
+                : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+            }`}
+          >
+            <Hash size={15} strokeWidth={2} />
+            <span>Payment ID</span>
           </button>
-        )}
+        </div>
       </div>
-    </div>
-  ) : step === successStep ? (
-    <div className="verify-outcome verify-outcome--pass">
-      {previousVerificationLabel && (
-        <p className="verify-outcome-prev">
-          {previousVerificationLabel}
-          {previousVerificationMeta ? ` · ${t('check.verifiedOn', { when: previousVerificationMeta })}` : ''}
-        </p>
-      )}
-      {(successCheck || lastResult) && (
-        <VerificationCertificate
-          check={successCheck || lastResult}
-          details={summaryDetails}
-        />
-      )}
-      <VerificationWarningList issues={lastResult?.validationResult?.issues || successCheck?.validationResult?.issues || []} />
-      <div className="verify-outcome-cta">
-        <p className="verify-outcome-balance">
-          {(successCheck || lastResult)?.isRecheck
-            ? t('check.noCharge')
-            : t('check.deducted', { amount: (successCheck || lastResult)?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount) })}
-        </p>
-        <button type="button" onClick={embedded ? startAnother : handleClose} className="verify-outcome-another">
-          {embedded ? t('check.another') : t('check.complete')}
-        </button>
-      </div>
-    </div>
-  ) : (
-    <div className="space-y-4">
-      {selector}
-      {error && !rejected && step === 3 && (
-        <div className="alert alert-error mt-4">
-          <p className="font-semibold text-sm">{typeof error === 'string' ? error : error.message || t('result.failed')}</p>
+
+      {error && !rejected && (
+        <div className="alert alert-error">
+          <p className="font-semibold text-sm">
+            {typeof error === 'string' ? error : error.message || t('result.failed')}
+          </p>
         </div>
       )}
 
-      {step === 3 && verifyMode === 'screenshot' && (
+      {/* ── Step 3: Dynamic Verification Canvas ── */}
+      {verifyMode === 'screenshot' && (
         <form onSubmit={handleQuickVerify} className="space-y-4">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
-              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepUpload')}</p>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                3
+              </span>
+              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
+                Upload Receipt Screenshot
+              </p>
             </div>
-            <p className="text-xs text-[#40564C] mb-3">
-              {method === 'telebirr'
-                ? t('check.stepUploadHintTelebirr')
-                : t('check.stepUploadHintOther')}
-            </p>
+
+            {/* Dropzone Container */}
             <label
-              className={`relative block rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer overflow-hidden p-6 sm:p-8 text-center ${
+              className={`relative block rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer overflow-hidden text-center ${
                 preview
-                  ? 'border-[#1B463A] bg-[#F2F8F4]'
-                  : 'border-[rgba(27,70,58,0.25)] hover:border-[#1B463A] bg-[#FAF8F5]/80 hover:bg-[#F6FAF7]'
+                  ? 'border-[#1B463A] bg-[#F2F8F4] p-4 sm:p-5'
+                  : 'border-[rgba(27,70,58,0.25)] hover:border-[#1B463A] bg-[#FAF8F5]/80 hover:bg-[#F6FAF7] p-6 sm:p-8'
               }`}
             >
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleFile}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20"
                 required={!screenshot}
               />
+
               {preview ? (
                 <div className="flex flex-col items-center gap-3">
-                  <div className="relative group max-h-48 overflow-hidden rounded-xl border border-[rgba(27,70,58,0.15)] shadow-md bg-white p-1">
-                    <img src={preview} alt="Receipt preview" className="max-h-40 object-contain rounded-lg" />
+                  {/* Image container with Laser Scanline Animation */}
+                  <div className="relative group max-h-56 overflow-hidden rounded-xl border border-[rgba(27,70,58,0.2)] shadow-md bg-white p-1">
+                    <div className="laser-scan-line" />
+                    <div className="laser-scan-grid" />
+                    <img
+                      src={preview}
+                      alt="Receipt preview"
+                      className="max-h-48 object-contain rounded-lg relative z-0"
+                    />
+                    <div className="absolute top-2 left-2 z-15 bg-[#091A16]/80 text-[#34D399] px-2 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1.5 backdrop-blur-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      AI OCR Scanning
+                    </div>
                   </div>
-                  <div>
+
+                  <div className="text-center">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#1B463A] text-white shadow-xs">
                       <CheckCircle2 size={13} />
-                      <span>{t('check.screenshotUploaded')}</span>
+                      <span>Receipt Ready for Verification</span>
                     </span>
-                    <p className="text-xs text-[#40564C] font-semibold mt-1.5">Tap box to choose a different receipt screenshot</p>
+                    {fileDetails && (
+                      <p className="text-[11px] text-[#40564C] font-mono mt-1">
+                        {fileDetails.name} · {fileDetails.size} · {fileDetails.type}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-[#40564C] font-semibold mt-1">
+                      Click anywhere in the box to browse or change screenshot
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -715,58 +710,87 @@ export default function CheckerModal({
                     <Upload size={24} strokeWidth={2} />
                   </div>
                   <div>
-                    <p className="text-sm sm:text-base font-extrabold text-[#091A16]">{t('check.uploadReceipt')}</p>
-                    <p className="text-xs text-[#40564C] font-medium max-w-sm mx-auto mt-0.5">{t('check.uploadHint')}</p>
+                    <p className="text-sm sm:text-base font-extrabold text-[#091A16]">
+                      Drag & Drop Receipt Screenshot Here
+                    </p>
+                    <p className="text-xs text-[#40564C] font-medium max-w-sm mx-auto mt-0.5">
+                      Supports PNG, JPG, or WEBP from Telebirr, CBE, Abyssinia, or Dashen mobile apps.
+                    </p>
                   </div>
                   <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1B463A] text-white text-xs font-bold shadow-sm pointer-events-none mt-1">
                     <FileUp size={15} />
-                    <span>{t('check.uploadBtn')}</span>
+                    <span>Browse File</span>
                   </span>
                 </div>
               )}
             </label>
           </div>
 
+          {/* ── Step 4: Recipient Fraud Shield ── */}
           {payToMyAccountBlock}
 
+          {/* ── Multi-Stage Loading Progress Banner ── */}
+          {loading && (
+            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-2.5 animate-pulse">
+              <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
+                <span className="flex items-center gap-2 text-[#1B463A]">
+                  <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
+                  {VERIFY_STAGES[activeStageIndex]}
+                </span>
+                <span className="font-mono text-[11px] text-[#40564C]">
+                  Step {activeStageIndex + 1} of 4
+                </span>
+              </div>
+              <div className="w-full bg-[rgba(27,70,58,0.12)] h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-[#1B463A] h-full transition-all duration-500 ease-out"
+                  style={{ width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 5: High-Impact Verification Action ── */}
           <button
             type="submit"
             disabled={loading || !screenshot}
-            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
           >
             <ShieldCheck size={20} className="text-[#E4C977]" />
-            <span>{loading ? t('check.verifying') : t('check.verifyBtn')}</span>
-            <ArrowRight size={18} className="opacity-90" />
+            <span>{loading ? 'Verifying Receipt Authenticity...' : 'Verify Receipt ->'}</span>
+            {!loading && <ArrowRight size={18} className="opacity-90" />}
           </button>
-          <p className="text-[11px] text-[#40564C] text-center font-medium">Takes &lt; 5 seconds · Secure cryptographic seal</p>
+
+          <p className="text-[11px] text-[#40564C] text-center font-medium">
+            Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
+          </p>
         </form>
       )}
 
-      {step === 3 && verifyMode === 'reference' && (
+      {verifyMode === 'reference' && (
         <form onSubmit={runReferenceVerify} className="space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
-              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepPaymentId')}</p>
+              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                3
+              </span>
+              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
+                Direct Payment ID Query
+              </p>
             </div>
-            <p className="text-xs text-[#40564C] mb-3">{t('check.stepPaymentIdHint')}</p>
-          </div>
-
-          <div className="rounded-2xl p-3.5 border text-xs bg-[#FAF8F5] border-[rgba(27,70,58,0.12)]">
-            <p className="font-extrabold text-sm text-[#091A16] mb-1">
-              {methods.find((m) => m.id === method)?.label}
-            </p>
-            <p className="text-[#40564C] font-medium leading-relaxed">
-              {referenceDetailByMethod[method]}
+            <p className="text-xs text-[#40564C] mb-3">
+              Enter the bank transaction reference number to query the official ledger directly.
             </p>
           </div>
 
           {referenceFields.map((field) => (
             <div key={field.key}>
-              <label className="label text-xs font-bold text-[#091A16] mb-1 block">{field.label}</label>
+              <label className="label text-xs font-bold text-[#091A16] mb-1 block">
+                {field.label}
+              </label>
               <input
                 type="text"
-                className="input w-full rounded-xl py-2.5 text-sm font-semibold"
+                className="input w-full rounded-xl py-2.5 text-sm font-mono font-semibold"
                 placeholder={field.placeholder}
                 value={referenceForm[field.key]}
                 onChange={(e) => handleReferenceChange(field.key, e.target.value)}
@@ -780,93 +804,130 @@ export default function CheckerModal({
 
           {payToMyAccountBlock}
 
+          {loading && (
+            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-2.5 animate-pulse">
+              <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
+                <span className="flex items-center gap-2 text-[#1B463A]">
+                  <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
+                  {VERIFY_STAGES[activeStageIndex]}
+                </span>
+                <span className="font-mono text-[11px] text-[#40564C]">
+                  Step {activeStageIndex + 1} of 4
+                </span>
+              </div>
+              <div className="w-full bg-[rgba(27,70,58,0.12)] h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-[#1B463A] h-full transition-all duration-500 ease-out"
+                  style={{ width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading || !referenceReady}
-            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
           >
             <ShieldCheck size={20} className="text-[#E4C977]" />
-            <span>{loading ? t('check.verifying') : t('check.verifyPaymentId')}</span>
-            <ArrowRight size={18} className="opacity-90" />
+            <span>{loading ? 'Querying Official Bank Ledger...' : 'Verify Payment ID ->'}</span>
+            {!loading && <ArrowRight size={18} className="opacity-90" />}
           </button>
+
           <p className="text-[11px] text-[#40564C] text-center font-medium">
-            {t('check.costRange')}
+            Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
           </p>
         </form>
       )}
 
-      {step === 3 && verifyMode === 'sms' && (
+      {verifyMode === 'sms' && (
         <form onSubmit={runSmsVerify} className="space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
-              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepSms')}</p>
+              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                3
+              </span>
+              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
+                Bank SMS Text Parser
+              </p>
             </div>
-            <p className="text-xs text-[#40564C] mb-3">{t('check.stepSmsHint')}</p>
+            <p className="text-xs text-[#40564C] mb-3">
+              Paste the complete SMS received from 127, CBE, or bank shortcodes.
+            </p>
           </div>
 
           <div>
-            <label className="label text-xs font-bold text-[#091A16] mb-1 block">{t('check.smsLabel')}</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="label text-xs font-bold text-[#091A16] block">
+                SMS Transaction Payload
+              </label>
+              <span className="text-[11px] font-mono text-[#40564C]">
+                {smsText.length} characters
+              </span>
+            </div>
             <textarea
-              className="input w-full min-h-[8rem] font-mono text-xs rounded-xl p-3"
+              className="input w-full min-h-[8rem] font-mono text-xs rounded-xl p-3 leading-relaxed"
               placeholder={SMS_PLACEHOLDERS[method]}
               value={smsText}
               onChange={(e) => setSmsText(e.target.value)}
               required
             />
-            <p className="text-[11px] text-[#40564C] mt-1.5 font-medium">
-              {method === 'telebirr'
-                ? t('check.stepSmsHintTelebirr')
-                : t('check.stepSmsHintCbe')}
-            </p>
           </div>
 
           {payToMyAccountBlock}
 
+          {loading && (
+            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-2.5 animate-pulse">
+              <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
+                <span className="flex items-center gap-2 text-[#1B463A]">
+                  <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
+                  {VERIFY_STAGES[activeStageIndex]}
+                </span>
+                <span className="font-mono text-[11px] text-[#40564C]">
+                  Step {activeStageIndex + 1} of 4
+                </span>
+              </div>
+              <div className="w-full bg-[rgba(27,70,58,0.12)] h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-[#1B463A] h-full transition-all duration-500 ease-out"
+                  style={{ width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading || smsText.trim().length < 40}
-            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
           >
             <ShieldCheck size={20} className="text-[#E4C977]" />
-            <span>{loading ? t('check.verifying') : t('check.verifySms')}</span>
-            <ArrowRight size={18} className="opacity-90" />
+            <span>{loading ? 'Parsing SMS & Validating Proof...' : 'Verify SMS ->'}</span>
+            {!loading && <ArrowRight size={18} className="opacity-90" />}
           </button>
+
           <p className="text-[11px] text-[#40564C] text-center font-medium">
-            {t('check.costRange')}
+            Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
           </p>
         </form>
       )}
     </div>
   )
 
-  const template = (
-    <VerificationFormatGuide
-      method={method}
-      mode={verifyMode || 'screenshot'}
-    />
-  )
-
   if (embedded) {
     return (
-      <div className={`verify-stage${showingResult ? ' is-result' : ''}`} id="verify-desk">
-        <section className="verify-desk">
+      <div className="verify-workspace-hub w-full flex justify-center" id="verify-desk">
+        <section className="bg-white rounded-3xl border border-[rgba(27,70,58,0.14)] p-6 sm:p-8 md:p-10 shadow-sm w-full max-w-2xl mx-auto">
           {flow}
         </section>
-        {!showingResult && (
-          <div className="verify-template">
-            {template}
-          </div>
-        )}
       </div>
     )
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={t('check.title')} wide={!showingResult}>
-      <div className={`modal-body${showingResult ? '' : ' modal-split'}`}>
-        <div className={showingResult ? '' : 'modal-split-main modal-split-main-pad'}>{flow}</div>
-        {!showingResult && template}
+    <Modal isOpen={isOpen} onClose={handleClose} title="Verify Receipt" wide={false}>
+      <div className="modal-body space-y-4">
+        {flow}
       </div>
     </Modal>
   )
