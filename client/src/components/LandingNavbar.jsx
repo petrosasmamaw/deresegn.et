@@ -148,11 +148,11 @@ export default function LandingNavbar() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="landing-menu-toggle p-2 rounded-lg transition-colors duration-200 cursor-pointer"
+            className="landing-menu-toggle p-2 rounded-lg transition-colors duration-200 cursor-pointer text-[#1B463A] hover:bg-[rgba(27,70,58,0.08)] active:bg-[rgba(27,70,58,0.15)]"
             aria-label="Toggle Menu"
             aria-expanded={mobileMenuOpen}
           >
-            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            {mobileMenuOpen ? <X size={22} className="text-[#1B463A]" /> : <Menu size={22} className="text-[#1B463A]" />}
           </button>
         </div>
       </div>
@@ -160,45 +160,45 @@ export default function LandingNavbar() {
       {/* Mobile Slide-down Menu Box */}
       {mobileMenuOpen && (
         <div className="landing-mobile-panel space-y-3 sm:hidden animate-fade-in">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => handleNavClick('features')}
-              className="text-left py-2 px-3 text-sm font-medium rounded-md transition-colors text-[#F4EEDC] hover:bg-white/10"
+              className="text-left py-2.5 px-3.5 text-sm font-semibold rounded-lg transition-colors text-[#0E2420] hover:text-[#1B463A] hover:bg-[rgba(27,70,58,0.07)] cursor-pointer"
             >
               {t('home.navFeatures')}
             </button>
             <button
               type="button"
               onClick={() => handleNavClick('live-engine')}
-              className="text-left py-2 px-3 text-sm font-medium rounded-md flex items-center justify-between transition-colors text-[#F4EEDC] hover:bg-white/10"
+              className="text-left py-2.5 px-3.5 text-sm font-semibold rounded-lg flex items-center justify-between transition-colors text-[#0E2420] hover:text-[#1B463A] hover:bg-[rgba(27,70,58,0.07)] cursor-pointer"
             >
               <span>{t('home.navEngine')}</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-[var(--color-foil-gold)]/20 text-[var(--color-foil-gold)]">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[rgba(27,70,58,0.08)] text-[#1B463A] border border-[rgba(27,70,58,0.2)]">
                 Live
               </span>
             </button>
             <button
               type="button"
               onClick={() => handleNavClick('banks')}
-              className="text-left py-2 px-3 text-sm font-medium rounded-md transition-colors text-[#F4EEDC] hover:bg-white/10"
+              className="text-left py-2.5 px-3.5 text-sm font-semibold rounded-lg transition-colors text-[#0E2420] hover:text-[#1B463A] hover:bg-[rgba(27,70,58,0.07)] cursor-pointer"
             >
               {t('home.navBanks')}
             </button>
             <button
               type="button"
               onClick={() => handleNavClick('api')}
-              className="text-left py-2 px-3 text-sm font-medium rounded-md transition-colors text-[#F4EEDC] hover:bg-white/10"
+              className="text-left py-2.5 px-3.5 text-sm font-semibold rounded-lg transition-colors text-[#0E2420] hover:text-[#1B463A] hover:bg-[rgba(27,70,58,0.07)] cursor-pointer"
             >
               {t('home.navApi')}
             </button>
           </div>
 
-          <div className="pt-2 flex flex-col gap-2 border-t border-white/10">
+          <div className="pt-3 flex flex-col gap-2.5 border-t border-[rgba(27,70,58,0.12)]">
             <button
               type="button"
               onClick={handleVerifyClick}
-              className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-semibold rounded-lg shadow-md transition-all cursor-pointer bg-[#C6A24E] text-[#0E2420] hover:bg-[#E4C977]"
+              className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-bold rounded-lg shadow-md transition-all cursor-pointer bg-[#1B463A] text-white hover:bg-[#0E2420] active:scale-[0.99]"
             >
               <ShieldCheck size={18} />
               <span>{t('home.navVerify')}</span>
@@ -208,7 +208,7 @@ export default function LandingNavbar() {
               <Link
                 to={user.role === 'admin' ? '/admin' : '/dashboard'}
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2 text-center text-sm font-medium rounded-lg transition-all border border-white/30 text-[#F4EEDC] hover:bg-white/10"
+                className="w-full py-2.5 text-center text-sm font-bold rounded-lg transition-all border border-[#1B463A] text-[#1B463A] hover:bg-[#1B463A] hover:text-white"
               >
                 {t('home.navDashboard')}
               </Link>
@@ -216,7 +216,7 @@ export default function LandingNavbar() {
               <Link
                 to="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2 text-center text-sm font-medium rounded-lg transition-all border border-white/30 text-[#F4EEDC] hover:bg-white/10"
+                className="w-full py-2.5 text-center text-sm font-bold rounded-lg transition-all border border-[#1B463A] text-[#1B463A] hover:bg-[#1B463A] hover:text-white"
               >
                 {t('auth.signIn')}
               </Link>
