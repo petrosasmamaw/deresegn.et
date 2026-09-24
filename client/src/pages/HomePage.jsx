@@ -596,70 +596,80 @@ if (result.isVerified) {
           </div>
         </div>
       </section>
-      </div>
 
-      {/* ── FINAL CTA BANNER ── */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-br from-[#0E2C24] via-[#091E18] to-[#04120E] text-white text-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#C6A24E_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
-        <div className="container mx-auto max-w-3xl relative z-10 space-y-5">
-          <span className="landing-glow-badge text-[#E4C977] border-[#C6A24E]/40 bg-[#C6A24E]/15">
-            <Lock size={13} className="text-[var(--color-foil-gold)]" />
-            <span>{t('home.ctaBadge')}</span>
-          </span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-            {t('home.ctaTitle')}
-          </h2>
-          <p className="text-sm sm:text-base text-[#F4EEDC]/85 max-w-xl mx-auto leading-relaxed">
-            {t('home.ctaSub')}
-          </p>
-          <div className="pt-3">
-            <button
-              type="button"
-              onClick={handleStartVerify}
-              className="btn-primary px-8 py-3.5 text-base font-bold shadow-2xl inline-flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer bg-[#C6A24E] text-[#091A16] hover:bg-[#E4C977]"
-            >
-              <ShieldCheck size={20} />
-              <span>{t('home.ctaBtn')}</span>
-            </button>
-          </div>
-        </div>
-      </section>
+      {/* ── FINAL CTA BANNER (SAME BACKGROUND IMAGE) ── */}
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+          <div className="container mx-auto max-w-3xl relative z-10 text-center">
+            <div className="landing-glass-card p-8 sm:p-12 shadow-xl border border-[rgba(27,70,58,0.16)] relative overflow-hidden">
+              {/* Subtle ambient light glow accents */}
+              <div className="absolute -right-16 -top-16 w-48 h-48 bg-[#C6A24E]/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-[#1B463A]/8 rounded-full blur-3xl pointer-events-none" />
 
-      {/* ── FOOTER ── */}
-      <footer className="bg-[#051410] text-[#F4EEDC]/75 py-10 sm:py-12 px-4 sm:px-6 border-t border-[rgba(27,70,58,0.25)]">
-        <div className="container mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <img src="/deresegn-logo.svg" alt="Deresegn logo" width={32} height={32} className="rounded" />
-            <div>
-              <span className="font-bold text-white text-sm block">Deresegn.et (ታማኝ ቸክ)</span>
-              <span className="text-[11px] text-[#F4EEDC]/50 block">Ethiopia’s Digital Transaction Verification Seal</span>
+              <div className="relative z-10 space-y-5">
+                <span className="landing-glow-badge">
+                  <Lock size={13} className="text-[#1B463A]" />
+                  <span>{t('home.ctaBadge')}</span>
+                </span>
+
+                <h2 className="text-2xl sm:text-4xl font-extrabold text-[#091A16] tracking-tight leading-tight">
+                  {t('home.ctaTitle')}
+                </h2>
+
+                <p className="text-sm sm:text-base text-[#1F362D] max-w-xl mx-auto leading-relaxed font-medium">
+                  {t('home.ctaSub')}
+                </p>
+
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={handleStartVerify}
+                    className="btn-primary px-8 py-3.5 text-base font-bold shadow-xl inline-flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer bg-[#1B463A] text-white hover:bg-[#091A16]"
+                  >
+                    <ShieldCheck size={20} />
+                    <span>{t('home.ctaBtn')}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="flex flex-wrap items-center justify-center gap-5 text-xs text-[#F4EEDC]/80">
-            <button
-              type="button"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="hover:text-white transition-colors cursor-pointer"
-            >
-              Back to Top
-            </button>
-            <Link to="/developer" className="hover:text-white transition-colors">
-              {t('home.getApi')}
-            </Link>
-            <Link to="/login" className="hover:text-white transition-colors">
-              {t('auth.signIn')}
-            </Link>
-            <Link to="/register" className="hover:text-white transition-colors">
-              {t('home.register')}
-            </Link>
-          </div>
+        {/* ── FOOTER (ON SAME BACKGROUND IMAGE) ── */}
+        <footer className="py-10 sm:py-12 px-4 sm:px-6 border-t border-[rgba(27,70,58,0.12)]">
+          <div className="container mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <img src="/deresegn-logo.svg" alt="Deresegn logo" width={32} height={32} className="rounded" />
+              <div>
+                <span className="font-bold text-[#091A16] text-sm block">Deresegn.et (ታማኝ ቸክ)</span>
+                <span className="text-[11px] text-[#40564C] block font-medium">Ethiopia’s Digital Transaction Verification Seal</span>
+              </div>
+            </div>
 
-          <div className="text-[11px] text-[#F4EEDC]/50 text-center sm:text-right">
-            © {new Date().getFullYear()} Deresegn.et. All rights reserved.
+            <div className="flex flex-wrap items-center justify-center gap-5 text-xs text-[#1F362D] font-medium">
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="hover:text-[#1B463A] transition-colors cursor-pointer"
+              >
+                Back to Top
+              </button>
+              <Link to="/developer" className="hover:text-[#1B463A] transition-colors">
+                {t('home.getApi')}
+              </Link>
+              <Link to="/login" className="hover:text-[#1B463A] transition-colors">
+                {t('auth.signIn')}
+              </Link>
+              <Link to="/register" className="hover:text-[#1B463A] transition-colors">
+                {t('home.register')}
+              </Link>
+            </div>
+
+            <div className="text-[11px] text-[#556D62] text-center sm:text-right font-medium">
+              © {new Date().getFullYear()} Deresegn.et. All rights reserved.
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   )
 }
