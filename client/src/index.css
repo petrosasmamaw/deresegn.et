@@ -3211,6 +3211,97 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+/* ── Eye-Catching Start Verify Button with Ambient Glow & Shimmer Animation ── */
+.landing-start-verify-btn {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1B463A 0%, #205949 50%, #153E33 100%);
+  color: #FFFFFF !important;
+  font-weight: 700;
+  border: 1px solid rgba(198, 162, 78, 0.45);
+  border-radius: 0.75rem;
+  box-shadow: 
+    0 8px 24px -4px rgba(27, 70, 58, 0.38),
+    0 0 0 1px rgba(27, 70, 58, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: start-verify-attention 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.landing-start-verify-btn:hover {
+  background: linear-gradient(135deg, #205949 0%, #286F5C 50%, #1B463A 100%);
+  box-shadow: 
+    0 14px 34px -4px rgba(27, 70, 58, 0.45),
+    0 0 24px rgba(32, 89, 73, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transform: translateY(-2px);
+}
+
+.landing-start-verify-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 14px rgba(27, 70, 58, 0.35);
+}
+
+/* Light shimmer sweep across the emerald button */
+.landing-start-verify-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.08) 25%, 
+    rgba(255, 255, 255, 0.45) 50%, 
+    rgba(255, 255, 255, 0.08) 75%, 
+    transparent 100%
+  );
+  transform: skewX(-22deg);
+  animation: start-verify-sheen 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes start-verify-attention {
+  0% {
+    transform: scale(1);
+    box-shadow: 
+      0 8px 24px -4px rgba(27, 70, 58, 0.38),
+      0 0 0 0 rgba(27, 70, 58, 0.5);
+  }
+  14% {
+    transform: scale(1.04);
+    box-shadow: 
+      0 12px 30px -4px rgba(27, 70, 58, 0.48),
+      0 0 0 10px rgba(27, 70, 58, 0);
+  }
+  26% {
+    transform: scale(1);
+    box-shadow: 
+      0 8px 24px -4px rgba(27, 70, 58, 0.38),
+      0 0 0 0 rgba(27, 70, 58, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 
+      0 8px 24px -4px rgba(27, 70, 58, 0.38),
+      0 0 0 0 rgba(27, 70, 58, 0);
+  }
+}
+
+@keyframes start-verify-sheen {
+  0% {
+    left: -120%;
+  }
+  22% {
+    left: 170%;
+  }
+  100% {
+    left: 170%;
+  }
+}
+
 /* Frosted glass protective cards to guarantee 100% readability over abstract curves */
 .landing-glass-card {
   background: rgba(255, 255, 255, 0.94);

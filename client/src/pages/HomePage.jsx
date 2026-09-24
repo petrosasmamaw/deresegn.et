@@ -117,11 +117,11 @@ if (result.isVerified) {
             <button
               type="button"
               onClick={handleStartVerify}
-              className="btn-primary w-full sm:w-auto px-8 py-3.5 text-base font-bold flex items-center justify-center gap-3 shadow-xl hover:shadow-[0_8px_25px_rgba(27,70,58,0.25)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer bg-[#1B463A] text-white hover:bg-[#091A16]"
+              className="landing-start-verify-btn w-full sm:w-auto px-9 py-4 text-base sm:text-lg font-bold flex items-center justify-center gap-3 cursor-pointer"
             >
-              <ShieldCheck size={20} />
+              <ShieldCheck size={22} className="text-[#E4C977]" />
               <span>{t('home.startVerify')}</span>
-              <ArrowRight size={18} />
+              <ArrowRight size={19} className="opacity-90" />
             </button>
 
             <a
@@ -615,10 +615,11 @@ if (result.isVerified) {
                   <button
                     type="button"
                     onClick={handleStartVerify}
-                    className="btn-primary px-8 py-3.5 text-base font-bold shadow-xl inline-flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer bg-[#1B463A] text-white hover:bg-[#091A16]"
+                    className="landing-start-verify-btn px-9 py-4 text-base sm:text-lg font-bold inline-flex items-center justify-center gap-3 cursor-pointer"
                   >
-                    <ShieldCheck size={20} />
+                    <ShieldCheck size={22} className="text-[#E4C977]" />
                     <span>{t('home.ctaBtn')}</span>
+                    <ArrowRight size={19} className="opacity-90" />
                   </button>
                 </div>
               </div>
