@@ -93,14 +93,6 @@ if (result.isVerified) {
         <div className="landing-hero-overlay" />
 
         <div className="container mx-auto max-w-3xl lg:max-w-4xl relative z-10 text-center">
-          {/* Glowing Badge */}
-          <div className="inline-block mb-4 sm:mb-6 animate-fade-in">
-            <span className="landing-glow-badge shadow-sm">
-              <Sparkles size={14} className="text-[#1B463A]" />
-              <span>{t('home.heroBadge')}</span>
-            </span>
-          </div>
-
           {/* Main Hero Headline - Perfectly Centered in Deep High-Contrast Emerald-Black */}
           <h1 className="text-3xl sm:text-5xl lg:text-[3.25rem] font-extrabold tracking-tight text-[#091A16] mb-5 leading-[1.14] sm:leading-[1.16]">
             {locale === 'am' ? (
