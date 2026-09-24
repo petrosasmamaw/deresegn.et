@@ -1,5 +1,5 @@
 import { useLocale } from '../i18n/LocaleContext'
-import { Receipt } from 'lucide-react'
+import { Receipt, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react'
 
 const RECEIPT_IMAGES = {
   telebirr: '/telebirr.jpg',
@@ -17,7 +17,7 @@ const BANK_BADGE_CLASS = {
 
 const BANK_LABELS = {
   telebirr: 'Telebirr',
-  cbe: 'CBE',
+  cbe: 'Commercial Bank of Ethiopia',
   boa: 'Bank of Abyssinia',
   dashen: 'Dashen Bank',
 }
@@ -62,9 +62,13 @@ function FormatTextPanel({ method, mode }) {
 
     return (
       <aside className="receipt-example-panel" aria-label={t('guide.paymentIdFormat')}>
+        <div className="w-full flex items-center justify-between gap-2 mb-2">
+          <span className="text-[11px] font-extrabold text-[#1B463A] uppercase tracking-wider">Format Standard</span>
+          <span className={`bank-badge ${badgeClass}`}>{label}</span>
+        </div>
         <p className="receipt-example-label">{t('guide.paymentIdFormat')}</p>
         <p className="receipt-example-hint">{t(hintKey)}</p>
-        <div className="format-template-block">
+        <div className="format-template-block w-full my-3">
           {(linesByMethod[method] || []).map((line) => (
             <div key={`${line.label}-${line.value}`} className="format-template-row">
               <span className="format-template-key">{line.label}</span>
@@ -72,7 +76,10 @@ function FormatTextPanel({ method, mode }) {
             </div>
           ))}
         </div>
-        <span className={`bank-badge receipt-example-badge ${badgeClass}`}>{label}</span>
+        <div className="mt-auto w-full p-2.5 rounded-xl bg-white/80 border border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-left">
+          <ShieldCheck size={16} className="text-[#1B463A] shrink-0" />
+          <span className="text-[11px] font-bold text-[#091A16] leading-tight">Verified directly through bank ledger endpoints</span>
+        </div>
       </aside>
     )
   }
@@ -103,12 +110,19 @@ For receipt https://receipt.dashensuperapp.com/receipt/110IPSS2616900WO`,
 
     return (
       <aside className="receipt-example-panel" aria-label={t('guide.smsFormat')}>
+        <div className="w-full flex items-center justify-between gap-2 mb-2">
+          <span className="text-[11px] font-extrabold text-[#1B463A] uppercase tracking-wider">SMS Alert Standard</span>
+          <span className={`bank-badge ${badgeClass}`}>{label}</span>
+        </div>
         <p className="receipt-example-label">{t('guide.smsFormat')}</p>
         <p className="receipt-example-hint">{t(hintKey)}</p>
-        <div className="format-template-block format-template-sms">
+        <div className="format-template-block format-template-sms w-full my-3">
           <pre className="format-template-pre">{body}</pre>
         </div>
-        <span className={`bank-badge receipt-example-badge ${badgeClass}`}>{label}</span>
+        <div className="mt-auto w-full p-2.5 rounded-xl bg-white/80 border border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-left">
+          <CheckCircle2 size={16} className="text-[#1B463A] shrink-0" />
+          <span className="text-[11px] font-bold text-[#091A16] leading-tight">Matches official telecom SMS gateway sender headers</span>
+        </div>
       </aside>
     )
   }
@@ -140,16 +154,42 @@ export default function VerificationFormatGuide({ method, mode = 'screenshot' })
   if (mode === 'screenshot' && RECEIPT_IMAGES[method]) {
     return (
       <aside className="receipt-example-panel" aria-label={t('guide.receiptGuide')}>
+        {/* Header Bar */}
+        <div className="w-full flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#1B463A]">
+            <Sparkles size={14} className="text-[#C6A24E]" />
+            <span>Official Template</span>
+          </div>
+          <span className={`bank-badge ${badgeClass}`}>{label}</span>
+        </div>
+
         <p className="receipt-example-label">{t('guide.receiptGuide')}</p>
         <p className="receipt-example-hint">{t(`upload.${method}`)}</p>
-        <div className="receipt-example-frame">
-          <img
-            src={RECEIPT_IMAGES[method]}
-            alt={`${label} receipt example`}
-            className="receipt-example-image"
-          />
+
+        {/* Realistic Smartphone Mockup Frame */}
+        <div className="receipt-phone-frame my-3 relative">
+          <div className="receipt-phone-notch" />
+          <div className="receipt-example-frame overflow-hidden">
+            <img
+              src={RECEIPT_IMAGES[method]}
+              alt={`${label} receipt example`}
+              className="receipt-example-image object-contain w-full h-full"
+            />
+          </div>
+          {/* Dynamic Highlight Badge on Phone */}
+          <div className="receipt-phone-badge">
+            <CheckCircle2 size={13} className="text-[#1B463A] shrink-0" />
+            <span>AI extracts Invoice No. & Tamper Geometries</span>
+          </div>
         </div>
-        <span className={`bank-badge receipt-example-badge ${badgeClass}`}>{label}</span>
+
+        {/* Footer tip */}
+        <div className="mt-auto w-full p-2.5 rounded-xl bg-white/80 border border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-left">
+          <ShieldCheck size={16} className="text-[#1B463A] shrink-0" />
+          <span className="text-[11px] font-bold text-[#091A16] leading-tight">
+            Checks font alignment, timestamp & transaction validity
+          </span>
+        </div>
       </aside>
     )
   }
@@ -160,3 +200,4 @@ export default function VerificationFormatGuide({ method, mode = 'screenshot' })
 
   return null
 }
+

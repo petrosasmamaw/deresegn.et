@@ -32,10 +32,6 @@ const SUPPORTED_BANKS = [
   { id: 'cbe', name: 'Commercial Bank of Ethiopia', logo: '/banks/cbe.svg', fallback: '/banks/cbe.png', type: 'State Bank' },
   { id: 'boa', name: 'Bank of Abyssinia', logo: '/banks/boa.svg', fallback: '/banks/boa.jpg', type: 'Private Bank' },
   { id: 'dashen', name: 'Dashen Bank', logo: '/banks/dashen.svg', fallback: '/banks/dashen.png', type: 'Private Bank' },
-  { id: 'cbebirr', name: 'CBE Birr', logo: '/banks/cbe.svg', fallback: '/banks/cbe.png', type: 'Mobile Banking' },
-  { id: 'awash', name: 'Awash Bank', logo: '/deresegn-logo.svg', fallback: '/deresegn-logo.svg', type: 'Commercial' },
-  { id: 'sinqee', name: 'Sinqee Bank', logo: '/deresegn-logo.svg', fallback: '/deresegn-logo.svg', type: 'Commercial' },
-  { id: 'hibret', name: 'Hibret Bank', logo: '/deresegn-logo.svg', fallback: '/deresegn-logo.svg', type: 'Commercial' },
 ]
 
 export default function HomePage() {
@@ -97,12 +93,17 @@ if (result.isVerified) {
           <h1 className="text-3xl sm:text-5xl lg:text-[3.25rem] font-extrabold tracking-tight text-[#091A16] mb-5 leading-[1.14] sm:leading-[1.16]">
             {locale === 'am' ? (
               <>
-                <span className="landing-title-gradient">የሀሰተኛ ደረሰኝ ማጭበርበርን</span>{' '}
-                በፈጣንና አስተማማኝ ማረጋገጫ ያስቁሙ
+                <span className="landing-title-gradient">በሀሰተኛ ደረሰኝ ምክንያት ገንዘብዎን አያጡ</span>
+                <span className="block mt-2 text-xl sm:text-2xl lg:text-3xl font-black text-[#1B463A] tracking-wider">
+                  TRUSTED VERIFY
+                </span>
               </>
             ) : (
               <>
-                <span className="landing-title-gradient">Instant Fraud Detection</span> for Ethiopian Bank Receipts & Payments
+                <span className="landing-title-gradient">Never Lose Money to a Fake Receipt Again</span>
+                <span className="block mt-2 text-xl sm:text-2xl lg:text-3xl font-black text-[#1B463A] tracking-wider">
+                  TRUSTED VERIFY
+                </span>
               </>
             )}
           </h1>
@@ -154,7 +155,7 @@ if (result.isVerified) {
             <div className="landing-stat-card">
               <div className="flex items-center gap-2 text-[#1B463A] mb-1">
                 <Zap size={18} />
-                <span className="font-bold text-lg sm:text-xl text-[#091A16]">&lt; 1.2s</span>
+                <span className="font-bold text-lg sm:text-xl text-[#091A16]">&lt; 5 sec</span>
               </div>
               <p className="text-xs font-bold text-[#091A16] mb-0.5">{t('home.statSpeed')}</p>
               <p className="text-[11px] text-[#40564C] mb-0 leading-tight font-medium">{t('home.statSpeedSub')}</p>
@@ -163,7 +164,7 @@ if (result.isVerified) {
             <div className="landing-stat-card">
               <div className="flex items-center gap-2 text-[#8C6A21] mb-1">
                 <TrendingUp size={18} className="text-[#1B463A]" />
-                <span className="font-bold text-lg sm:text-xl text-[#091A16]">15+</span>
+                <span className="font-bold text-lg sm:text-xl text-[#091A16]">4</span>
               </div>
               <p className="text-xs font-bold text-[#091A16] mb-0.5">{t('home.statBanks')}</p>
               <p className="text-[11px] text-[#40564C] mb-0 leading-tight font-medium">{t('home.statBanksSub')}</p>

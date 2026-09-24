@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
-import { Smartphone, Building2, RotateCcw, Upload, Hash, Camera, MessageSquare, XCircle, Check } from 'lucide-react'
+import {
+  Smartphone,
+  Building2,
+  RotateCcw,
+  Upload,
+  Hash,
+  Camera,
+  MessageSquare,
+  XCircle,
+  Check,
+  ShieldCheck,
+  Sparkles,
+  CheckCircle2,
+  ArrowRight,
+  FileUp,
+  Info,
+} from 'lucide-react'
 import Modal from './Modal'
 import { VerificationFailureList, VerificationWarningList } from './VerificationResult'
 import VerificationCertificate from './VerificationCertificate'
@@ -25,6 +41,13 @@ const BANK_LOGOS = {
   cbe: '/banks/cbe.png',
   boa: '/banks/boa.jpg',
   dashen: '/banks/dashen.png',
+}
+
+const BANK_METADATA = {
+  telebirr: { name: 'Telebirr', type: 'Mobile Wallet' },
+  cbe: { name: 'Commercial Bank of Ethiopia', type: 'State Bank' },
+  boa: { name: 'Bank of Abyssinia', type: 'Private Bank' },
+  dashen: { name: 'Dashen Bank', type: 'Private Bank' },
 }
 
 const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa', 'dashen'])
@@ -356,35 +379,57 @@ export default function CheckerModal({
 
   const payState = !canMatchMyAccount ? 'is-locked' : matchMyAccount ? 'is-on' : 'is-ready'
   const payToMyAccountBlock = (
-    <div className={`pay-my-account ${payState}`}>
-      <label
-        className={`pay-my-account-toggle ${canMatchMyAccount ? '' : 'is-disabled'}`}
-        title={canMatchMyAccount ? t('check.payToMyAccountHint') : t('check.payToMyAccountOff')}
-      >
-        <input
-          type="checkbox"
-          checked={matchMyAccount}
-          disabled={!canMatchMyAccount}
-          onChange={(e) => {
-            matchUserOverrideRef.current = true
-            setMatchMyAccount(e.target.checked)
-          }}
-        />
-        <span className="pay-my-account-switch" aria-hidden="true" />
-        <span className="pay-my-account-copy">
-          <span className="pay-my-account-title">{t('check.payToMyAccount')}</span>
-          {savedForMethod && (
-            <span className="pay-my-account-meta">
-              {savedForMethod.accountName} · {savedForMethod.accountNumber}
-            </span>
-          )}
-        </span>
-      </label>
-      {!canMatchMyAccount && (
-        <Link to="/accounts" onClick={embedded ? undefined : handleClose} className="pay-my-account-add">
-          {t('check.addAccountLink')}
-        </Link>
-      )}
+    <div className={`p-3.5 rounded-2xl border transition-all ${
+      !canMatchMyAccount
+        ? 'bg-[#FAF8F5]/80 border-[rgba(27,70,58,0.12)]'
+        : matchMyAccount
+          ? 'bg-[#EBF5EE] border-[#1B463A]/40 shadow-xs'
+          : 'bg-[#FAF8F5] border-[rgba(27,70,58,0.14)]'
+    }`}>
+      <div className="flex items-center justify-between gap-3">
+        <label className={`flex items-center gap-3 flex-1 min-w-0 ${canMatchMyAccount ? 'cursor-pointer' : 'cursor-not-allowed opacity-75'}`}>
+          <div className="relative inline-flex items-center shrink-0">
+            <input
+              type="checkbox"
+              checked={matchMyAccount}
+              disabled={!canMatchMyAccount}
+              onChange={(e) => {
+                matchUserOverrideRef.current = true
+                setMatchMyAccount(e.target.checked)
+              }}
+              className="sr-only"
+            />
+            <div className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
+              matchMyAccount ? 'bg-[#1B463A]' : 'bg-gray-300'
+            }`}>
+              <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                matchMyAccount ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </div>
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-xs font-bold text-[#091A16] block">{t('check.payToMyAccount')}</span>
+            {savedForMethod ? (
+              <span className="text-[11px] text-[#40564C] font-semibold block truncate">
+                {savedForMethod.accountName} · {savedForMethod.accountNumber}
+              </span>
+            ) : (
+              <span className="text-[11px] text-[#8C6A21] font-medium block">
+                No saved account registered for this bank yet
+              </span>
+            )}
+          </div>
+        </label>
+        {!canMatchMyAccount && (
+          <Link
+            to="/accounts"
+            onClick={embedded ? undefined : handleClose}
+            className="text-xs font-bold text-[#1B463A] hover:underline shrink-0"
+          >
+            {t('check.addAccountLink')}
+          </Link>
+        )}
+      </div>
     </div>
   )
 
@@ -434,68 +479,123 @@ export default function CheckerModal({
 
   const selector = (
     <>
-      <div className="verify-desk-head">
+      <div className="flex items-start justify-between gap-3 mb-5 pb-4 border-b border-[rgba(27,70,58,0.1)]">
         <div>
-          <h2 className="verify-desk-title">
-            {t('check.title')}
-            <span className="verify-live">{t('check.liveStamp')}</span>
-          </h2>
-          <p className="verify-desk-desc">{t('check.deskHint')}</p>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-xl sm:text-2xl font-black text-[#091A16] tracking-tight">
+              {t('check.title')}
+            </h2>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#1B463A]/10 text-[#1B463A] border border-[#1B463A]/20 uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {t('check.liveStamp')}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-[#40564C] font-medium leading-relaxed max-w-xl">
+            {t('check.deskHint')}
+          </p>
         </div>
       </div>
 
-      <p className="verify-step"><span className="verify-step-num">1</span>{t('check.stepMethod')}</p>
-      <div className="verify-bank-grid">
-        {visibleMethods.length === 0 && (
-          <p className="text-sm text-[var(--color-text-secondary)] col-span-full">{t('check.noChannels')}</p>
-        )}
-        {visibleMethods.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => selectBank(m.id)}
-            className={`verify-bank${method === m.id ? ' is-active' : ''}`}
-            aria-label={m.label}
-            aria-pressed={method === m.id}
-          >
-            <span className="verify-pick" aria-hidden="true">
-              <Check size={10} strokeWidth={3} />
-            </span>
-            <span className="verify-bank-mark">
-              <img src={BANK_LOGOS[m.id]} alt="" width="32" height="32" />
-            </span>
-            <span className="verify-bank-name">{t(`method.short.${m.id}`)}</span>
-          </button>
-        ))}
+      {/* Step 1: Bank Selection */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
+          <span className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepMethod')}</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          {visibleMethods.length === 0 && (
+            <p className="text-sm text-[#40564C] col-span-full">{t('check.noChannels')}</p>
+          )}
+          {visibleMethods.map((m) => {
+            const isSelected = method === m.id
+            const meta = BANK_METADATA[m.id] || { name: m.label, type: 'Bank' }
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => selectBank(m.id)}
+                className={`relative flex flex-col items-center justify-center text-center p-3 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                  isSelected
+                    ? 'bg-[#EBF5EE] border-2 border-[#1B463A] shadow-md ring-2 ring-[#1B463A]/15 scale-[1.01]'
+                    : 'bg-white/90 hover:bg-white border-[rgba(27,70,58,0.14)] hover:border-[#1B463A]/40 shadow-xs hover:shadow-sm'
+                }`}
+                aria-label={m.label}
+                aria-pressed={isSelected}
+              >
+                {isSelected && (
+                  <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#1B463A] text-white flex items-center justify-center shadow-xs">
+                    <Check size={10} strokeWidth={3} />
+                  </span>
+                )}
+                <div className="w-10 h-10 rounded-xl bg-white p-1.5 flex items-center justify-center mb-1.5 shadow-xs border border-[rgba(27,70,58,0.08)]">
+                  <img src={BANK_LOGOS[m.id]} alt={m.label} className="w-full h-full object-contain rounded" />
+                </div>
+                <span className="text-xs font-extrabold text-[#091A16] block leading-tight">{m.label}</span>
+                <span className="text-[10px] font-medium text-[#40564C] block mt-0.5">{meta.type}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
+      {/* Step 2: Verification Mode */}
       {method && enabledModes.length > 0 && (
-        <>
-          <p className="verify-step"><span className="verify-step-num">2</span>{t('check.stepMode')}</p>
-          <div className="verify-mode-grid" role="tablist">
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
+            <span className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepMode')}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.12)]">
             {enabledModes.includes('screenshot') && (
-              <button type="button" role="tab" aria-selected={verifyMode === 'screenshot'} className={`verify-mode-btn${verifyMode === 'screenshot' ? ' is-active' : ''}`} onClick={() => pickMode('screenshot')}>
-                <span className="verify-pick" aria-hidden="true"><Check size={10} strokeWidth={3} /></span>
-                <Camera size={18} strokeWidth={2} />
-                {t('check.modeScreenshotShort')}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={verifyMode === 'screenshot'}
+                onClick={() => pickMode('screenshot')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  verifyMode === 'screenshot'
+                    ? 'bg-[#1B463A] text-white shadow-md'
+                    : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+                }`}
+              >
+                <Camera size={16} strokeWidth={2} />
+                <span>{t('check.modeScreenshotShort')}</span>
               </button>
             )}
             {enabledModes.includes('sms') && (
-              <button type="button" role="tab" aria-selected={verifyMode === 'sms'} className={`verify-mode-btn${verifyMode === 'sms' ? ' is-active' : ''}`} onClick={() => pickMode('sms')}>
-                <span className="verify-pick" aria-hidden="true"><Check size={10} strokeWidth={3} /></span>
-                <MessageSquare size={18} strokeWidth={2} />
-                {t('check.modeSmsShort')}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={verifyMode === 'sms'}
+                onClick={() => pickMode('sms')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  verifyMode === 'sms'
+                    ? 'bg-[#1B463A] text-white shadow-md'
+                    : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+                }`}
+              >
+                <MessageSquare size={16} strokeWidth={2} />
+                <span>{t('check.modeSmsShort')}</span>
               </button>
             )}
             {enabledModes.includes('reference') && (
-              <button type="button" role="tab" aria-selected={verifyMode === 'reference'} className={`verify-mode-btn${verifyMode === 'reference' ? ' is-active' : ''}`} onClick={() => pickMode('reference')}>
-                <span className="verify-pick" aria-hidden="true"><Check size={10} strokeWidth={3} /></span>
-                <Hash size={18} strokeWidth={2} />
-                {t('check.modeReferenceShort')}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={verifyMode === 'reference'}
+                onClick={() => pickMode('reference')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  verifyMode === 'reference'
+                    ? 'bg-[#1B463A] text-white shadow-md'
+                    : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+                }`}
+              >
+                <Hash size={16} strokeWidth={2} />
+                <span>{t('check.modeReferenceShort')}</span>
               </button>
             )}
           </div>
-        </>
+        </div>
       )}
     </>
   )
@@ -562,7 +662,7 @@ export default function CheckerModal({
       </div>
     </div>
   ) : (
-    <div className="space-y-1">
+    <div className="space-y-4">
       {selector}
       {error && !rejected && step === 3 && (
         <div className="alert alert-error mt-4">
@@ -571,135 +671,172 @@ export default function CheckerModal({
       )}
 
       {step === 3 && verifyMode === 'screenshot' && (
-              <div className="verify-flow">
-                <form onSubmit={handleQuickVerify} className="verify-flow-form">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t('check.stepUpload')}</p>
-                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    {method === 'telebirr'
-                      ? t('check.stepUploadHintTelebirr')
-                      : t('check.stepUploadHintOther')}
-                  </p>
-                </div>
-
-                <div>
-                  <label className={`upload-box${preview ? ' has-file' : ''}`}>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} required />
-                    <span className="upload-box-icon" aria-hidden="true">
-                      <Upload size={22} strokeWidth={2.25} />
-                    </span>
-                    <span className="upload-box-title">
-                      {preview ? t('check.changeFile') : t('check.uploadReceipt')}
-                    </span>
-                    <span className="upload-box-hint">
-                      {preview ? t('check.screenshotUploaded') : t('check.uploadHint')}
-                    </span>
-                    <span className="upload-box-cta">
-                      {preview ? t('check.changeFile') : t('check.uploadBtn')}
-                    </span>
-                    {preview && (
-                      <img src={preview} alt="" className="upload-preview" />
-                    )}
-                  </label>
-                </div>
-
-                <div className="space-y-2.5">
-                  {payToMyAccountBlock}
-                  <button type="submit" disabled={loading || !screenshot} className="btn-verify w-full">
-                    {loading ? t('check.verifying') : t('check.verifyBtn')}
-                  </button>
-                </div>
-              </form>
-              </div>
-            )}
-
-            {step === 3 && verifyMode === 'reference' && (
-              <div className="verify-flow">
-              <form onSubmit={runReferenceVerify} className="verify-flow-form">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t('check.stepPaymentId')}</p>
-                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    {t('check.stepPaymentIdHint')}
-                  </p>
-                </div>
-
-                <div className="rounded-lg p-3 border text-[var(--text-xs)]" style={{ background: 'var(--color-accent-muted)', borderColor: 'var(--color-accent-border)' }}>
-                  <p className="font-semibold text-[var(--text-sm)] mb-1">
-                    {methods.find((m) => m.id === method)?.label}
-                  </p>
-                  <p className="text-[var(--color-text-secondary)]">
-                    {referenceDetailByMethod[method]}
-                  </p>
-                </div>
-
-                {referenceFields.map((field) => (
-                  <div key={field.key}>
-                    <label className="label">{field.label}</label>
-                    <input
-                      type="text"
-                      className="input w-full"
-                      placeholder={field.placeholder}
-                      value={referenceForm[field.key]}
-                      onChange={(e) => handleReferenceChange(field.key, e.target.value)}
-                      required
-                    />
-                    {field.hint && (
-                      <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">{field.hint}</p>
-                    )}
+        <form onSubmit={handleQuickVerify} className="space-y-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
+              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepUpload')}</p>
+            </div>
+            <p className="text-xs text-[#40564C] mb-3">
+              {method === 'telebirr'
+                ? t('check.stepUploadHintTelebirr')
+                : t('check.stepUploadHintOther')}
+            </p>
+            <label
+              className={`relative block rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer overflow-hidden p-6 sm:p-8 text-center ${
+                preview
+                  ? 'border-[#1B463A] bg-[#F2F8F4]'
+                  : 'border-[rgba(27,70,58,0.25)] hover:border-[#1B463A] bg-[#FAF8F5]/80 hover:bg-[#F6FAF7]'
+              }`}
+            >
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFile}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                required={!screenshot}
+              />
+              {preview ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative group max-h-48 overflow-hidden rounded-xl border border-[rgba(27,70,58,0.15)] shadow-md bg-white p-1">
+                    <img src={preview} alt="Receipt preview" className="max-h-40 object-contain rounded-lg" />
                   </div>
-                ))}
-
-                <div className="space-y-2.5">
-                  {payToMyAccountBlock}
-                  <button type="submit" disabled={loading || !referenceReady} className="btn-verify w-full">
-                    {loading ? t('check.verifying') : t('check.verifyPaymentId')}
-                  </button>
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#1B463A] text-white shadow-xs">
+                      <CheckCircle2 size={13} />
+                      <span>{t('check.screenshotUploaded')}</span>
+                    </span>
+                    <p className="text-xs text-[#40564C] font-semibold mt-1.5">Tap box to choose a different receipt screenshot</p>
+                  </div>
                 </div>
-                <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] text-center">
-                  {t('check.costRange')}
-                </p>
-              </form>
-              </div>
-            )}
-
-            {step === 3 && verifyMode === 'sms' && (
-              <div className="verify-flow">
-              <form onSubmit={runSmsVerify} className="verify-flow-form">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{t('check.stepSms')}</p>
-                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-1">
-                    {t('check.stepSmsHint')}
-                  </p>
+              ) : (
+                <div className="flex flex-col items-center gap-2.5">
+                  <div className="w-12 h-12 rounded-2xl bg-[#1B463A]/10 text-[#1B463A] flex items-center justify-center shadow-xs">
+                    <Upload size={24} strokeWidth={2} />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-extrabold text-[#091A16]">{t('check.uploadReceipt')}</p>
+                    <p className="text-xs text-[#40564C] font-medium max-w-sm mx-auto mt-0.5">{t('check.uploadHint')}</p>
+                  </div>
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1B463A] text-white text-xs font-bold shadow-sm pointer-events-none mt-1">
+                    <FileUp size={15} />
+                    <span>{t('check.uploadBtn')}</span>
+                  </span>
                 </div>
+              )}
+            </label>
+          </div>
 
-                <div>
-                  <label className="label">{t('check.smsLabel')}</label>
-                  <textarea
-                    className="input w-full min-h-[7.5rem] font-mono text-[var(--text-xs)]"
-                    placeholder={SMS_PLACEHOLDERS[method]}
-                    value={smsText}
-                    onChange={(e) => setSmsText(e.target.value)}
-                    required
-                  />
-                  <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] mt-2">
-                    {method === 'telebirr'
-                      ? t('check.stepSmsHintTelebirr')
-                      : t('check.stepSmsHintCbe')}
-                  </p>
-                </div>
+          {payToMyAccountBlock}
 
-                <div className="space-y-2.5">
-                  {payToMyAccountBlock}
-                  <button type="submit" disabled={loading || smsText.trim().length < 40} className="btn-verify w-full">
-                    {loading ? t('check.verifying') : t('check.verifySms')}
-                  </button>
-                </div>
-                <p className="text-[var(--text-xs)] text-[var(--color-text-secondary)] text-center">
-                  {t('check.costRange')}
-                </p>
-              </form>
-              </div>
-            )}
+          <button
+            type="submit"
+            disabled={loading || !screenshot}
+            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ShieldCheck size={20} className="text-[#E4C977]" />
+            <span>{loading ? t('check.verifying') : t('check.verifyBtn')}</span>
+            <ArrowRight size={18} className="opacity-90" />
+          </button>
+          <p className="text-[11px] text-[#40564C] text-center font-medium">Takes &lt; 5 seconds · Secure cryptographic seal</p>
+        </form>
+      )}
+
+      {step === 3 && verifyMode === 'reference' && (
+        <form onSubmit={runReferenceVerify} className="space-y-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
+              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepPaymentId')}</p>
+            </div>
+            <p className="text-xs text-[#40564C] mb-3">{t('check.stepPaymentIdHint')}</p>
+          </div>
+
+          <div className="rounded-2xl p-3.5 border text-xs bg-[#FAF8F5] border-[rgba(27,70,58,0.12)]">
+            <p className="font-extrabold text-sm text-[#091A16] mb-1">
+              {methods.find((m) => m.id === method)?.label}
+            </p>
+            <p className="text-[#40564C] font-medium leading-relaxed">
+              {referenceDetailByMethod[method]}
+            </p>
+          </div>
+
+          {referenceFields.map((field) => (
+            <div key={field.key}>
+              <label className="label text-xs font-bold text-[#091A16] mb-1 block">{field.label}</label>
+              <input
+                type="text"
+                className="input w-full rounded-xl py-2.5 text-sm font-semibold"
+                placeholder={field.placeholder}
+                value={referenceForm[field.key]}
+                onChange={(e) => handleReferenceChange(field.key, e.target.value)}
+                required
+              />
+              {field.hint && (
+                <p className="text-[11px] text-[#40564C] mt-1 font-medium">{field.hint}</p>
+              )}
+            </div>
+          ))}
+
+          {payToMyAccountBlock}
+
+          <button
+            type="submit"
+            disabled={loading || !referenceReady}
+            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ShieldCheck size={20} className="text-[#E4C977]" />
+            <span>{loading ? t('check.verifying') : t('check.verifyPaymentId')}</span>
+            <ArrowRight size={18} className="opacity-90" />
+          </button>
+          <p className="text-[11px] text-[#40564C] text-center font-medium">
+            {t('check.costRange')}
+          </p>
+        </form>
+      )}
+
+      {step === 3 && verifyMode === 'sms' && (
+        <form onSubmit={runSmsVerify} className="space-y-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
+              <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">{t('check.stepSms')}</p>
+            </div>
+            <p className="text-xs text-[#40564C] mb-3">{t('check.stepSmsHint')}</p>
+          </div>
+
+          <div>
+            <label className="label text-xs font-bold text-[#091A16] mb-1 block">{t('check.smsLabel')}</label>
+            <textarea
+              className="input w-full min-h-[8rem] font-mono text-xs rounded-xl p-3"
+              placeholder={SMS_PLACEHOLDERS[method]}
+              value={smsText}
+              onChange={(e) => setSmsText(e.target.value)}
+              required
+            />
+            <p className="text-[11px] text-[#40564C] mt-1.5 font-medium">
+              {method === 'telebirr'
+                ? t('check.stepSmsHintTelebirr')
+                : t('check.stepSmsHintCbe')}
+            </p>
+          </div>
+
+          {payToMyAccountBlock}
+
+          <button
+            type="submit"
+            disabled={loading || smsText.trim().length < 40}
+            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ShieldCheck size={20} className="text-[#E4C977]" />
+            <span>{loading ? t('check.verifying') : t('check.verifySms')}</span>
+            <ArrowRight size={18} className="opacity-90" />
+          </button>
+          <p className="text-[11px] text-[#40564C] text-center font-medium">
+            {t('check.costRange')}
+          </p>
+        </form>
+      )}
     </div>
   )
 
