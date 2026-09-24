@@ -84,11 +84,11 @@ if (result.isVerified) {
 }`
 
   return (
-    <div className="min-h-screen bg-[#FAF8F3] text-[#1A2E26] flex flex-col selection:bg-[var(--color-foil-gold)] selection:text-[var(--color-ink)] overflow-x-hidden">
+    <div className="landing-page-root flex flex-col selection:bg-[var(--color-foil-gold)] selection:text-[var(--color-ink)]">
       {/* Top Floating Navbar */}
       <LandingNavbar />
 
-      {/* ── HERO SECTION WITH LIGHT BACKGROUND & GREEN ABSTRACTS ON SIDES ── */}
+      {/* ── HERO SECTION WITH REGENERATED CLEAN LIGHT BACKGROUND & SEAMLESS BLEND ── */}
       <section className="landing-hero-wrap pt-28 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden">
         <div className="landing-hero-overlay" />
 
@@ -101,8 +101,8 @@ if (result.isVerified) {
             </span>
           </div>
 
-          {/* Main Hero Headline - Perfectly Centered in Crisp Dark Green & Black */}
-          <h1 className="text-3xl sm:text-5xl lg:text-[3.25rem] font-extrabold tracking-tight text-[#0E2420] mb-5 leading-[1.14] sm:leading-[1.16]">
+          {/* Main Hero Headline - Perfectly Centered in Deep High-Contrast Emerald-Black */}
+          <h1 className="text-3xl sm:text-5xl lg:text-[3.25rem] font-extrabold tracking-tight text-[#091A16] mb-5 leading-[1.14] sm:leading-[1.16]">
             {locale === 'am' ? (
               <>
                 <span className="landing-title-gradient">የሀሰተኛ ደረሰኝ ማጭበርበርን</span>{' '}
@@ -115,8 +115,8 @@ if (result.isVerified) {
             )}
           </h1>
 
-          {/* Subtitle - Cleanly Centered */}
-          <p className="text-base sm:text-lg text-[#2C3E36] max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-normal">
+          {/* Subtitle - High Contrast Slate Emerald */}
+          <p className="text-base sm:text-lg text-[#1F362D] max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium">
             {t('home.heroSub')}
           </p>
 
@@ -125,7 +125,7 @@ if (result.isVerified) {
             <button
               type="button"
               onClick={handleStartVerify}
-              className="btn-primary w-full sm:w-auto px-8 py-3.5 text-base font-bold flex items-center justify-center gap-3 shadow-xl hover:shadow-[0_8px_25px_rgba(27,70,58,0.25)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer bg-[#1B463A] text-white hover:bg-[#0E2420]"
+              className="btn-primary w-full sm:w-auto px-8 py-3.5 text-base font-bold flex items-center justify-center gap-3 shadow-xl hover:shadow-[0_8px_25px_rgba(27,70,58,0.25)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer bg-[#1B463A] text-white hover:bg-[#091A16]"
             >
               <ShieldCheck size={20} />
               <span>{t('home.startVerify')}</span>
@@ -134,7 +134,7 @@ if (result.isVerified) {
 
             <a
               href="#api"
-              className="w-full sm:w-auto px-6 py-3.5 text-sm sm:text-base font-semibold text-[#1B463A] bg-white hover:bg-[#F4EEDC] border border-[rgba(27,70,58,0.25)] rounded-lg shadow-sm backdrop-blur-md transition-colors flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3.5 text-sm sm:text-base font-semibold text-[#1B463A] bg-white hover:bg-[#FAF8F5] border border-[rgba(27,70,58,0.25)] rounded-lg shadow-sm backdrop-blur-md transition-colors flex items-center justify-center gap-2"
             >
               <Code2 size={18} className="text-[#1B463A]" />
               <span>{t('home.exploreApi')}</span>
@@ -142,82 +142,87 @@ if (result.isVerified) {
 
             <a
               href="#features"
-              className="text-sm font-medium text-[#1B463A] hover:text-[#0E2420] transition-colors underline-offset-4 hover:underline py-2 sm:py-0"
+              className="text-sm font-semibold text-[#1B463A] hover:text-[#091A16] transition-colors underline-offset-4 hover:underline py-2 sm:py-0"
             >
               {t('home.howItWorks')} ↓
             </a>
           </div>
 
-          {/* Metric Stats Cards Strip - Neatly Centered on Crisp White Glass */}
+          {/* Metric Stats Cards Strip - Frosted White Glass with Crisp Dark Typography */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-left max-w-3xl mx-auto">
             <div className="landing-stat-card">
-              <div className="flex items-center gap-2 text-[#9B782A] mb-1">
+              <div className="flex items-center gap-2 text-[#8C6A21] mb-1">
                 <ShieldCheck size={18} className="text-[#1B463A]" />
-                <span className="font-bold text-lg sm:text-xl text-[#0E2420]">99.9%</span>
+                <span className="font-bold text-lg sm:text-xl text-[#091A16]">99.9%</span>
               </div>
-              <p className="text-xs font-semibold text-[#0E2420] mb-0.5">{t('home.statAccuracy')}</p>
-              <p className="text-[11px] text-[#556960] mb-0 leading-tight">{t('home.statAccuracySub')}</p>
+              <p className="text-xs font-bold text-[#091A16] mb-0.5">{t('home.statAccuracy')}</p>
+              <p className="text-[11px] text-[#40564C] mb-0 leading-tight font-medium">{t('home.statAccuracySub')}</p>
             </div>
 
             <div className="landing-stat-card">
               <div className="flex items-center gap-2 text-[#1B463A] mb-1">
                 <Zap size={18} />
-                <span className="font-bold text-lg sm:text-xl text-[#0E2420]">&lt; 1.2s</span>
+                <span className="font-bold text-lg sm:text-xl text-[#091A16]">&lt; 1.2s</span>
               </div>
-              <p className="text-xs font-semibold text-[#0E2420] mb-0.5">{t('home.statSpeed')}</p>
-              <p className="text-[11px] text-[#556960] mb-0 leading-tight">{t('home.statSpeedSub')}</p>
+              <p className="text-xs font-bold text-[#091A16] mb-0.5">{t('home.statSpeed')}</p>
+              <p className="text-[11px] text-[#40564C] mb-0 leading-tight font-medium">{t('home.statSpeedSub')}</p>
             </div>
 
             <div className="landing-stat-card">
-              <div className="flex items-center gap-2 text-[#9B782A] mb-1">
+              <div className="flex items-center gap-2 text-[#8C6A21] mb-1">
                 <TrendingUp size={18} className="text-[#1B463A]" />
-                <span className="font-bold text-lg sm:text-xl text-[#0E2420]">15+</span>
+                <span className="font-bold text-lg sm:text-xl text-[#091A16]">15+</span>
               </div>
-              <p className="text-xs font-semibold text-[#0E2420] mb-0.5">{t('home.statBanks')}</p>
-              <p className="text-[11px] text-[#556960] mb-0 leading-tight">{t('home.statBanksSub')}</p>
+              <p className="text-xs font-bold text-[#091A16] mb-0.5">{t('home.statBanks')}</p>
+              <p className="text-[11px] text-[#40564C] mb-0 leading-tight font-medium">{t('home.statBanksSub')}</p>
             </div>
 
             <div className="landing-stat-card">
               <div className="flex items-center gap-2 text-[#1B463A] mb-1">
                 <FileCheck size={18} />
-                <span className="font-bold text-lg sm:text-xl text-[#0E2420]">100%</span>
+                <span className="font-bold text-lg sm:text-xl text-[#091A16]">100%</span>
               </div>
-              <p className="text-xs font-semibold text-[#0E2420] mb-0.5">{t('home.statCert')}</p>
-              <p className="text-[11px] text-[#556960] mb-0 leading-tight">{t('home.statCertSub')}</p>
+              <p className="text-xs font-bold text-[#091A16] mb-0.5">{t('home.statCert')}</p>
+              <p className="text-[11px] text-[#40564C] mb-0 leading-tight font-medium">{t('home.statCertSub')}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── LIVE VERIFICATION MACHINE (IVORY / LIGHT BACKGROUND) ── */}
-      <section id="live-engine" className="bg-[#F4EEDC] border-t border-b border-[rgba(27,70,58,0.14)] py-14 sm:py-18 px-3 sm:px-6 relative overflow-hidden">
-        {/* Soft Ambient Glow Elements */}
-        <div className="absolute -left-32 top-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#1B463A]/10 blur-3xl pointer-events-none" />
-        <div className="absolute -right-32 top-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#C6A24E]/12 blur-3xl pointer-events-none" />
+      {/* Seamless blend bridge between hero and content canvas */}
+      <div className="landing-blend-bridge" />
 
-        <div className="container mx-auto max-w-5xl relative z-10">
-          <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
-            <span className="landing-glow-badge mb-3">
-              <Cpu size={14} className="text-[#1B463A]" />
-              <span>{t('home.liveDemoBadge')}</span>
-            </span>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0E2420] mb-3 tracking-tight">
-              {t('home.liveDemoTitle')}
-            </h2>
-            <p className="text-sm sm:text-base text-[#4A5D55] mb-0">
-              {t('home.liveDemoSub')}
-            </p>
+      {/* ── LONG HIGH-QUALITY CONTINUOUS BACKGROUND CANVAS FOR ALL PAGE CONTENT ── */}
+      <div className="landing-content-canvas">
+        {/* ── LIVE VERIFICATION MACHINE ── */}
+        <section id="live-engine" className="py-14 sm:py-20 px-3 sm:px-6 relative overflow-hidden">
+          {/* Soft Ambient Glow Elements */}
+          <div className="absolute -left-32 top-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#1B463A]/8 blur-3xl pointer-events-none" />
+          <div className="absolute -right-32 top-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#C6A24E]/10 blur-3xl pointer-events-none" />
+
+          <div className="container mx-auto max-w-5xl relative z-10">
+            <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+              <span className="landing-glow-badge mb-3">
+                <Cpu size={14} className="text-[#1B463A]" />
+                <span>{t('home.liveDemoBadge')}</span>
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#091A16] mb-3 tracking-tight">
+                {t('home.liveDemoTitle')}
+              </h2>
+              <p className="text-sm sm:text-base text-[#284036] font-normal mb-0 leading-relaxed">
+                {t('home.liveDemoSub')}
+              </p>
+            </div>
+
+            {/* Interactive Mechanical AI Engine in Clean White Card Frame */}
+            <div className="bg-white/95 backdrop-blur-md p-2 sm:p-4 rounded-2xl shadow-xl border border-[rgba(27,70,58,0.16)] overflow-hidden">
+              <BirrVerifyHero hideCopy={true} />
+            </div>
           </div>
+        </section>
 
-          {/* Interactive Mechanical AI Engine in Clean White Card Frame */}
-          <div className="bg-white p-2 sm:p-4 rounded-2xl shadow-xl border border-[rgba(27,70,58,0.16)] overflow-hidden">
-            <BirrVerifyHero hideCopy={true} />
-          </div>
-        </div>
-      </section>
-
-      {/* ── THREE WAYS TO VERIFY (WHITE BACKGROUND WITH GREEN & GOLD ABSTRACTS) ── */}
-      <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 bg-[#FFFFFF] relative overflow-hidden border-b border-[rgba(27,70,58,0.12)]">
+      {/* ── THREE WAYS TO VERIFY ── */}
+      <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden border-t border-b border-[rgba(27,70,58,0.08)]">
         {/* Left Side Abstract Graphic: Green Optical Scanner & Radar in Green Stroke */}
         <div className="absolute -left-12 top-1/2 -translate-y-1/2 w-72 h-72 pointer-events-none opacity-25 hidden md:block">
           <svg viewBox="0 0 300 300" className="w-full h-full text-[#1B463A]" fill="none">
@@ -254,76 +259,76 @@ if (result.isVerified) {
               <Layers size={13} className="text-[#1B463A]" />
               <span>{t('home.methodsBadge')}</span>
             </span>
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0E2420] mb-4 tracking-tight">
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-[#091A16] mb-4 tracking-tight">
               {t('home.methodsTitle')}
             </h2>
-            <p className="text-sm sm:text-base text-[#4A5D55] mb-0">
+            <p className="text-sm sm:text-base text-[#284036] mb-0 leading-relaxed">
               {t('home.methodsSub')}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {/* Method 1: Screenshot OCR */}
-            <div className="landing-glass-card p-6 sm:p-7 flex flex-col justify-between border border-[rgba(27,70,58,0.16)] hover:border-[#1B463A] shadow-sm hover:shadow-xl transition-all group bg-[#FAF8F3] hover:bg-white">
+            <div className="landing-glass-card p-6 sm:p-7 flex flex-col justify-between group">
               <div>
                 <div className="w-12 h-12 rounded-xl bg-[rgba(27,70,58,0.08)] border border-[rgba(27,70,58,0.18)] text-[#1B463A] flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-[#1B463A] group-hover:text-white transition-all">
                   <ScanLine size={24} />
                 </div>
-                <span className="text-[11px] font-bold tracking-wider uppercase text-[#1B463A] mb-1 block">
+                <span className="text-[11px] font-bold tracking-wider uppercase text-[#1B463A] mb-1.5 block">
                   {t('home.method1Badge')}
                 </span>
-                <h3 className="text-xl font-bold text-[#0E2420] mb-3 group-hover:text-[#1B463A] transition-colors">
+                <h3 className="text-xl font-bold text-[#091A16] mb-3 group-hover:text-[#1B463A] transition-colors">
                   {t('home.method1Title')}
                 </h3>
-                <p className="text-sm text-[#4A5D55] leading-relaxed">
+                <p className="text-sm text-[#284036] leading-relaxed">
                   {t('home.method1Desc')}
                 </p>
               </div>
-              <div className="pt-4 mt-4 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-semibold text-[#1B463A]">
+              <div className="pt-4 mt-5 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-bold text-[#1B463A]">
                 <CheckCircle2 size={16} className="text-[#1B463A] shrink-0" />
                 <span>Telebirr, CBE, BoA screenshots</span>
               </div>
             </div>
 
             {/* Method 2: Transaction Reference ID */}
-            <div className="landing-glass-card p-6 sm:p-7 flex flex-col justify-between border border-[rgba(27,70,58,0.16)] hover:border-[#1B463A] shadow-sm hover:shadow-xl transition-all group bg-[#FAF8F3] hover:bg-white">
+            <div className="landing-glass-card p-6 sm:p-7 flex flex-col justify-between group">
               <div>
                 <div className="w-12 h-12 rounded-xl bg-[rgba(27,70,58,0.08)] border border-[rgba(27,70,58,0.18)] text-[#1B463A] flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-[#1B463A] group-hover:text-white transition-all">
                   <Hash size={24} />
                 </div>
-                <span className="text-[11px] font-bold tracking-wider uppercase text-[#1B463A] mb-1 block">
+                <span className="text-[11px] font-bold tracking-wider uppercase text-[#1B463A] mb-1.5 block">
                   {t('home.method2Badge')}
                 </span>
-                <h3 className="text-xl font-bold text-[#0E2420] mb-3 group-hover:text-[#1B463A] transition-colors">
+                <h3 className="text-xl font-bold text-[#091A16] mb-3 group-hover:text-[#1B463A] transition-colors">
                   {t('home.method2Title')}
                 </h3>
-                <p className="text-sm text-[#4A5D55] leading-relaxed">
+                <p className="text-sm text-[#284036] leading-relaxed">
                   {t('home.method2Desc')}
                 </p>
               </div>
-              <div className="pt-4 mt-4 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-semibold text-[#1B463A]">
+              <div className="pt-4 mt-5 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-bold text-[#1B463A]">
                 <CheckCircle2 size={16} className="text-[#1B463A] shrink-0" />
                 <span>Account suffix match check</span>
               </div>
             </div>
 
             {/* Method 3: SMS Alert Parser */}
-            <div className="landing-glass-card p-6 sm:p-7 flex flex-col justify-between border border-[rgba(27,70,58,0.16)] hover:border-[#1B463A] shadow-sm hover:shadow-xl transition-all group bg-[#FAF8F3] hover:bg-white">
+            <div className="landing-glass-card p-6 sm:p-7 flex flex-col justify-between group">
               <div>
                 <div className="w-12 h-12 rounded-xl bg-[rgba(27,70,58,0.08)] border border-[rgba(27,70,58,0.18)] text-[#1B463A] flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-[#1B463A] group-hover:text-white transition-all">
                   <MessageSquare size={24} />
                 </div>
-                <span className="text-[11px] font-bold tracking-wider uppercase text-[#1B463A] mb-1 block">
+                <span className="text-[11px] font-bold tracking-wider uppercase text-[#1B463A] mb-1.5 block">
                   {t('home.method3Badge')}
                 </span>
-                <h3 className="text-xl font-bold text-[#0E2420] mb-3 group-hover:text-[#1B463A] transition-colors">
+                <h3 className="text-xl font-bold text-[#091A16] mb-3 group-hover:text-[#1B463A] transition-colors">
                   {t('home.method3Title')}
                 </h3>
-                <p className="text-sm text-[#4A5D55] leading-relaxed">
+                <p className="text-sm text-[#284036] leading-relaxed">
                   {t('home.method3Desc')}
                 </p>
               </div>
-              <div className="pt-4 mt-4 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-semibold text-[#1B463A]">
+              <div className="pt-4 mt-5 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-bold text-[#1B463A]">
                 <CheckCircle2 size={16} className="text-[#1B463A] shrink-0" />
                 <span>Genuine sender header parse</span>
               </div>
@@ -332,9 +337,9 @@ if (result.isVerified) {
         </div>
       </section>
 
-      {/* ── SUPPORTED BANKS & WALLETS (IVORY BACKGROUND WITH GREEN BANK ABSTRACTS) ── */}
-      <section id="banks" className="py-16 sm:py-24 px-4 sm:px-6 bg-[#F4EEDC] relative overflow-hidden border-b border-[rgba(27,70,58,0.16)]">
-        {/* Left Side Abstract: Bank Pillars & Vault Combination Dial in Green Stroke */}
+      {/* ── SUPPORTED BANKS & WALLETS ── */}
+      <section id="banks" className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden border-b border-[rgba(27,70,58,0.08)]">
+        {/* Left Side Abstract: Bank Pillars & Vault Dial */}
         <div className="absolute -left-10 top-1/2 -translate-y-1/2 w-80 h-80 pointer-events-none opacity-25 hidden md:block">
           <svg viewBox="0 0 320 320" className="w-full h-full text-[#1B463A]" fill="none">
             <circle cx="160" cy="160" r="145" stroke="currentColor" strokeWidth="1.5" strokeDasharray="10 5" />
@@ -347,7 +352,7 @@ if (result.isVerified) {
           </svg>
         </div>
 
-        {/* Right Side Abstract: Interbank Currency Network in Green Stroke */}
+        {/* Right Side Abstract: Interbank Currency Network */}
         <div className="absolute -right-10 top-1/2 -translate-y-1/2 w-80 h-80 pointer-events-none opacity-25 hidden md:block">
           <svg viewBox="0 0 320 320" className="w-full h-full text-[#1B463A]" fill="none">
             <line x1="80" y1="80" x2="240" y2="100" stroke="#C6A24E" strokeWidth="1.5" strokeDasharray="6 4" />
@@ -369,10 +374,10 @@ if (result.isVerified) {
               <Landmark size={13} className="text-[#1B463A]" />
               <span>{t('home.banksBadge')}</span>
             </span>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#0E2420] mb-3 tracking-tight">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#091A16] mb-3 tracking-tight">
               {t('home.banksTitle')}
             </h2>
-            <p className="text-sm sm:text-base text-[#4A5D55] mb-0">
+            <p className="text-sm sm:text-base text-[#284036] mb-0 leading-relaxed">
               {t('home.banksSub')}
             </p>
           </div>
@@ -380,7 +385,7 @@ if (result.isVerified) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-5">
             {SUPPORTED_BANKS.map((bank) => (
               <div key={bank.id} className="landing-bank-badge group cursor-default">
-                <div className="w-10 h-10 rounded-lg bg-[#FAF8F3] p-1.5 flex items-center justify-center shrink-0 border border-[rgba(27,70,58,0.1)] group-hover:scale-105 transition-transform shadow-xs">
+                <div className="w-10 h-10 rounded-lg bg-[#FAF8F5] p-1.5 flex items-center justify-center shrink-0 border border-[rgba(27,70,58,0.1)] group-hover:scale-105 transition-transform shadow-xs">
                   <img
                     src={bank.logo}
                     alt={bank.name}
@@ -393,10 +398,10 @@ if (result.isVerified) {
                   />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-xs sm:text-sm font-bold text-[#0E2420] block truncate group-hover:text-[#1B463A] transition-colors">
+                  <span className="text-xs sm:text-sm font-bold text-[#091A16] block truncate group-hover:text-[#1B463A] transition-colors">
                     {bank.name}
                   </span>
-                  <span className="text-[10px] text-[#5A6E65] block font-medium">
+                  <span className="text-[10px] text-[#40564C] block font-semibold">
                     {bank.type}
                   </span>
                 </div>
@@ -406,8 +411,8 @@ if (result.isVerified) {
         </div>
       </section>
 
-      {/* ── DEVELOPER API INTEGRATION SECTION (WHITE BACKGROUND WITH DARK CONTRAST TERMINAL) ── */}
-      <section id="api" className="py-16 sm:py-24 px-4 sm:px-6 bg-[#FFFFFF] relative overflow-hidden border-b border-[rgba(27,70,58,0.12)]">
+      {/* ── DEVELOPER API INTEGRATION SECTION ── */}
+      <section id="api" className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden border-b border-[rgba(27,70,58,0.08)]">
         {/* Subtle Cyber Data Streams on Side in Green Stroke */}
         <div className="absolute -left-20 bottom-10 w-64 h-64 pointer-events-none opacity-20 hidden lg:block">
           <svg viewBox="0 0 200 200" className="w-full h-full text-[#1B463A]" fill="none">
@@ -428,23 +433,23 @@ if (result.isVerified) {
                 <Code2 size={14} className="text-[#1B463A]" />
                 <span>{t('home.apiBadge')}</span>
               </span>
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0E2420] tracking-tight leading-tight">
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-[#091A16] tracking-tight leading-tight">
                 {t('home.apiTitle')}
               </h2>
-              <p className="text-sm sm:text-base text-[#4A5D55] leading-relaxed">
+              <p className="text-sm sm:text-base text-[#284036] leading-relaxed">
                 {t('home.apiSub')}
               </p>
 
               <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2.5 text-sm text-[#2C3F37]">
+                <div className="flex items-center gap-2.5 text-sm text-[#183127] font-medium">
                   <CheckCircle2 size={18} className="text-[#1B463A] shrink-0" />
                   <span>Sub-second REST API endpoint responses</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-[#2C3F37]">
+                <div className="flex items-center gap-2.5 text-sm text-[#183127] font-medium">
                   <CheckCircle2 size={18} className="text-[#1B463A] shrink-0" />
                   <span>Webhook callbacks on payment arrival</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-[#2C3F37]">
+                <div className="flex items-center gap-2.5 text-sm text-[#183127] font-medium">
                   <CheckCircle2 size={18} className="text-[#1B463A] shrink-0" />
                   <span>Standardized JSON status & confidence tiers</span>
                 </div>
@@ -453,7 +458,7 @@ if (result.isVerified) {
               <div className="pt-4">
                 <Link
                   to="/developer"
-                  className="btn-primary inline-flex items-center gap-2 text-sm px-5 py-2.5 shadow-md bg-[#1B463A] text-white hover:bg-[#0E2420]"
+                  className="btn-primary inline-flex items-center gap-2 text-sm px-5 py-2.5 shadow-md bg-[#1B463A] text-white hover:bg-[#091A16]"
                 >
                   <span>{t('home.apiDocLink')}</span>
                   <ExternalLink size={15} />
@@ -520,8 +525,8 @@ if (result.isVerified) {
         </div>
       </section>
 
-      {/* ── VERIFIABLE CERTIFICATES EXPLAINER (LIGHT BACKGROUND) ── */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 bg-[#FAF8F3] relative overflow-hidden border-b border-[rgba(27,70,58,0.12)]">
+      {/* ── VERIFIABLE CERTIFICATES EXPLAINER ── */}
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
         {/* Left Side Abstract: Guilloche Rosette in Green Stroke */}
         <div className="absolute -left-12 top-1/2 -translate-y-1/2 w-72 h-72 pointer-events-none opacity-25 hidden md:block">
           <svg viewBox="0 0 280 280" className="w-full h-full text-[#1B463A]" fill="none">
@@ -546,21 +551,21 @@ if (result.isVerified) {
             <BadgeCheck size={14} className="text-[#1B463A]" />
             <span>{t('home.certBadge')}</span>
           </span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0E2420] mb-3">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-[#091A16] mb-3">
             {t('home.certTitle')}
           </h2>
-          <p className="text-sm sm:text-base text-[#4A5D55] max-w-2xl mx-auto mb-10">
+          <p className="text-sm sm:text-base text-[#284036] max-w-2xl mx-auto mb-10 leading-relaxed">
             {t('home.certSub')}
           </p>
 
           {/* Tamper-Proof Digital Certificate Card on Crisp White Card */}
-          <div className="card max-w-md mx-auto p-6 text-left border-2 border-[var(--color-foil-gold)] shadow-xl bg-white relative overflow-hidden rounded-2xl">
+          <div className="card max-w-md mx-auto p-6 text-left border-2 border-[var(--color-foil-gold)] shadow-xl bg-white/95 backdrop-blur-md relative overflow-hidden rounded-2xl">
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-[var(--color-foil-gold)]/10 rounded-full blur-2xl pointer-events-none" />
             
             <div className="flex items-center justify-between pb-3.5 border-b border-[rgba(27,70,58,0.12)] mb-4">
               <div className="flex items-center gap-2.5">
                 <img src="/deresegn-logo.svg" alt="" width={26} height={26} className="rounded" />
-                <span className="font-bold text-xs sm:text-sm text-[#0E2420]">ታማኝ ቸክ — Official Seal</span>
+                <span className="font-bold text-xs sm:text-sm text-[#091A16]">ታማኝ ቸክ — Official Seal</span>
               </div>
               <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-[var(--color-verified)]/15 text-[#1B463A] border border-[#1B463A]/25 tracking-wider">
                 AUTHENTICATED
@@ -569,19 +574,19 @@ if (result.isVerified) {
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center py-1">
-                <span className="text-[#5A6E65]">Tx Reference:</span>
-                <span className="font-mono font-bold text-[#0E2420] tracking-wide">TB8392019482</span>
+                <span className="text-[#40564C] font-medium">Tx Reference:</span>
+                <span className="font-mono font-bold text-[#091A16] tracking-wide">TB8392019482</span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-[rgba(27,70,58,0.06)]">
-                <span className="text-[#5A6E65]">Settled Amount:</span>
+                <span className="text-[#40564C] font-medium">Settled Amount:</span>
                 <span className="font-bold text-[#1B463A] text-sm">3,500.00 ETB</span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-[rgba(27,70,58,0.06)]">
-                <span className="text-[#5A6E65]">Method:</span>
-                <span className="font-semibold text-[#0E2420]">Telebirr SuperApp</span>
+                <span className="text-[#40564C] font-medium">Method:</span>
+                <span className="font-semibold text-[#091A16]">Telebirr SuperApp</span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-[rgba(27,70,58,0.06)]">
-                <span className="text-[#5A6E65]">Verification Status:</span>
+                <span className="text-[#40564C] font-medium">Verification Status:</span>
                 <span className="font-bold text-[#1B463A] flex items-center gap-1">
                   <CheckCircle2 size={13} className="text-[#1B463A]" />
                   <span>100% Genuine Settlement</span>
@@ -591,9 +596,10 @@ if (result.isVerified) {
           </div>
         </div>
       </section>
+      </div>
 
       {/* ── FINAL CTA BANNER ── */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-br from-[#123A30] to-[#0A1E18] text-white text-center relative overflow-hidden">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-br from-[#0E2C24] via-[#091E18] to-[#04120E] text-white text-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#C6A24E_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
         <div className="container mx-auto max-w-3xl relative z-10 space-y-5">
           <span className="landing-glow-badge text-[#E4C977] border-[#C6A24E]/40 bg-[#C6A24E]/15">
@@ -610,7 +616,7 @@ if (result.isVerified) {
             <button
               type="button"
               onClick={handleStartVerify}
-              className="btn-primary px-8 py-3.5 text-base font-bold shadow-2xl inline-flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer bg-[#C6A24E] text-[#0E2420] hover:bg-[#E4C977]"
+              className="btn-primary px-8 py-3.5 text-base font-bold shadow-2xl inline-flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer bg-[#C6A24E] text-[#091A16] hover:bg-[#E4C977]"
             >
               <ShieldCheck size={20} />
               <span>{t('home.ctaBtn')}</span>
@@ -620,7 +626,7 @@ if (result.isVerified) {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="bg-[#081714] text-[#F4EEDC]/70 py-10 sm:py-12 px-4 sm:px-6 border-t border-[rgba(27,70,58,0.25)]">
+      <footer className="bg-[#051410] text-[#F4EEDC]/75 py-10 sm:py-12 px-4 sm:px-6 border-t border-[rgba(27,70,58,0.25)]">
         <div className="container mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <img src="/deresegn-logo.svg" alt="Deresegn logo" width={32} height={32} className="rounded" />

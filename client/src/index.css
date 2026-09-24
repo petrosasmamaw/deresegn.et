@@ -3133,10 +3133,18 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* ── Modern Deresegn Landing Page Utilities (Light Theme) ── */
+/* ── Modern Deresegn Landing Page Utilities (Unified Light Luxury Theme) ── */
+.landing-page-root {
+  background-color: #FAF8F5;
+  color: #0E2420;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
 .landing-hero-wrap {
   position: relative;
-  background-color: #FFFFFF;
+  background-color: #FCFAF7;
   background-image: url('/hero-light-bg.jpg');
   background-size: cover;
   background-position: center top;
@@ -3147,67 +3155,100 @@ body {
   justify-content: center;
 }
 
+/* Organic gradient overlay that smoothly melts the hero image into the shared light canvas */
 .landing-hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, transparent 40%, transparent 80%, rgba(244, 238, 220, 0.5) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(252, 250, 247, 0) 0%,
+    rgba(252, 250, 247, 0) 40%,
+    rgba(250, 248, 245, 0.35) 70%,
+    rgba(250, 248, 245, 0.82) 90%,
+    #FAF8F5 100%
+  );
   pointer-events: none;
+}
+
+/* Continuous Long Background Canvas for Content */
+.landing-content-canvas {
+  position: relative;
+  background-color: #FAF8F5;
+  background-image: url('/landing-long-bg.jpg');
+  background-repeat: repeat-y;
+  background-position: center top;
+  background-size: 100% auto;
+}
+
+/* Soft transition bridge so hero and long image appear mixed with zero cut line */
+.landing-blend-bridge {
+  position: relative;
+  height: 3rem;
+  margin-top: -3rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(250, 248, 245, 0.6) 50%, #FAF8F5 100%);
+  pointer-events: none;
+  z-index: 5;
 }
 
 .landing-glow-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.35rem 0.85rem;
+  padding: 0.4rem 0.95rem;
   border-radius: 9999px;
   background: rgba(27, 70, 58, 0.08);
   border: 1px solid rgba(27, 70, 58, 0.22);
   color: #1B463A;
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
-  box-shadow: 0 2px 10px rgba(27, 70, 58, 0.08);
+  box-shadow: 0 2px 12px rgba(27, 70, 58, 0.06);
 }
 
 .landing-title-gradient {
-  background: linear-gradient(135deg, #0E2420 0%, #1B463A 55%, #9B782A 100%);
+  background: linear-gradient(135deg, #091A16 0%, #164035 55%, #8C6A21 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
+/* Frosted glass protective cards to guarantee 100% readability over abstract curves */
 .landing-glass-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border: 1px solid rgba(27, 70, 58, 0.16);
   border-radius: var(--radius-xl);
+  box-shadow: 0 4px 20px -2px rgba(14, 36, 32, 0.05), 0 0 1px rgba(27, 70, 58, 0.12);
   transition: transform var(--transition-lift), border-color var(--transition-lift), box-shadow var(--transition-lift);
 }
 
 .landing-glass-card:hover {
   transform: translateY(-3px);
   border-color: rgba(27, 70, 58, 0.38);
-  box-shadow: 0 16px 40px -8px rgba(27, 70, 58, 0.12), 0 0 16px rgba(198, 162, 78, 0.15);
+  box-shadow: 0 16px 40px -8px rgba(27, 70, 58, 0.14), 0 0 16px rgba(198, 162, 78, 0.18);
 }
 
 .landing-stat-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(27, 70, 58, 0.18);
   border-radius: var(--radius-lg);
   padding: 1rem 1.25rem;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 18px rgba(14, 36, 32, 0.06);
 }
 
 .landing-bank-badge {
-  background: #FFFFFF;
-  border: 1px solid rgba(27, 70, 58, 0.15);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(27, 70, 58, 0.16);
   border-radius: var(--radius-lg);
   padding: 0.85rem 1rem;
   display: flex;
   align-items: center;
   gap: 0.85rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 14px rgba(14, 36, 32, 0.05);
   transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
 }
 
