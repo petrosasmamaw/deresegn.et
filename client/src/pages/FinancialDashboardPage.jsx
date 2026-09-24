@@ -270,12 +270,12 @@ export default function FinancialDashboardPage() {
   }
 
   return (
-    <main className="flex-1 landing-content-canvas min-h-screen relative overflow-x-hidden pt-6 sm:pt-9 pb-24 text-left">
+    <main className="flex-1 landing-content-canvas min-h-screen relative overflow-x-hidden pt-8 sm:pt-14 pb-24 text-left">
       {/* Ambient background glows matching landing & verify pages */}
       <div className="absolute top-10 -left-20 w-96 h-96 bg-[#1B463A]/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-40 -right-20 w-96 h-96 bg-[#C6A24E]/8 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10 space-y-8 mt-2 sm:mt-4">
         {/* ── Page Header & Quick Navigation ── */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[rgba(27,70,58,0.12)]">
           <div>

@@ -176,8 +176,8 @@ export default function DeveloperApiPage() {
   const packages = pricing?.apiPackages || []
 
   return (
-    <div className="page-parchment min-h-screen overflow-x-hidden">
-      <div className="container mx-auto max-w-6xl px-3 sm:px-4 py-6 sm:py-8 pb-24">
+    <div className="page-parchment min-h-screen overflow-x-hidden pt-8 sm:pt-14">
+      <div className="container mx-auto max-w-6xl px-3 sm:px-4 pt-2 sm:pt-4 pb-24 mt-2 sm:mt-4">
         <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-start justify-between gap-4 mb-8">
           <div className="min-w-0 flex-1">
             <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold mb-3" style={{ color: 'var(--color-foil-gold)' }}>

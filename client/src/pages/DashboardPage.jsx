@@ -214,17 +214,17 @@ export default function DashboardPage() {
   )
 
   return (
-    <main className="flex-1 landing-content-canvas min-h-screen relative overflow-x-hidden pt-4 sm:pt-7 pb-20">
+    <main className="flex-1 landing-content-canvas min-h-screen relative overflow-x-hidden pt-6 sm:pt-10 pb-20">
       {/* Soft ambient light glows matching landing page aesthetics */}
       <div className="absolute top-10 -left-20 w-96 h-96 bg-[#1B463A]/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-40 -right-20 w-96 h-96 bg-[#C6A24E]/8 rounded-full blur-3xl pointer-events-none" />
 
       <div className={mobileTab === 'history' ? 'hidden md:block dash-shell relative z-10' : 'dash-shell relative z-10'}>
-        <div className="dash-stage space-y-6 max-w-4xl mx-auto">
+        <div className="dash-stage space-y-6 max-w-xl sm:max-w-2xl mx-auto pt-4 sm:pt-6">
           {verifyPanel}
           <BalanceCard balance={balance} error={balanceLoadError} onTopUpClick={() => setTopupOpen(true)} />
         </div>
-        <div className="hidden md:block mt-8 max-w-4xl mx-auto">
+        <div className="hidden md:block mt-8 max-w-xl sm:max-w-2xl mx-auto">
           {historySection}
         </div>
       </div>

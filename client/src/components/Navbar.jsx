@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { logout } from '../features/auth/authSlice'
 import { LogOut, Plus, KeyRound, Menu, X, Wallet, User, Home, ChevronDown, ShieldCheck, Coins, Globe } from 'lucide-react'
 import { useDashboardUi } from '../context/DashboardUiContext'
@@ -12,6 +12,7 @@ export default function Navbar() {
   const balance = useSelector(s => s.balance.current)
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const { openTopUp } = useDashboardUi()
   const { t } = useLocale()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -68,8 +69,9 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="navbar navbar-mobile-compact">
-      <div className="container mx-auto px-3 sm:px-4 navbar-inner flex items-center justify-between gap-2 sm:gap-4">
+    <>
+      <nav className="navbar navbar-mobile-compact">
+      <div className="navbar-inner container mx-auto px-3.5 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
           <img
             src="/deresegn-logo.svg"
@@ -83,14 +85,25 @@ export default function Navbar() {
           </a>
         </div>
 
-        {/* Center: The 4 Navigation & Balance Items (Finance, My Accounts, Get API, Balance Button) */}
+        {/* Center: The Navigation & Balance Items (Verify, Finance, My Accounts, Get API, Balance Button) */}
         {user ? (
           <div className="hidden md:flex flex-1 items-center justify-center px-4">
             <div className="navbar-tools">
               <button
                 type="button"
+                onClick={() => navigate('/dashboard')}
+                className={`navbar-tool ${location.pathname === '/dashboard' ? 'active' : ''}`}
+                title="Verify"
+                aria-label="Verify"
+              >
+                <ShieldCheck size={16} strokeWidth={2} />
+                <span>Verify</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => navigate('/finance')}
-                className="navbar-tool"
+                className={`navbar-tool ${location.pathname.startsWith('/finance') ? 'active' : ''}`}
                 title="Finance"
                 aria-label="Finance"
               >
@@ -101,7 +114,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => navigate('/accounts')}
-                className="navbar-tool"
+                className={`navbar-tool ${location.pathname === '/accounts' ? 'active' : ''}`}
                 title={t('nav.myAccounts')}
                 aria-label={t('nav.myAccounts')}
               >
@@ -112,7 +125,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => navigate('/developer')}
-                className="navbar-tool"
+                className={`navbar-tool ${location.pathname === '/developer' ? 'active' : ''}`}
                 title={t('nav.getApi')}
                 aria-label={t('nav.getApi')}
               >
@@ -346,6 +359,15 @@ export default function Navbar() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => go('/dashboard')}
+                  className="nav-drawer-link"
+                  tabIndex={menuOpen ? 0 : -1}
+                >
+                  <ShieldCheck size={18} strokeWidth={2} />
+                  <span>Verify</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => { closeMenu(); openTopUp() }}
                   className="nav-drawer-link"
                   tabIndex={menuOpen ? 0 : -1}
@@ -379,5 +401,7 @@ export default function Navbar() {
         </aside>
       </div>
     </nav>
+    <div className="h-28 sm:h-36 w-full pointer-events-none" aria-hidden="true" />
+  </>
   )
 }

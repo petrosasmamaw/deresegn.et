@@ -101,8 +101,8 @@ export default function MyAccountsPage() {
   }
 
   return (
-    <div className="page-parchment min-h-screen overflow-x-hidden">
-      <div className="container mx-auto max-w-3xl px-3 sm:px-4 py-6 sm:py-8 pb-24">
+    <div className="page-parchment min-h-screen overflow-x-hidden pt-8 sm:pt-14">
+      <div className="container mx-auto max-w-3xl px-3 sm:px-4 pt-2 sm:pt-4 pb-24 mt-2 sm:mt-4">
         <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm font-semibold mb-3" style={{ color: 'var(--color-foil-gold)' }}>
           <ArrowLeft size={16} /> {t('common.back')}
         </Link>

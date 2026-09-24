@@ -514,20 +514,18 @@ export default function CheckerModal({
       </div>
     </div>
   ) : (
-    <div className="space-y-6 text-left">
-      {/* ── Page Header & Section Intro ── */}
-      <div className="pb-4 border-b border-[rgba(27,70,58,0.1)]">
-        <h2 className="text-xl sm:text-2xl font-black text-[#091A16] tracking-tight mb-1">
-          Verify Receipt
-        </h2>
-        <p className="text-xs sm:text-sm text-[#40564C] font-medium leading-relaxed">
-          Pick the bank, then choose how you want to confirm it.
-        </p>
-      </div>
+    <div className="space-y-4 text-left">
+      {error && !rejected && (
+        <div className="alert alert-error my-1.5">
+          <p className="font-semibold text-xs sm:text-sm">
+            {typeof error === 'string' ? error : error.message || t('result.failed')}
+          </p>
+        </div>
+      )}
 
-      {/* ── Step 1: Bank Selection ── */}
+      {/* ── Step 1: Bank Selection (Spacious Heightened Cards) ── */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
             1
           </span>
@@ -536,7 +534,7 @@ export default function CheckerModal({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {visibleMethods.map((m) => {
             const isSelected = method === m.id
             const meta = BANK_METADATA[m.id] || { name: m.label, type: 'Bank' }
@@ -545,7 +543,7 @@ export default function CheckerModal({
                 key={m.id}
                 type="button"
                 onClick={() => selectBank(m.id)}
-                className={`relative flex flex-col items-center justify-center text-center p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                className={`relative flex flex-col items-center justify-center p-3 sm:p-3.5 min-h-[90px] sm:min-h-[98px] rounded-2xl border transition-all duration-200 cursor-pointer text-center ${
                   isSelected
                     ? 'bg-[#EBF5EE] border-2 border-[#1B463A] shadow-md ring-2 ring-[#1B463A]/20 scale-[1.01]'
                     : 'bg-white hover:bg-[#FAF8F5] border-[rgba(27,70,58,0.14)] hover:border-[#1B463A]/40 shadow-xs'
@@ -557,17 +555,17 @@ export default function CheckerModal({
                     <Check size={10} strokeWidth={3} />
                   </span>
                 )}
-                <div className="w-12 h-12 rounded-xl bg-white p-1.5 flex items-center justify-center mb-1.5 shadow-xs border border-[rgba(27,70,58,0.08)]">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 shadow-xs border border-[rgba(27,70,58,0.08)] mb-1.5">
                   <img
                     src={BANK_LOGOS[m.id]}
                     alt={m.label}
                     className="w-full h-full object-contain rounded"
                   />
                 </div>
-                <span className="text-xs font-black text-[#091A16] block leading-tight">
+                <span className="text-xs font-black text-[#091A16] block leading-tight truncate w-full">
                   {m.label}
                 </span>
-                <span className="text-[10px] font-medium text-[#40564C] block mt-0.5">
+                <span className="text-[10px] font-medium text-[#40564C] block mt-0.5 truncate w-full">
                   {meta.type}
                 </span>
               </button>
@@ -578,7 +576,7 @@ export default function CheckerModal({
 
       {/* ── Step 2: Verification Method Selector ── */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-1.5">
           <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
             2
           </span>
@@ -587,20 +585,20 @@ export default function CheckerModal({
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.12)]">
+        <div className="grid grid-cols-3 gap-2.5">
           <button
             type="button"
             role="tab"
             aria-selected={verifyMode === 'screenshot'}
             onClick={() => pickMode('screenshot')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 rounded-2xl border transition-all duration-200 cursor-pointer min-h-[46px] sm:min-h-[50px] ${
               verifyMode === 'screenshot'
-                ? 'bg-[#1B463A] text-white shadow-md'
-                : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+                ? 'bg-[#1B463A] text-white border-2 border-[#1B463A] shadow-md ring-2 ring-[#1B463A]/20 scale-[1.01]'
+                : 'bg-white text-[#091A16] hover:bg-[#FAF8F5] border-2 border-[rgba(27,70,58,0.16)] hover:border-[#1B463A]/50 shadow-xs hover:shadow-sm active:scale-[0.98]'
             }`}
           >
-            <Camera size={15} strokeWidth={2} />
-            <span>Screenshot</span>
+            <Camera size={16} strokeWidth={2.2} className={verifyMode === 'screenshot' ? 'text-[#E4C977]' : 'text-[#1B463A]'} />
+            <span className="text-xs sm:text-sm font-extrabold">Screenshot</span>
           </button>
 
           <button
@@ -608,14 +606,14 @@ export default function CheckerModal({
             role="tab"
             aria-selected={verifyMode === 'sms'}
             onClick={() => pickMode('sms')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 rounded-2xl border transition-all duration-200 cursor-pointer min-h-[46px] sm:min-h-[50px] ${
               verifyMode === 'sms'
-                ? 'bg-[#1B463A] text-white shadow-md'
-                : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+                ? 'bg-[#1B463A] text-white border-2 border-[#1B463A] shadow-md ring-2 ring-[#1B463A]/20 scale-[1.01]'
+                : 'bg-white text-[#091A16] hover:bg-[#FAF8F5] border-2 border-[rgba(27,70,58,0.16)] hover:border-[#1B463A]/50 shadow-xs hover:shadow-sm active:scale-[0.98]'
             }`}
           >
-            <MessageSquare size={15} strokeWidth={2} />
-            <span>SMS</span>
+            <MessageSquare size={16} strokeWidth={2.2} className={verifyMode === 'sms' ? 'text-[#E4C977]' : 'text-[#1B463A]'} />
+            <span className="text-xs sm:text-sm font-extrabold">SMS</span>
           </button>
 
           <button
@@ -623,31 +621,23 @@ export default function CheckerModal({
             role="tab"
             aria-selected={verifyMode === 'reference'}
             onClick={() => pickMode('reference')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-2 py-2.5 sm:py-3 px-3 rounded-2xl border transition-all duration-200 cursor-pointer min-h-[46px] sm:min-h-[50px] ${
               verifyMode === 'reference'
-                ? 'bg-[#1B463A] text-white shadow-md'
-                : 'text-[#1F362D] hover:text-[#091A16] hover:bg-white/80'
+                ? 'bg-[#1B463A] text-white border-2 border-[#1B463A] shadow-md ring-2 ring-[#1B463A]/20 scale-[1.01]'
+                : 'bg-white text-[#091A16] hover:bg-[#FAF8F5] border-2 border-[rgba(27,70,58,0.16)] hover:border-[#1B463A]/50 shadow-xs hover:shadow-sm active:scale-[0.98]'
             }`}
           >
-            <Hash size={15} strokeWidth={2} />
-            <span>Payment ID</span>
+            <Hash size={16} strokeWidth={2.2} className={verifyMode === 'reference' ? 'text-[#E4C977]' : 'text-[#1B463A]'} />
+            <span className="text-xs sm:text-sm font-extrabold">Payment ID</span>
           </button>
         </div>
       </div>
 
-      {error && !rejected && (
-        <div className="alert alert-error">
-          <p className="font-semibold text-sm">
-            {typeof error === 'string' ? error : error.message || t('result.failed')}
-          </p>
-        </div>
-      )}
-
-      {/* ── Step 3: Dynamic Verification Canvas ── */}
+      {/* ── Step 3: Input & Bottom Verify Receipt Action ── */}
       {verifyMode === 'screenshot' && (
-        <form onSubmit={handleQuickVerify} className="space-y-4">
+        <form onSubmit={handleQuickVerify} className="space-y-3.5">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1.5">
               <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
                 3
               </span>
@@ -656,12 +646,12 @@ export default function CheckerModal({
               </p>
             </div>
 
-            {/* Dropzone Container */}
+            {/* Heightened Spacious Dropzone & Upload Button */}
             <label
-              className={`relative block rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer overflow-hidden text-center ${
+              className={`relative block rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer overflow-hidden ${
                 preview
-                  ? 'border-[#1B463A] bg-[#F2F8F4] p-4 sm:p-5'
-                  : 'border-[rgba(27,70,58,0.25)] hover:border-[#1B463A] bg-[#FAF8F5]/80 hover:bg-[#F6FAF7] p-6 sm:p-8'
+                  ? 'border-[#1B463A] bg-[#F2F8F4] px-5 py-4'
+                  : 'border-[rgba(27,70,58,0.22)] hover:border-[#1B463A] bg-[#FAF8F5]/80 hover:bg-[#F6FAF7] px-5 py-6 sm:py-7'
               }`}
             >
               <input
@@ -673,52 +663,49 @@ export default function CheckerModal({
               />
 
               {preview ? (
-                <div className="flex flex-col items-center gap-3">
-                  {/* Image container with Laser Scanline Animation */}
-                  <div className="relative group max-h-56 overflow-hidden rounded-xl border border-[rgba(27,70,58,0.2)] shadow-md bg-white p-1">
-                    <div className="laser-scan-line" />
-                    <div className="laser-scan-grid" />
-                    <img
-                      src={preview}
-                      alt="Receipt preview"
-                      className="max-h-48 object-contain rounded-lg relative z-0"
-                    />
-                    <div className="absolute top-2 left-2 z-15 bg-[#091A16]/80 text-[#34D399] px-2 py-0.5 rounded text-[10px] font-mono font-bold flex items-center gap-1.5 backdrop-blur-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                      AI OCR Scanning
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="relative group w-14 h-14 overflow-hidden rounded-xl border border-[rgba(27,70,58,0.2)] shadow-xs bg-white p-1 shrink-0">
+                      <div className="laser-scan-line" />
+                      <img
+                        src={preview}
+                        alt="Receipt preview"
+                        className="w-full h-full object-contain rounded"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#1B463A] text-white shadow-xs">
+                        <CheckCircle2 size={12} />
+                        <span>Receipt Ready</span>
+                      </span>
+                      {fileDetails && (
+                        <p className="text-xs text-[#40564C] font-mono mt-1 truncate max-w-[280px]">
+                          {fileDetails.name} · {fileDetails.size}
+                        </p>
+                      )}
                     </div>
                   </div>
-
-                  <div className="text-center">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#1B463A] text-white shadow-xs">
-                      <CheckCircle2 size={13} />
-                      <span>Receipt Ready for Verification</span>
-                    </span>
-                    {fileDetails && (
-                      <p className="text-[11px] text-[#40564C] font-mono mt-1">
-                        {fileDetails.name} · {fileDetails.size} · {fileDetails.type}
-                      </p>
-                    )}
-                    <p className="text-[11px] text-[#40564C] font-semibold mt-1">
-                      Click anywhere in the box to browse or change screenshot
-                    </p>
-                  </div>
+                  <span className="text-xs font-bold text-[#1B463A] hover:underline shrink-0">
+                    Change Screenshot
+                  </span>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-2.5">
-                  <div className="w-12 h-12 rounded-2xl bg-[#1B463A]/10 text-[#1B463A] flex items-center justify-center shadow-xs">
-                    <Upload size={24} strokeWidth={2} />
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-12 h-12 rounded-2xl bg-[#1B463A]/10 text-[#1B463A] flex items-center justify-center shrink-0 shadow-xs">
+                      <Upload size={24} strokeWidth={2.2} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-extrabold text-[#091A16]">
+                        Drag & Drop Receipt Screenshot Here
+                      </p>
+                      <p className="text-xs text-[#40564C] font-medium mt-0.5">
+                        Supports PNG, JPG, or WEBP from Telebirr, CBE, Abyssinia, or Dashen.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm sm:text-base font-extrabold text-[#091A16]">
-                      Drag & Drop Receipt Screenshot Here
-                    </p>
-                    <p className="text-xs text-[#40564C] font-medium max-w-sm mx-auto mt-0.5">
-                      Supports PNG, JPG, or WEBP from Telebirr, CBE, Abyssinia, or Dashen mobile apps.
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1B463A] text-white text-xs font-bold shadow-sm pointer-events-none mt-1">
-                    <FileUp size={15} />
+                  <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1B463A] text-white text-xs font-extrabold shadow-sm pointer-events-none shrink-0 min-h-[42px]">
+                    <FileUp size={16} />
                     <span>Browse File</span>
                   </span>
                 </div>
@@ -726,18 +713,18 @@ export default function CheckerModal({
             </label>
           </div>
 
-          {/* ── Step 4: Recipient Fraud Shield ── */}
+          {/* Recipient Account Fraud Shield */}
           {payToMyAccountBlock}
 
-          {/* ── Multi-Stage Loading Progress Banner ── */}
+          {/* Multi-Stage Loading Progress Banner */}
           {loading && (
-            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-2.5 animate-pulse">
+            <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-1.5 animate-pulse">
               <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
                 <span className="flex items-center gap-2 text-[#1B463A]">
                   <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
                   {VERIFY_STAGES[activeStageIndex]}
                 </span>
-                <span className="font-mono text-[11px] text-[#40564C]">
+                <span className="font-mono text-[10px] text-[#40564C]">
                   Step {activeStageIndex + 1} of 4
                 </span>
               </div>
@@ -750,25 +737,26 @@ export default function CheckerModal({
             </div>
           )}
 
-          {/* ── Step 5: High-Impact Verification Action ── */}
-          <button
-            type="submit"
-            disabled={loading || !screenshot}
-            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
-          >
-            <ShieldCheck size={20} className="text-[#E4C977]" />
-            <span>{loading ? 'Verifying Receipt Authenticity...' : 'Verify Receipt ->'}</span>
-            {!loading && <ArrowRight size={18} className="opacity-90" />}
-          </button>
-
-          <p className="text-[11px] text-[#40564C] text-center font-medium">
-            Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
-          </p>
+          {/* Bottom Action: Verify Receipt */}
+          <div className="pt-1">
+            <button
+              type="submit"
+              disabled={loading || !screenshot}
+              className="landing-start-verify-btn w-full py-3.5 sm:py-4 text-sm sm:text-base font-extrabold flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
+            >
+              <ShieldCheck size={20} className="text-[#E4C977]" />
+              <span>{loading ? 'Verifying Receipt Authenticity...' : 'Verify Receipt'}</span>
+              {!loading && <ArrowRight size={17} className="opacity-90" />}
+            </button>
+            <p className="text-[11px] text-[#40564C] text-center font-medium mt-1.5">
+              Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
+            </p>
+          </div>
         </form>
       )}
 
       {verifyMode === 'reference' && (
-        <form onSubmit={runReferenceVerify} className="space-y-4">
+        <form onSubmit={runReferenceVerify} className="space-y-3.5">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
@@ -778,40 +766,42 @@ export default function CheckerModal({
                 Direct Payment ID Query
               </p>
             </div>
-            <p className="text-xs text-[#40564C] mb-3">
+            <p className="text-[11px] text-[#40564C] mb-2">
               Enter the bank transaction reference number to query the official ledger directly.
             </p>
           </div>
 
-          {referenceFields.map((field) => (
-            <div key={field.key}>
-              <label className="label text-xs font-bold text-[#091A16] mb-1 block">
-                {field.label}
-              </label>
-              <input
-                type="text"
-                className="input w-full rounded-xl py-2.5 text-sm font-mono font-semibold"
-                placeholder={field.placeholder}
-                value={referenceForm[field.key]}
-                onChange={(e) => handleReferenceChange(field.key, e.target.value)}
-                required
-              />
-              {field.hint && (
-                <p className="text-[11px] text-[#40564C] mt-1 font-medium">{field.hint}</p>
-              )}
-            </div>
-          ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {referenceFields.map((field) => (
+              <div key={field.key}>
+                <label className="label text-xs font-bold text-[#091A16] mb-1 block">
+                  {field.label}
+                </label>
+                <input
+                  type="text"
+                  className="input w-full rounded-xl py-2 px-3 text-xs sm:text-sm font-mono font-semibold"
+                  placeholder={field.placeholder}
+                  value={referenceForm[field.key]}
+                  onChange={(e) => handleReferenceChange(field.key, e.target.value)}
+                  required
+                />
+                {field.hint && (
+                  <p className="text-[10px] text-[#40564C] mt-0.5 font-medium">{field.hint}</p>
+                )}
+              </div>
+            ))}
+          </div>
 
           {payToMyAccountBlock}
 
           {loading && (
-            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-2.5 animate-pulse">
+            <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-1.5 animate-pulse">
               <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
                 <span className="flex items-center gap-2 text-[#1B463A]">
                   <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
                   {VERIFY_STAGES[activeStageIndex]}
                 </span>
-                <span className="font-mono text-[11px] text-[#40564C]">
+                <span className="font-mono text-[10px] text-[#40564C]">
                   Step {activeStageIndex + 1} of 4
                 </span>
               </div>
@@ -824,24 +814,25 @@ export default function CheckerModal({
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading || !referenceReady}
-            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
-          >
-            <ShieldCheck size={20} className="text-[#E4C977]" />
-            <span>{loading ? 'Querying Official Bank Ledger...' : 'Verify Payment ID ->'}</span>
-            {!loading && <ArrowRight size={18} className="opacity-90" />}
-          </button>
-
-          <p className="text-[11px] text-[#40564C] text-center font-medium">
-            Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
-          </p>
+          <div className="pt-1">
+            <button
+              type="submit"
+              disabled={loading || !referenceReady}
+              className="landing-start-verify-btn w-full py-3.5 sm:py-4 text-sm sm:text-base font-extrabold flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
+            >
+              <ShieldCheck size={20} className="text-[#E4C977]" />
+              <span>{loading ? 'Querying Official Bank Ledger...' : 'Verify Receipt'}</span>
+              {!loading && <ArrowRight size={17} className="opacity-90" />}
+            </button>
+            <p className="text-[11px] text-[#40564C] text-center font-medium mt-1.5">
+              Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
+            </p>
+          </div>
         </form>
       )}
 
       {verifyMode === 'sms' && (
-        <form onSubmit={runSmsVerify} className="space-y-4">
+        <form onSubmit={runSmsVerify} className="space-y-3.5">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-5 h-5 rounded-full bg-[#1B463A] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
@@ -851,23 +842,32 @@ export default function CheckerModal({
                 Bank SMS Text Parser
               </p>
             </div>
-            <p className="text-xs text-[#40564C] mb-3">
+            <p className="text-[11px] text-[#40564C] mb-2">
               Paste the complete SMS received from 127, CBE, or bank shortcodes.
             </p>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="label text-xs font-bold text-[#091A16] block">
-                SMS Transaction Payload
+              <label htmlFor="sms-textarea" className="label text-xs font-bold text-[#091A16] block">
+                SMS Message Content
               </label>
-              <span className="text-[11px] font-mono text-[#40564C]">
-                {smsText.length} characters
-              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const sample = SMS_PLACEHOLDERS[method] || SMS_PLACEHOLDERS.telebirr
+                  setSmsText(sample)
+                }}
+                className="text-[10px] font-bold text-[#1B463A] hover:underline cursor-pointer"
+              >
+                Paste sample
+              </button>
             </div>
             <textarea
-              className="input w-full min-h-[8rem] font-mono text-xs rounded-xl p-3 leading-relaxed"
-              placeholder={SMS_PLACEHOLDERS[method]}
+              id="sms-textarea"
+              rows={3}
+              className="textarea w-full rounded-xl py-2 px-3 text-xs font-mono font-medium leading-relaxed resize-none"
+              placeholder={SMS_PLACEHOLDERS[method] || 'Paste complete official bank transaction SMS here...'}
               value={smsText}
               onChange={(e) => setSmsText(e.target.value)}
               required
@@ -877,13 +877,13 @@ export default function CheckerModal({
           {payToMyAccountBlock}
 
           {loading && (
-            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-2.5 animate-pulse">
+            <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#1B463A]/30 space-y-1.5 animate-pulse">
               <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
                 <span className="flex items-center gap-2 text-[#1B463A]">
                   <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
                   {VERIFY_STAGES[activeStageIndex]}
                 </span>
-                <span className="font-mono text-[11px] text-[#40564C]">
+                <span className="font-mono text-[10px] text-[#40564C]">
                   Step {activeStageIndex + 1} of 4
                 </span>
               </div>
@@ -896,19 +896,20 @@ export default function CheckerModal({
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading || smsText.trim().length < 40}
-            className="landing-start-verify-btn w-full py-4 text-base font-extrabold flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
-          >
-            <ShieldCheck size={20} className="text-[#E4C977]" />
-            <span>{loading ? 'Parsing SMS & Validating Proof...' : 'Verify SMS ->'}</span>
-            {!loading && <ArrowRight size={18} className="opacity-90" />}
-          </button>
-
-          <p className="text-[11px] text-[#40564C] text-center font-medium">
-            Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
-          </p>
+          <div className="pt-1">
+            <button
+              type="submit"
+              disabled={loading || smsText.trim().length < 40}
+              className="landing-start-verify-btn w-full py-3.5 sm:py-4 text-sm sm:text-base font-extrabold flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
+            >
+              <ShieldCheck size={20} className="text-[#E4C977]" />
+              <span>{loading ? 'Parsing SMS & Validating Proof...' : 'Verify Receipt'}</span>
+              {!loading && <ArrowRight size={17} className="opacity-90" />}
+            </button>
+            <p className="text-[11px] text-[#40564C] text-center font-medium mt-1.5">
+              Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
+            </p>
+          </div>
         </form>
       )}
     </div>
@@ -916,8 +917,8 @@ export default function CheckerModal({
 
   if (embedded) {
     return (
-      <div className="verify-workspace-hub w-full flex justify-center" id="verify-desk">
-        <section className="bg-white rounded-3xl border border-[rgba(27,70,58,0.14)] p-6 sm:p-8 md:p-10 shadow-sm w-full max-w-2xl mx-auto">
+      <div className="verify-workspace-hub w-full flex justify-center scroll-mt-36 pt-4 sm:pt-8" id="verify-desk">
+        <section className="bg-white rounded-3xl border border-[rgba(27,70,58,0.14)] p-6 sm:p-8 shadow-sm w-full max-w-xl sm:max-w-2xl mx-auto mt-3 sm:mt-6">
           {flow}
         </section>
       </div>
@@ -925,7 +926,7 @@ export default function CheckerModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Verify Receipt" wide={false}>
+    <Modal isOpen={isOpen} onClose={handleClose} title="Verify Receipt" wide={true}>
       <div className="modal-body space-y-4">
         {flow}
       </div>
