@@ -8,7 +8,6 @@ import BottomNav from '../components/BottomNav'
 import TopUpModal from '../components/TopUpModal'
 import CheckerModal from '../components/CheckerModal'
 import CheckHistory from '../components/CheckHistory'
-import BirrVerifyHero from '../components/BirrVerifyHero'
 import OnboardingModal from '../components/OnboardingModal'
 import { useDashboardUi } from '../context/DashboardUiContext'
 import { useLocale } from '../i18n/LocaleContext'
@@ -218,11 +217,7 @@ export default function DashboardPage() {
   )
 
   return (
-    <main className="flex-1 page-parchment">
-      <div className={mobileTab === 'history' ? 'hidden md:block' : undefined}>
-        <BirrVerifyHero />
-      </div>
-
+    <main className="flex-1 page-parchment pt-3 sm:pt-4">
       <div className={mobileTab === 'history' ? 'hidden md:block dash-shell' : 'dash-shell'}>
         <div className="dash-stage">
           {verifyPanel}

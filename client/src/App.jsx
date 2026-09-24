@@ -1,11 +1,13 @@
-import { Suspense, lazy } from 'react'
-import { useSelector } from 'react-redux'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Suspense, lazy, useEffect } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import RouteFallback from './components/RouteFallback'
 import { DashboardUiProvider } from './context/DashboardUiContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
+import HomePage from './pages/HomePage'
+import { fetchSession } from './features/auth/authSlice'
 
 // Route-level code splitting: each page ships as its own chunk so the initial
 // bundle stays small and users only download the screens they visit.
@@ -19,15 +21,22 @@ const DeveloperApiPage = lazy(() => import('./pages/DeveloperApiPage'))
 const MyAccountsPage = lazy(() => import('./pages/MyAccountsPage'))
 
 export default function App() {
+  const dispatch = useDispatch()
+  const location = useLocation()
   const { user } = useSelector((s) => s.auth)
+  const isLandingPage = location.pathname === '/'
+
+  useEffect(() => {
+    dispatch(fetchSession())
+  }, [dispatch])
 
   return (
     <DashboardUiProvider>
-      {user && user.role !== 'admin' && <Navbar />}
+      {user && user.role !== 'admin' && !isLandingPage && <Navbar />}
       <main className="flex-1">
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />

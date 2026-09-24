@@ -3132,3 +3132,295 @@ body {
   from { transform: translateY(8px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+/* ── Modern Deresegn Landing Page Utilities (Light Theme) ── */
+.landing-hero-wrap {
+  position: relative;
+  background-color: #FFFFFF;
+  background-image: url('/hero-light-bg.jpg');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  min-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.landing-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, transparent 40%, transparent 80%, rgba(244, 238, 220, 0.5) 100%);
+  pointer-events: none;
+}
+
+.landing-glow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  background: rgba(27, 70, 58, 0.08);
+  border: 1px solid rgba(27, 70, 58, 0.22);
+  color: #1B463A;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 10px rgba(27, 70, 58, 0.08);
+}
+
+.landing-title-gradient {
+  background: linear-gradient(135deg, #0E2420 0%, #1B463A 55%, #9B782A 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.landing-glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(27, 70, 58, 0.16);
+  border-radius: var(--radius-xl);
+  transition: transform var(--transition-lift), border-color var(--transition-lift), box-shadow var(--transition-lift);
+}
+
+.landing-glass-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(27, 70, 58, 0.38);
+  box-shadow: 0 16px 40px -8px rgba(27, 70, 58, 0.12), 0 0 16px rgba(198, 162, 78, 0.15);
+}
+
+.landing-stat-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(27, 70, 58, 0.18);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+}
+
+.landing-bank-badge {
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 70, 58, 0.15);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.landing-bank-badge:hover {
+  transform: translateY(-2px);
+  background: #FFFFFF;
+  border-color: #1B463A;
+  box-shadow: 0 8px 24px rgba(27, 70, 58, 0.12);
+}
+
+.landing-code-panel {
+  background: #081512;
+  border: 1px solid rgba(198, 162, 78, 0.25);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  overflow: hidden;
+}
+
+/* ── Floating Island Navbar Box with Frosted Light Glassmorphism ── */
+.landing-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 0.75rem 0.85rem 0.35rem;
+  pointer-events: none;
+  transition: padding 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 640px) {
+  .landing-header {
+    padding: 1rem 1.5rem 0.5rem;
+  }
+}
+
+.landing-nav-box {
+  pointer-events: auto;
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0.75rem 1.25rem;
+  border-radius: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* State 1: At Top on Light Hero */
+.landing-header--top .landing-nav-box {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid rgba(27, 70, 58, 0.18);
+  box-shadow: 
+    0 8px 30px rgba(0, 0, 0, 0.06),
+    0 0 1px rgba(27, 70, 58, 0.2),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+.landing-header--top .landing-brand-title {
+  color: #0E2420;
+}
+
+.landing-header--top .landing-brand-sub {
+  color: rgba(27, 70, 58, 0.72);
+}
+
+.landing-header--top .landing-nav-link {
+  color: #1B463A;
+  font-weight: 600;
+}
+
+.landing-header--top .landing-nav-link:hover {
+  color: #0E2420;
+}
+
+.landing-header--top .landing-btn-signin {
+  color: #1B463A;
+  border: 1.5px solid #1B463A;
+  background: transparent;
+}
+
+.landing-header--top .landing-btn-signin:hover {
+  background: #1B463A;
+  color: #FFFFFF;
+}
+
+.landing-header--top .landing-btn-verify {
+  background: #1B463A;
+  color: #FFFFFF;
+  border: 1.5px solid #1B463A;
+  box-shadow: 0 4px 14px rgba(27, 70, 58, 0.25);
+  font-weight: 700;
+}
+
+.landing-header--top .landing-btn-verify:hover {
+  background: #0E2420;
+  color: #FFFFFF;
+}
+
+.landing-header--top .landing-menu-toggle {
+  color: #1B463A;
+}
+
+/* State 2: Scrolled on Light Theme (Heavy Frosted Glass Island) */
+.landing-header--scrolled {
+  padding-top: 0.55rem;
+}
+
+.landing-header--scrolled .landing-nav-box {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1.5px solid rgba(27, 70, 58, 0.28);
+  box-shadow: 
+    0 14px 38px -6px rgba(0, 0, 0, 0.12),
+    0 0 18px rgba(27, 70, 58, 0.06),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+}
+
+.landing-header--scrolled .landing-brand-title {
+  color: #0E2420;
+}
+
+.landing-header--scrolled .landing-brand-sub {
+  color: rgba(27, 70, 58, 0.72);
+  font-weight: 500;
+}
+
+.landing-header--scrolled .landing-nav-link {
+  color: #1B463A;
+  font-weight: 600;
+}
+
+.landing-header--scrolled .landing-nav-link:hover {
+  color: #0E2420;
+}
+
+.landing-header--scrolled .landing-btn-signin {
+  color: #1B463A;
+  border: 1.5px solid #1B463A;
+  background: transparent;
+  font-weight: 600;
+}
+
+.landing-header--scrolled .landing-btn-signin:hover {
+  background: #1B463A;
+  color: #FFFFFF;
+  border-color: #1B463A;
+}
+
+.landing-header--scrolled .landing-btn-verify {
+  background: #1B463A;
+  color: #FFFFFF;
+  border: 1.5px solid #1B463A;
+  box-shadow: 0 4px 14px rgba(27, 70, 58, 0.25);
+  font-weight: 700;
+}
+
+.landing-header--scrolled .landing-btn-verify:hover {
+  background: #0E2420;
+  color: #FFFFFF;
+}
+
+.landing-header--scrolled .landing-menu-toggle {
+  color: #1B463A;
+}
+
+/* Light Theme Language Toggle */
+.landing-header .lang-toggle {
+  background: #EFE8D8;
+  border: 1px solid rgba(27, 70, 58, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.landing-header .lang-toggle-btn {
+  color: #1B463A;
+}
+
+.landing-header .lang-toggle-btn:hover:not(.is-active) {
+  color: #0E2420;
+  background: rgba(27, 70, 58, 0.08);
+}
+
+.landing-header .lang-toggle-btn.is-active {
+  background: #1B463A;
+  color: #FFFFFF;
+}
+
+/* Mobile Slide-down Panel Box (Light Theme) */
+.landing-mobile-panel {
+  pointer-events: auto;
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border-radius: 1.125rem;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1.5px solid rgba(27, 70, 58, 0.25);
+  box-shadow: 
+    0 20px 45px rgba(0, 0, 0, 0.15),
+    0 0 20px rgba(27, 70, 58, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  color: #0E2420;
+}
+
+
+

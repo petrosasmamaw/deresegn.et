@@ -14,7 +14,7 @@ function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
 }
 
-export default function BirrVerifyHero() {
+export default function BirrVerifyHero({ hideCopy = false, className = '' }) {
   const { t } = useLocale()
   const sceneRef = useRef(null)
   const dhRef = useRef(null)
@@ -503,13 +503,15 @@ export default function BirrVerifyHero() {
   }, [])
 
   return (
-    <section className="birr-verify-hero" aria-label={t('hero.title')}>
+    <section className={`birr-verify-hero ${className}`} aria-label={t('hero.title')}>
       <div className="birr-verify-hero-inner">
-        <div className="birr-verify-hero-copy">
-          <h1 className="birr-verify-hero-title">{t('hero.title')}</h1>
-          <p className="birr-verify-hero-sub">{t('hero.body')}</p>
-          <p className="birr-verify-hero-banks">{t('hero.coverage')}</p>
-        </div>
+        {!hideCopy && (
+          <div className="birr-verify-hero-copy">
+            <h1 className="birr-verify-hero-title">{t('hero.title')}</h1>
+            <p className="birr-verify-hero-sub">{t('hero.body')}</p>
+            <p className="birr-verify-hero-banks">{t('hero.coverage')}</p>
+          </div>
+        )}
 
         <div className="birr-verify-scene" ref={sceneRef} aria-hidden="true">
           <div className="dh" ref={dhRef}>
