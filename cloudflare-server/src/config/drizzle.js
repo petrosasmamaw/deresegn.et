@@ -27,6 +27,21 @@ export function getDb() {
 export const db = new Proxy({}, {
   get(_target, prop) {
     const d = getDb();
+    if (prop === 'transaction') {
+      return async (callback, ...args) => {
+        try {
+          if (typeof d.transaction === 'function') {
+            return await d.transaction(callback, ...args);
+          }
+        } catch (err) {
+          if (/No transactions support in neon-http driver/i.test(err?.message || '')) {
+            return await callback(d);
+          }
+          throw err;
+        }
+        return await callback(d);
+      };
+    }
     const val = d[prop];
     return typeof val === 'function' ? val.bind(d) : val;
   },
