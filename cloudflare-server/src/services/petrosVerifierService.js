@@ -24,11 +24,18 @@ export function isPetrosVerifierConfigured() {
 /** Never print upstream host/brand names in terminal or client-facing errors. */
 function safeLogText(value) {
   let text = String(value ?? '');
-  if (PETROS_HOST) {
-    text = text.split(PETROS_HOST).join('petros-verifier');
+  const baseUrl = getPetrosBaseUrl();
+  let host = '';
+  try {
+    host = new URL(baseUrl).hostname;
+  } catch {
+    host = '';
   }
-  if (PETROS_BASE_URL) {
-    text = text.split(PETROS_BASE_URL).join('petros-verifier');
+  if (host) {
+    text = text.split(host).join('petros-verifier');
+  }
+  if (baseUrl) {
+    text = text.split(baseUrl).join('petros-verifier');
   }
   const needles = [
     Buffer.from('bGV1bHplbmViZS5wcm8=', 'base64').toString('utf8'),
