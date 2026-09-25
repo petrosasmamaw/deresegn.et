@@ -28,7 +28,7 @@ import { ensureTopUpReceiverDefaults } from './services/topUpAccountService.js'
 import { ensureUserPaymentAccountsTable } from './services/userPaymentAccountService.js'
 import { ensureApiKeysTable } from './services/apiKeyService.js'
 import { ensureRegistrationBonusUniqueIndex } from './services/balanceLedgerService.js'
-import { isTrustedOrigin } from './config/clientOrigins.js'
+import { isTrustedOrigin, isLocalDevOrigin } from './config/clientOrigins.js'
 import { assertRequiredEnv } from './config/requiredEnv.js'
 import { probeBankConnectivity, getBankConnectivityStatus, startBankConnectivityMonitor } from './services/bankConnectivityProbe.js'
 import { probeGeminiApiKey } from './services/geminiService.js'
@@ -39,6 +39,7 @@ import { fromNodeHeaders } from 'better-auth/node'
 
 dotenv.config()
 
+const isProduction = process.env.NODE_ENV === 'production'
 const app = express()
 
 app.set('trust proxy', 1)
@@ -66,7 +67,11 @@ const corsOptions = {
       return;
     }
     // Expo / React Native may set an Origin that isn't a browser website — allow (not cross-site form CSRF).
-    if (/^exp:\/\//i.test(origin) || /^http:\/\/(10\.0\.2\.2|localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+    if (
+      /^exp:\/\//i.test(origin) ||
+      (!isProduction && isLocalDevOrigin(origin)) ||
+      /^http:\/\/(10\.0\.2\.2|localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
+    ) {
       callback(null, true);
       return;
     }

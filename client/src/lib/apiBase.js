@@ -18,14 +18,32 @@ function normalizeUrl(url) {
 
 export function getApiBaseUrl() {
   const configured = import.meta.env.VITE_API_URL?.trim()
-  if (configured) return normalizeUrl(configured)
+  if (configured) {
+    let url = normalizeUrl(configured)
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const h = window.location.hostname
+      if (h && h !== 'localhost' && h !== '127.0.0.1') {
+        url = url.replace(/:\/\/(localhost|127\.0\.0\.1)(?=[:/]|$)/g, `://${h}`)
+      }
+    }
+    return url
+  }
   return isProd ? CLOUDFLARE_API_DEFAULT : DEV_API_FALLBACK
 }
 
 /** Better Auth client URL — prefer VITE_AUTH_URL; otherwise derive from API base. */
 export function getAuthBaseUrl() {
   const authUrl = import.meta.env.VITE_AUTH_URL?.trim()
-  if (authUrl) return normalizeUrl(authUrl)
+  if (authUrl) {
+    let url = normalizeUrl(authUrl)
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const h = window.location.hostname
+      if (h && h !== 'localhost' && h !== '127.0.0.1') {
+        url = url.replace(/:\/\/(localhost|127\.0\.0\.1)(?=[:/]|$)/g, `://${h}`)
+      }
+    }
+    return url
+  }
 
   const apiUrl = getApiBaseUrl()
   if (apiUrl === CLOUDFLARE_API_DEFAULT) {

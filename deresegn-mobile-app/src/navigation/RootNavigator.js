@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import NetInfo from '@react-native-community/netinfo'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchSession } from '../features/auth/authSlice'
-import SplashScreen from '../screens/SplashScreen'
 import LoginScreen from '../screens/LoginScreen'
 import RegisterScreen from '../screens/RegisterScreen'
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen'
@@ -17,7 +16,6 @@ const Stack = createNativeStackNavigator()
 export default function RootNavigator() {
   const dispatch = useDispatch()
   const { user, initializing, sessionNetworkError } = useSelector((s) => s.auth)
-  const [gateOpen, setGateOpen] = useState(true)
 
   useEffect(() => {
     dispatch(fetchSession())
@@ -32,21 +30,6 @@ export default function RootNavigator() {
     })
     return () => unsub()
   }, [sessionNetworkError, dispatch])
-
-  const finishSplash = useCallback(() => {
-    setGateOpen(false)
-  }, [])
-
-  if (gateOpen) {
-    return (
-      <SplashScreen
-        onFinished={finishSplash}
-        initializing={initializing}
-        sessionNetworkError={sessionNetworkError}
-        onRetry={() => dispatch(fetchSession())}
-      />
-    )
-  }
 
   const navKey = user?.id ?? (sessionNetworkError ? 'offline' : 'guest')
 

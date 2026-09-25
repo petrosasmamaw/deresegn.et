@@ -109,10 +109,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <Text style={styles.heroTitle}>{t('hero.title')}</Text>
-        <Text style={styles.heroBody}>{t('hero.body')}</Text>
-        <Text style={styles.heroCoverage}>{t('hero.coverage')}</Text>
-
         <View
           onLayout={(e) => {
             deskY.current = e.nativeEvent.layout.y
@@ -231,25 +227,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgElevated,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  heroTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.birrGreen,
-    letterSpacing: -0.4,
-    marginBottom: 8,
-  },
-  heroBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.ink,
-    marginBottom: 6,
-  },
-  heroCoverage: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginBottom: space[4],
   },
   section: {
     marginTop: space[5],

@@ -126,7 +126,14 @@ export default function MyAccountsScreen() {
   return (
     <View style={[ui.screen, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} accessibilityLabel={t('common.back')}>
+        <Pressable
+          onPress={() => {
+            if (navigation.canGoBack()) navigation.goBack()
+            else navigation.navigate('HomeTab')
+          }}
+          hitSlop={12}
+          accessibilityLabel={t('common.back')}
+        >
           <Ionicons name="arrow-back" size={22} color={colors.ink} />
         </Pressable>
         <Text style={styles.headerTitle}>{t('accounts.title')}</Text>

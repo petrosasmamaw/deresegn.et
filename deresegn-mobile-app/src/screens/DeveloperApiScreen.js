@@ -219,7 +219,10 @@ export default function DeveloperApiScreen() {
       <View style={styles.nav}>
         <Pressable
           style={styles.backBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (navigation.canGoBack()) navigation.goBack()
+            else navigation.navigate('HomeTab')
+          }}
           accessibilityLabel={t('common.back')}
         >
           <Ionicons name="arrow-back" size={20} color={colors.ink} />

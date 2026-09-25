@@ -26,12 +26,15 @@ export default function LoginScreen({ navigation }) {
   const { t } = useLocale()
   const insets = useSafeAreaInsets()
   const dispatch = useDispatch()
-  const { submitting, error } = useSelector((s) => s.auth)
+  const { initializing, submitting, error, sessionNetworkError } = useSelector((s) => s.auth)
   const online = useIsOnline()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
+  const isAuthenticating = initializing || submitting
+
   const onSubmit = () => {
+    if (isAuthenticating) return
     if (!alertIfOffline(online, t)) return
     dispatch(clearError())
     dispatch(login({ email: email.trim(), password }))
@@ -53,7 +56,19 @@ export default function LoginScreen({ navigation }) {
 
         <View style={ui.formSheet}>
           <View style={ui.card}>
-            {error ? (
+            {sessionNetworkError ? (
+              <View style={[ui.errorBox, { marginBottom: space[3] }]}>
+                <Text style={ui.errorText}>{t('offline.body')}</Text>
+                <Pressable
+                  onPress={() => dispatch(fetchSession())}
+                  style={[ui.btnSecondary, { marginTop: space[2], paddingVertical: 6 }]}
+                >
+                  <Text style={ui.btnSecondaryText}>{t('sessionOpen.retry') || 'Retry'}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {!initializing && error ? (
               <View style={ui.errorBox}>
                 <Text style={ui.errorText}>{displayAuthError(error, t)}</Text>
               </View>
@@ -61,38 +76,54 @@ export default function LoginScreen({ navigation }) {
 
             <Text style={ui.label}>{t('auth.email')}</Text>
             <TextInput
-              style={ui.input}
-              value={email}
+              style={[ui.input, isAuthenticating && styles.inputDisabled]}
+              value={initializing ? '••••••••' : email}
               onChangeText={setEmail}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
               placeholder="your@email.com"
               placeholderTextColor={colors.textTertiary}
+              editable={!isAuthenticating}
             />
 
             <Text style={ui.label}>{t('auth.password')}</Text>
             <TextInput
-              style={ui.input}
-              value={password}
+              style={[ui.input, isAuthenticating && styles.inputDisabled]}
+              value={initializing ? '••••••••' : password}
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="password"
               placeholder="••••••••"
               placeholderTextColor={colors.textTertiary}
+              editable={!isAuthenticating}
             />
 
-            <Text style={styles.forgot} onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text
+              style={[styles.forgot, isAuthenticating && { opacity: 0.5 }]}
+              onPress={() => {
+                if (!isAuthenticating) navigation.navigate('ForgotPassword')
+              }}
+            >
               {t('auth.forgotLink')}
             </Text>
 
             <Pressable
               onPress={onSubmit}
-              disabled={submitting || !email || !password}
-              style={[ui.btnPrimary, (submitting || !email || !password) && ui.btnDisabled]}
+              disabled={isAuthenticating || (!initializing && (!email || !password))}
+              style={[
+                ui.btnPrimary,
+                (isAuthenticating || !email || !password) && ui.btnDisabled,
+                styles.submitBtn,
+              ]}
             >
-              {submitting ? (
-                <ActivityIndicator color={colors.ink} />
+              {isAuthenticating ? (
+                <View style={styles.loggingInRow}>
+                  <ActivityIndicator size="small" color={colors.ink} />
+                  <Text style={[ui.btnPrimaryText, styles.loggingInText]}>
+                    {t('auth.loggingIn')}
+                  </Text>
+                </View>
               ) : (
                 <Text style={ui.btnPrimaryText}>{t('auth.signIn')}</Text>
               )}
@@ -102,16 +133,16 @@ export default function LoginScreen({ navigation }) {
           <View style={ui.linkRow}>
             <Text style={ui.linkText}>
               {t('auth.noAccount')}{' '}
-              <Text style={ui.linkAccent} onPress={() => navigation.navigate('Register')}>
+              <Text
+                style={[ui.linkAccent, isAuthenticating && { opacity: 0.5 }]}
+                onPress={() => {
+                  if (!isAuthenticating) navigation.navigate('Register')
+                }}
+              >
                 {t('auth.createOne')}
               </Text>
             </Text>
           </View>
-
-          <Text style={styles.whyTitle}>{t('home.whyTitle')}</Text>
-          <Text style={styles.why}>{t('home.why1')}</Text>
-          <Text style={styles.why}>{t('home.why2')}</Text>
-          <Text style={styles.why}>{t('home.why3')}</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -133,18 +164,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.birrGreen,
   },
-  whyTitle: {
-    marginTop: space[6],
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.ink,
-    textAlign: 'center',
+  inputDisabled: {
+    opacity: 0.65,
+    backgroundColor: 'rgba(14, 36, 32, 0.04)',
   },
-  why: {
-    marginTop: 8,
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.textSecondary,
-    textAlign: 'center',
+  submitBtn: {
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loggingInRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space[2],
+  },
+  loggingInText: {
+    fontWeight: '700',
   },
 })

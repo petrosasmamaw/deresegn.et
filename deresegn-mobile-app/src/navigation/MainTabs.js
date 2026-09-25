@@ -78,7 +78,9 @@ function ClientTabs() {
       }}
     >
       <Tab.Screen name="HomeTab" component={HomeScreen} />
+      <Tab.Screen name="AccountsTab" component={MyAccountsScreen} />
       <Tab.Screen name="HistoryTab" component={HistoryScreen} />
+      <Tab.Screen name="DeveloperApiTab" component={DeveloperApiScreen} />
     </Tab.Navigator>
   )
 }

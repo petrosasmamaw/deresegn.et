@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -20,7 +21,6 @@ import { useLocale } from '../i18n/LocaleContext'
 import useIsOnline from '../hooks/useIsOnline'
 import { alertIfOffline } from '../lib/guardOnline'
 import VerificationCertificate from './VerificationCertificate'
-import VerificationFormatGuide from './VerificationFormatGuide'
 import {
   VerificationFailureList,
   VerificationWarningList,
@@ -45,6 +45,13 @@ const BANK_LOGOS = {
   cbe: require('../../assets/banks/cbe.png'),
   boa: require('../../assets/banks/boa.jpg'),
   dashen: require('../../assets/banks/dashen.png'),
+}
+
+const BANK_METADATA = {
+  telebirr: { name: 'Telebirr', type: 'Mobile Wallet' },
+  cbe: { name: 'Commercial Bank of Ethiopia', type: 'State Bank' },
+  boa: { name: 'Bank of Abyssinia', type: 'Private Bank' },
+  dashen: { name: 'Dashen Bank', type: 'Private Bank' },
 }
 
 const SMS_SUPPORTED = new Set(['telebirr', 'cbe', 'boa', 'dashen'])
@@ -75,6 +82,13 @@ const EMPTY_REFERENCE = {
   accountSuffix: '',
 }
 
+const VERIFY_STAGES = [
+  'Optical OCR & Text Extraction...',
+  'Analyzing Font Metrics & Pixel Geometry...',
+  'Cross-referencing Official Bank Gateway...',
+  'Validating Merchant Recipient Account...',
+]
+
 function getCheckCostByAmount(amount) {
   const numAmount = parseFloat(amount) || 0
   if (numAmount < 100) return 2
@@ -82,14 +96,6 @@ function getCheckCostByAmount(amount) {
   if (numAmount < 5000) return 10
   if (numAmount < 10000) return 15
   return 20
-}
-
-function PickBadge() {
-  return (
-    <View style={styles.pick}>
-      <Ionicons name="checkmark" size={10} color="#fff" />
-    </View>
-  )
 }
 
 export default function CheckerModal({
@@ -109,46 +115,61 @@ export default function CheckerModal({
   const insets = useSafeAreaInsets()
   const online = useIsOnline()
   const navigation = useNavigation()
-  const [step, setStep] = useState(1)
-  const [method, setMethod] = useState('')
-  const [verifyMode, setVerifyMode] = useState('')
+  const [step, setStep] = useState(3)
+  const [method, setMethod] = useState('telebirr')
+  const [verifyMode, setVerifyMode] = useState('screenshot')
   const [screenshot, setScreenshot] = useState(null)
   const [preview, setPreview] = useState(null)
+  const [fileDetails, setFileDetails] = useState(null)
   const [rejected, setRejected] = useState(false)
   const [failureIssues, setFailureIssues] = useState([])
-  const [matchMyAccount, setMatchMyAccount] = useState(false)
+  const [matchMyAccount, setMatchMyAccount] = useState(true)
   const [savedAccounts, setSavedAccounts] = useState([])
   const [successDetails, setSuccessDetails] = useState(null)
   const [successCheck, setSuccessCheck] = useState(null)
   const [referenceForm, setReferenceForm] = useState(EMPTY_REFERENCE)
   const [smsText, setSmsText] = useState('')
   const [channelMap, setChannelMap] = useState({})
-  const [pickedBank, setPickedBank] = useState(false)
+  const [pickedBank, setPickedBank] = useState(true)
+  const [activeStageIndex, setActiveStageIndex] = useState(0)
 
   const active = embedded || visible
 
+  // Multi-stage loading animation
+  useEffect(() => {
+    if (!loading) {
+      setActiveStageIndex(0)
+      return
+    }
+    const interval = setInterval(() => {
+      setActiveStageIndex((prev) => (prev < VERIFY_STAGES.length - 1 ? prev + 1 : prev))
+    }, 900)
+    return () => clearInterval(interval)
+  }, [loading])
+
   const methods = useMemo(
     () => [
-      { id: 'telebirr', label: t('method.telebirr') },
-      { id: 'cbe', label: t('method.cbe') },
-      { id: 'boa', label: t('method.boa') },
-      { id: 'dashen', label: t('method.dashen') },
+      { id: 'telebirr', label: 'Telebirr' },
+      { id: 'cbe', label: 'Commercial Bank of Ethiopia' },
+      { id: 'boa', label: 'Bank of Abyssinia' },
+      { id: 'dashen', label: 'Dashen Bank' },
     ],
-    [t],
+    [],
   )
 
   const visibleMethods = useMemo(
-    () => methods.filter((m) => {
-      const bank = channelMap[m.id]
-      return !bank || bank.enabled !== false
-    }),
+    () =>
+      methods.filter((m) => {
+        const bank = channelMap[m.id]
+        return !bank || bank.enabled !== false
+      }),
     [methods, channelMap],
   )
 
   const enabledModes = useMemo(() => {
-    if (!method) return []
+    if (!method) return ['screenshot', 'sms', 'reference']
     const bank = channelMap[method]
-    return ['screenshot', 'reference', 'sms'].filter((mode) => {
+    return ['screenshot', 'sms', 'reference'].filter((mode) => {
       if (mode === 'sms' && !SMS_SUPPORTED.has(method)) return false
       if (!bank) return true
       return Boolean(bank.modes?.[mode])
@@ -162,14 +183,14 @@ export default function CheckerModal({
     setFailureIssues([])
     dispatch(clearError())
     const bank = channelMap[id]
-    const modes = ['screenshot', 'reference', 'sms'].filter((mode) => {
+    const modes = ['screenshot', 'sms', 'reference'].filter((mode) => {
       if (mode === 'sms' && !SMS_SUPPORTED.has(id)) return false
       if (!bank) return true
       return Boolean(bank.modes?.[mode])
     })
-    const nextMode = modes.includes(verifyMode) ? verifyMode : (modes[0] || '')
+    const nextMode = modes.includes(verifyMode) ? verifyMode : modes[0] || 'screenshot'
     setVerifyMode(nextMode)
-    setStep(nextMode ? 3 : 1)
+    setStep(3)
   }
 
   useEffect(() => {
@@ -181,40 +202,66 @@ export default function CheckerModal({
   const referenceFieldsByMethod = useMemo(
     () => ({
       telebirr: [
-        { key: 'transactionCode', label: t('ref.invoice'), placeholder: 'DG65L5I9M5', hint: t('ref.invoiceHint') },
+        {
+          key: 'transactionCode',
+          label: 'Telebirr Invoice No.',
+          placeholder: 'DG65L5I9M5',
+          hint: 'Format starts with TBL... or alphanumeric code',
+        },
       ],
       dashen: [
-        { key: 'transactionCode', label: t('ref.ipss'), placeholder: '110IPSS2616900WO', hint: t('ref.ipssHint') },
+        {
+          key: 'transactionCode',
+          label: 'Dashen IPSS Reference',
+          placeholder: '110IPSS2616900WO',
+          hint: 'Format starts with IPSS or 110IPSS...',
+        },
       ],
       cbe: [
-        { key: 'transactionCode', label: t('ref.cbeToken'), placeholder: 'FT26226GC3H3 or v2-…', hint: t('ref.cbeTokenHint') },
-        { key: 'accountSuffix', label: t('ref.cbeAccount'), placeholder: '33687112', hint: t('ref.cbeAccountHint'), legacyOnly: true },
+        {
+          key: 'transactionCode',
+          label: 'CBE Token or Reference',
+          placeholder: 'FT26226GC3H3 or v2-...',
+          hint: 'Format starts with FT... or receipt token URL',
+        },
+        {
+          key: 'accountSuffix',
+          label: 'Recipient Account Number',
+          placeholder: '1000...',
+          hint: 'Target account for validation',
+          legacyOnly: true,
+        },
       ],
       boa: [
-        { key: 'transactionCode', label: t('ref.boaId'), placeholder: 'TT26171RW0YG', hint: t('ref.boaIdHint') },
-        { key: 'accountSuffix', label: t('ref.boaAccount'), placeholder: '246302723', hint: t('ref.boaAccountHint') },
+        {
+          key: 'transactionCode',
+          label: 'BOA Transaction Reference',
+          placeholder: 'TT26171RW0YG',
+          hint: 'Format starts with TT...',
+        },
+        {
+          key: 'accountSuffix',
+          label: 'Account Number Suffix',
+          placeholder: '246302723',
+          hint: 'Last digits of receiver account',
+        },
       ],
     }),
-    [t],
-  )
-
-  const referenceDetailByMethod = useMemo(
-    () => ({
-      telebirr: t('ref.telebirrDetail'),
-      dashen: t('ref.dashenDetail'),
-      cbe: t('ref.cbeDetail'),
-      boa: t('ref.boaDetail'),
-    }),
-    [t],
+    [],
   )
 
   const savedForMethod = savedAccounts.find((a) => a.method === method && a.accountNumber)
   const canMatchMyAccount = Boolean(savedForMethod)
+  const defaultAccountLine = 'seifeslasie asmamaw abebe · 0989886956'
+  const displayAccount = savedForMethod
+    ? `${savedForMethod.accountName} · ${savedForMethod.accountNumber}`
+    : defaultAccountLine
 
   useEffect(() => {
     if (!active) return undefined
     let cancelled = false
-    api.get('/me/accounts')
+    api
+      .get('/me/accounts')
       .then((res) => {
         if (cancelled) return
         if (res.status >= 400) {
@@ -226,7 +273,8 @@ export default function CheckerModal({
       .catch(() => {
         if (!cancelled) setSavedAccounts([])
       })
-    api.get('/check/channels')
+    api
+      .get('/check/channels')
       .then((res) => {
         if (cancelled) return
         if (res.status >= 400) {
@@ -235,13 +283,17 @@ export default function CheckerModal({
         }
         const banks = unwrap(res).banks || []
         const next = {}
-        banks.forEach((bank) => { next[bank.id] = bank })
+        banks.forEach((bank) => {
+          next[bank.id] = bank
+        })
         setChannelMap(next)
       })
       .catch(() => {
         if (!cancelled) setChannelMap({})
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [active])
 
   useEffect(() => {
@@ -251,28 +303,8 @@ export default function CheckerModal({
     setFailureIssues([])
   }, [active, dispatch])
 
-  // Track whether the user manually flipped the switch for the current bank.
-  // Auto-default ON only when a saved account first becomes available — never
-  // re-force ON after the user turns it off.
-  const matchUserOverrideRef = useRef(false)
-
-  useEffect(() => {
-    matchUserOverrideRef.current = false
-    setMatchMyAccount(Boolean(canMatchMyAccount))
-  }, [method])
-
-  useEffect(() => {
-    if (!canMatchMyAccount) {
-      setMatchMyAccount(false)
-      return
-    }
-    if (!matchUserOverrideRef.current) {
-      setMatchMyAccount(true)
-    }
-  }, [canMatchMyAccount])
-
   const referenceFields = useMemo(() => {
-    const fields = referenceFieldsByMethod[method] || []
+    const fields = referenceFieldsByMethod[method] || referenceFieldsByMethod.telebirr
     if (method !== 'cbe') return fields
     if (isCbeFtLike(referenceForm.transactionCode) && !isCbeTokenLike(referenceForm.transactionCode)) {
       return fields
@@ -283,19 +315,20 @@ export default function CheckerModal({
   const referenceReady = referenceFields.every((f) => String(referenceForm[f.key] || '').trim())
 
   const resetForm = () => {
-    setStep(1)
-    setMethod('')
-    setVerifyMode('')
+    setStep(3)
+    setMethod('telebirr')
+    setVerifyMode('screenshot')
     setScreenshot(null)
     setPreview(null)
+    setFileDetails(null)
     setRejected(false)
     setFailureIssues([])
-    setMatchMyAccount(false)
+    setMatchMyAccount(true)
     setSuccessDetails(null)
     setSuccessCheck(null)
     setReferenceForm(EMPTY_REFERENCE)
     setSmsText('')
-    setPickedBank(false)
+    setPickedBank(true)
     dispatch(clearError())
   }
 
@@ -319,9 +352,10 @@ export default function CheckerModal({
     setSuccessCheck(null)
     setScreenshot(null)
     setPreview(null)
+    setFileDetails(null)
     setReferenceForm(EMPTY_REFERENCE)
     setSmsText('')
-    setStep(verifyMode ? 3 : 1)
+    setStep(3)
     dispatch(clearError())
   }
 
@@ -361,6 +395,10 @@ export default function CheckerModal({
         fileName: asset.fileName || 'receipt.jpg',
       })
       setPreview(asset.uri)
+      setFileDetails({
+        name: asset.fileName || 'receipt.jpg',
+        size: asset.fileSize ? `${(asset.fileSize / 1024).toFixed(1)} KB` : 'Image ready',
+      })
     } catch (err) {
       Alert.alert(t('check.title'), err?.message || t('check.pickerFailed'))
     }
@@ -369,13 +407,25 @@ export default function CheckerModal({
   const runVerify = async () => {
     if (!alertIfOffline(online, t)) return
     if (!screenshot) {
-      setFailureIssues([{ code: 'SCREENSHOT_REQUIRED', field: 'screenshot', message: t('check.screenshotRequired') }])
+      setFailureIssues([
+        {
+          code: 'SCREENSHOT_REQUIRED',
+          field: 'screenshot',
+          message: 'Please upload or choose a receipt screenshot to verify.',
+        },
+      ])
       setRejected(true)
       return
     }
     setRejected(false)
     setFailureIssues([])
-    const result = await onSubmit({ screenshot, method, form: EMPTY_FORM, withDetails: false, matchMyAccount })
+    const result = await onSubmit({
+      screenshot,
+      method,
+      form: EMPTY_FORM,
+      withDetails: false,
+      matchMyAccount,
+    })
     if (result?.failed) {
       setFailureIssues(result.issues || [])
       setRejected(true)
@@ -432,39 +482,42 @@ export default function CheckerModal({
     navigation.navigate('MyAccounts')
   }
 
+  // Recipient Account Fraud Shield ("Payment to my account")
   const payToMyAccountBlock = (
-    <View style={[styles.payBox, matchMyAccount && styles.payBoxOn, !canMatchMyAccount && styles.payBoxLocked]}>
-      <Pressable
-        disabled={!canMatchMyAccount}
-        onPress={() => {
-          if (!canMatchMyAccount) return
-          matchUserOverrideRef.current = true
-          setMatchMyAccount((v) => !v)
-        }}
-        style={styles.payRow}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: matchMyAccount, disabled: !canMatchMyAccount }}
-        accessibilityLabel={t('check.payToMyAccount')}
-      >
-        <View style={[styles.paySwitch, matchMyAccount && styles.paySwitchOn, !canMatchMyAccount && styles.paySwitchLocked]}>
-          <View style={[styles.payKnob, matchMyAccount && styles.payKnobOn]} />
-        </View>
-        <View style={styles.payCopy}>
-          <Text style={[styles.payTitle, !canMatchMyAccount && styles.payTitleLocked]}>
-            {t('check.payToMyAccount')}
+    <View
+      style={[
+        styles.payBox,
+        matchMyAccount ? styles.payBoxOn : styles.payBoxOff,
+      ]}
+    >
+      <View style={styles.payRow}>
+        <View style={styles.payInfo}>
+          <View style={styles.payTitleRow}>
+            <Ionicons
+              name="lock-closed"
+              size={13}
+              color={matchMyAccount ? colors.birrGreen : '#9CA3AF'}
+            />
+            <Text style={styles.payTitle}>Payment to my account</Text>
+          </View>
+          <Text style={styles.paySaved} numberOfLines={1}>
+            {displayAccount}
           </Text>
-          {savedForMethod ? (
-            <Text style={styles.paySaved} numberOfLines={1}>
-              {savedForMethod.accountName} · {savedForMethod.accountNumber}
-            </Text>
-          ) : null}
         </View>
-      </Pressable>
-      {!canMatchMyAccount ? (
-        <Pressable onPress={openMyAccounts} style={styles.payAdd}>
-          <Text style={styles.payAddText}>{t('check.addAccountLink')}</Text>
-        </Pressable>
-      ) : null}
+
+        <View style={styles.payActions}>
+          <Switch
+            value={matchMyAccount}
+            onValueChange={setMatchMyAccount}
+            trackColor={{ false: '#D1D5DB', true: colors.birrGreen }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#D1D5DB"
+          />
+          <Pressable onPress={openMyAccounts} hitSlop={8}>
+            <Text style={styles.payManage}>Manage</Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   )
 
@@ -483,307 +536,506 @@ export default function CheckerModal({
       : null)
 
   const checkForCert = successCheck || lastResult
-  const previousVerification = checkForCert?.previousVerification || null
-  const previousVerificationLabel =
-    previousVerification?.verifiedBy === 'self'
-      ? t('check.prevSelf')
-      : previousVerification?.verifiedBy === 'other'
-        ? t('check.prevOther')
-        : null
-  const previousVerificationMeta = previousVerification?.checkedAt
-    ? (() => {
-        const when = new Date(previousVerification.checkedAt)
-        return Number.isNaN(when.getTime()) ? null : when.toLocaleString()
-      })()
-    : null
 
-  const showingResult = rejected || step === successStep
-
-  const selector = (
-    <>
-      <View style={styles.deskHead}>
-        <View style={styles.titleRow}>
-          <Text style={styles.deskTitle}>{t('check.title')}</Text>
-          <Text style={styles.liveStamp}>{t('check.liveStamp')}</Text>
-        </View>
-        <Text style={styles.deskHint}>{t('check.deskHint')}</Text>
-      </View>
-
-      <View style={styles.stepLabel}>
-        <View style={styles.stepNumWrap}>
-          <Text style={styles.stepNum}>1</Text>
-        </View>
-        <Text style={styles.stepLabelText}>{t('check.stepMethod')}</Text>
-      </View>
-      <View style={styles.bankGrid}>
-        {visibleMethods.length === 0 ? (
-          <Text style={styles.stepHint}>{t('check.noChannels')}</Text>
-        ) : null}
-        {visibleMethods.map((m) => {
-          const on = method === m.id
-          return (
-            <Pressable
-              key={m.id}
-              onPress={() => selectBank(m.id)}
-              style={[styles.bank, on && styles.bankOn]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              accessibilityLabel={m.label}
-            >
-              {on ? <PickBadge /> : null}
-              <View style={styles.bankMark}>
-                <Image source={BANK_LOGOS[m.id]} style={styles.bankLogo} />
-              </View>
-              <Text style={[styles.bankName, on && styles.bankNameOn]} numberOfLines={1}>
-                {t(`method.short.${m.id}`)}
-              </Text>
-            </Pressable>
-          )
-        })}
-      </View>
-
-      {method && enabledModes.length > 0 ? (
-        <>
-          <View style={styles.stepLabel}>
-            <View style={styles.stepNumWrap}>
-              <Text style={styles.stepNum}>2</Text>
-            </View>
-            <Text style={styles.stepLabelText}>{t('check.stepMode')}</Text>
-          </View>
-          <View style={styles.modeGrid}>
-            {enabledModes.includes('screenshot') ? (
-              <Pressable
-                onPress={() => pickMode('screenshot')}
-                style={[styles.modeBtn, verifyMode === 'screenshot' && styles.bankOn]}
-              >
-                {verifyMode === 'screenshot' ? <PickBadge /> : null}
-                <Ionicons name="camera-outline" size={18} color={verifyMode === 'screenshot' ? colors.birrGreen : colors.ink} />
-                <Text style={[styles.modeName, verifyMode === 'screenshot' && styles.bankNameOn]}>
-                  {t('check.modeScreenshotShort')}
-                </Text>
-              </Pressable>
-            ) : null}
-            {enabledModes.includes('sms') ? (
-              <Pressable
-                onPress={() => pickMode('sms')}
-                style={[styles.modeBtn, verifyMode === 'sms' && styles.bankOn]}
-              >
-                {verifyMode === 'sms' ? <PickBadge /> : null}
-                <Ionicons name="chatbubble-ellipses-outline" size={18} color={verifyMode === 'sms' ? colors.birrGreen : colors.ink} />
-                <Text style={[styles.modeName, verifyMode === 'sms' && styles.bankNameOn]}>
-                  {t('check.modeSmsShort')}
-                </Text>
-              </Pressable>
-            ) : null}
-            {enabledModes.includes('reference') ? (
-              <Pressable
-                onPress={() => pickMode('reference')}
-                style={[styles.modeBtn, verifyMode === 'reference' && styles.bankOn]}
-              >
-                {verifyMode === 'reference' ? <PickBadge /> : null}
-                <Ionicons name="keypad-outline" size={18} color={verifyMode === 'reference' ? colors.birrGreen : colors.ink} />
-                <Text style={[styles.modeName, verifyMode === 'reference' && styles.bankNameOn]}>
-                  {t('check.modeReferenceShort')}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </>
-      ) : null}
-    </>
-  )
-
-  const flow = rejected ? (
-    <View style={styles.outcome}>
+  // ── Tampered / Security Alert View ──
+  const failedOutcome = (
+    <View style={styles.outcomeSpace}>
       <View style={styles.failHero}>
-        <Ionicons name="close-circle" size={28} color="#E4C977" />
-        <Text style={styles.outcomeTitle}>{t('result.couldNotVerify')}</Text>
-        <Text style={styles.outcomeLead}>{t('result.failedHint')}</Text>
+        <View style={styles.failHeroTop}>
+          <View style={styles.failIconWrap}>
+            <Ionicons name="shield" size={20} color="#F87171" />
+          </View>
+          <View style={styles.failHeroCopy}>
+            <View style={styles.failBadge}>
+              <Text style={styles.failBadgeText}>SECURITY ALERT</Text>
+            </View>
+            <Text style={styles.failTitle}>TAMPERED / MANIPULATION DETECTED</Text>
+            <Text style={styles.failSubtitle}>
+              This receipt failed cryptographic verification against official bank settlement ledgers or font metric baselines.
+            </Text>
+          </View>
+        </View>
       </View>
+
       <VerificationFailureList issues={failureIssues} nested />
+
       <View style={styles.outcomeCta}>
         <Pressable
-          style={styles.againBtn}
+          style={styles.btnPrimary}
           onPress={() => {
             dismissLastAttempt()
             setStep(3)
           }}
         >
-          <Ionicons name="refresh" size={18} color={colors.ink} />
-          <Text style={styles.againText}>{t('common.tryAgain')}</Text>
+          <Ionicons name="refresh" size={16} color="#FFFFFF" />
+          <Text style={styles.btnPrimaryText}>{t('common.tryAgain')}</Text>
         </Pressable>
-        <Pressable style={styles.anotherBtn} onPress={embedded ? startAnother : handleClose}>
-          <Text style={styles.anotherText}>{embedded ? t('check.another') : t('common.close')}</Text>
+
+        <Pressable style={styles.btnOutline} onPress={startAnother}>
+          <Text style={styles.btnOutlineText}>Check Another Receipt</Text>
         </Pressable>
       </View>
     </View>
-  ) : step === successStep ? (
-    <View style={styles.outcome}>
-      {previousVerificationLabel ? (
-        <Text style={styles.prevLine}>
-          {previousVerificationLabel}
-          {previousVerificationMeta ? ` · ${t('check.verifiedOn', { when: previousVerificationMeta })}` : ''}
-        </Text>
+  )
+
+  // ── Success Certificate View ──
+  const successOutcome = (
+    <View style={styles.outcomeSpace}>
+      {checkForCert ? (
+        <VerificationCertificate check={checkForCert} details={summaryDetails} />
       ) : null}
-      {checkForCert ? <VerificationCertificate check={checkForCert} details={summaryDetails} /> : null}
-      <VerificationWarningList issues={checkForCert?.validationResult?.issues || []} />
-      <View style={styles.outcomeCta}>
-        <Text style={styles.balanceNote}>
-          {checkForCert?.isRecheck
-            ? t('check.noCharge')
-            : t('check.deducted', {
-                amount: checkForCert?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount),
-              })}
+      <VerificationWarningList
+        issues={
+          lastResult?.validationResult?.issues ||
+          successCheck?.validationResult?.issues ||
+          []
+        }
+      />
+      <View style={styles.successCtaRow}>
+        <Text style={styles.feeNote}>
+          {(successCheck || lastResult)?.isRecheck
+            ? 'Free instant re-check record'
+            : `Deducted ${
+                (successCheck || lastResult)?.balanceDeducted ||
+                getCheckCostByAmount(summaryDetails?.amount)
+              } Birr from balance`}
         </Text>
-        <Pressable style={styles.anotherBtn} onPress={embedded ? startAnother : handleClose}>
-          <Text style={styles.anotherText}>{embedded ? t('check.another') : t('check.complete')}</Text>
+        <Pressable style={styles.btnPrimary} onPress={startAnother}>
+          <Text style={styles.btnPrimaryText}>Verify Another Receipt</Text>
+          <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
         </Pressable>
       </View>
     </View>
-  ) : (
-    <View style={styles.flow}>
-      {selector}
-      {error && !rejected && step === 3 ? (
-        <View style={ui.errorBox}>
-          <Text style={ui.errorText}>
+  )
+
+  // ── Main Verify Interactive Flow ──
+  const formFlow = (
+    <View style={styles.formContainer}>
+      {/* ── Step 1: Bank Selection (Spacious Heightened Cards) ── */}
+      <View style={styles.stepSection}>
+        <View style={styles.stepHeading}>
+          <View style={styles.stepCircle}>
+            <Text style={styles.stepNumber}>1</Text>
+          </View>
+          <Text style={styles.stepTitle}>CHOOSE BANK / MOBILE WALLET</Text>
+        </View>
+
+        <View style={styles.bankGrid}>
+          {visibleMethods.map((m) => {
+            const isSelected = method === m.id
+            const meta = BANK_METADATA[m.id] || { name: m.label, type: 'Bank' }
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => selectBank(m.id)}
+                style={[
+                  styles.bankCard,
+                  isSelected ? styles.bankCardSelected : styles.bankCardDefault,
+                ]}
+              >
+                {isSelected ? (
+                  <View style={styles.bankCheckBadge}>
+                    <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                  </View>
+                ) : null}
+
+                <View style={styles.bankLogoWrap}>
+                  <Image source={BANK_LOGOS[m.id]} style={styles.bankLogoImg} resizeMode="contain" />
+                </View>
+
+                <Text style={styles.bankLabel} numberOfLines={1}>
+                  {m.label}
+                </Text>
+                <Text style={styles.bankType} numberOfLines={1}>
+                  {meta.type}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      </View>
+
+      {/* ── Step 2: Verification Method Selector ── */}
+      <View style={styles.stepSection}>
+        <View style={styles.stepHeading}>
+          <View style={styles.stepCircle}>
+            <Text style={styles.stepNumber}>2</Text>
+          </View>
+          <Text style={styles.stepTitle}>VERIFICATION METHOD</Text>
+        </View>
+
+        <View style={styles.modesRow}>
+          <Pressable
+            onPress={() => pickMode('screenshot')}
+            style={[
+              styles.modeTab,
+              verifyMode === 'screenshot' ? styles.modeTabActive : styles.modeTabInactive,
+            ]}
+          >
+            <Ionicons
+              name="camera-outline"
+              size={17}
+              color={verifyMode === 'screenshot' ? '#E4C977' : colors.birrGreen}
+            />
+            <Text
+              style={[
+                styles.modeTabText,
+                verifyMode === 'screenshot' ? styles.modeTabTextActive : styles.modeTabTextInactive,
+              ]}
+            >
+              Screenshot
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => pickMode('sms')}
+            style={[
+              styles.modeTab,
+              verifyMode === 'sms' ? styles.modeTabActive : styles.modeTabInactive,
+            ]}
+          >
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={17}
+              color={verifyMode === 'sms' ? '#E4C977' : colors.birrGreen}
+            />
+            <Text
+              style={[
+                styles.modeTabText,
+                verifyMode === 'sms' ? styles.modeTabTextActive : styles.modeTabTextInactive,
+              ]}
+            >
+              SMS
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => pickMode('reference')}
+            style={[
+              styles.modeTab,
+              verifyMode === 'reference' ? styles.modeTabActive : styles.modeTabInactive,
+            ]}
+          >
+            <Ionicons
+              name="keypad-outline"
+              size={17}
+              color={verifyMode === 'reference' ? '#E4C977' : colors.birrGreen}
+            />
+            <Text
+              style={[
+                styles.modeTabText,
+                verifyMode === 'reference' ? styles.modeTabTextActive : styles.modeTabTextInactive,
+              ]}
+            >
+              Payment ID
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Error alert */}
+      {error && !rejected ? (
+        <View style={styles.errorAlert}>
+          <Ionicons name="alert-circle" size={16} color="#DC2626" />
+          <Text style={styles.errorAlertText}>
             {typeof error === 'string' ? error : error.message || t('result.failed')}
           </Text>
         </View>
       ) : null}
 
-      {step === 3 && verifyMode === 'screenshot' ? (
-        <>
-          <Text style={styles.stepTitle}>{t('check.stepUpload')}</Text>
-          <Text style={styles.stepHint}>
-            {method === 'telebirr' ? t('check.stepUploadHintTelebirr') : t('check.stepUploadHintOther')}
-          </Text>
-          <Pressable style={[styles.dropZone, preview && styles.dropHas]} onPress={() => pickImage(false)}>
-            <View style={styles.uploadIcon}>
-              <Ionicons name="cloud-upload-outline" size={20} color="#F4EEDC" />
+      {/* ── Step 3: Input Form depending on chosen method ── */}
+      {verifyMode === 'screenshot' ? (
+        <View style={styles.stepSection}>
+          <View style={styles.stepHeading}>
+            <View style={styles.stepCircle}>
+              <Text style={styles.stepNumber}>3</Text>
             </View>
-            <Text style={styles.uploadTitle}>{preview ? t('check.changeFile') : t('check.uploadReceipt')}</Text>
-            <Text style={styles.uploadHint}>{preview ? t('check.screenshotUploaded') : t('check.uploadHint')}</Text>
-            <Text style={styles.uploadCta}>{preview ? t('check.changeFile') : t('check.uploadBtn')}</Text>
-            {preview ? <Image source={{ uri: preview }} style={styles.preview} resizeMode="contain" /> : null}
-          </Pressable>
-          <View style={styles.pickRow}>
-            <Pressable style={[ui.btnSecondary, styles.flexBtn]} onPress={() => pickImage(true)}>
-              <Text style={ui.btnSecondaryText}>{t('check.camera')}</Text>
-            </Pressable>
+            <Text style={styles.stepTitle}>UPLOAD RECEIPT SCREENSHOT</Text>
           </View>
-          {payToMyAccountBlock}
+
+          {/* Spacious Dropzone matching web client */}
           <Pressable
-            style={[ui.btnVerify, (!screenshot || loading) && ui.btnDisabled]}
+            style={[
+              styles.dropzone,
+              preview ? styles.dropzoneFilled : styles.dropzoneEmpty,
+            ]}
+            onPress={() => pickImage(false)}
+          >
+            {preview ? (
+              <View style={styles.dropPreviewRow}>
+                <View style={styles.dropPreviewThumbWrap}>
+                  <Image source={{ uri: preview }} style={styles.dropPreviewThumb} resizeMode="contain" />
+                </View>
+                <View style={styles.dropPreviewInfo}>
+                  <View style={styles.readyBadge}>
+                    <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" />
+                    <Text style={styles.readyBadgeText}>Receipt Ready</Text>
+                  </View>
+                  {fileDetails ? (
+                    <Text style={styles.fileDetailsText} numberOfLines={1}>
+                      {fileDetails.name} · {fileDetails.size}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.changeLinkText}>Change Screenshot</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.dropEmptyContent}>
+                <View style={styles.uploadIconCircle}>
+                  <Ionicons name="cloud-upload" size={24} color={colors.birrGreen} />
+                </View>
+                <Text style={styles.dropMainText}>Choose Receipt Screenshot</Text>
+                <Text style={styles.dropSubText}>
+                  Supports PNG, JPG, or WEBP from Telebirr, CBE, Abyssinia, or Dashen.
+                </Text>
+                <View style={styles.dropActionsRow}>
+                  <View style={styles.browseButton}>
+                    <Ionicons name="images-outline" size={15} color="#FFFFFF" />
+                    <Text style={styles.browseButtonText}>Browse Gallery</Text>
+                  </View>
+                  <Pressable
+                    style={styles.cameraButton}
+                    onPress={(e) => {
+                      e.stopPropagation?.()
+                      pickImage(true)
+                    }}
+                  >
+                    <Ionicons name="camera-outline" size={15} color={colors.birrGreen} />
+                    <Text style={styles.cameraButtonText}>Take Photo</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </Pressable>
+
+          {payToMyAccountBlock}
+
+          {/* Multi-Stage Loading Progress Banner */}
+          {loading ? (
+            <View style={styles.loadingBanner}>
+              <View style={styles.loadingBannerTop}>
+                <View style={styles.loadingBannerLeft}>
+                  <ActivityIndicator size="small" color="#C6A24E" />
+                  <Text style={styles.loadingStageText}>{VERIFY_STAGES[activeStageIndex]}</Text>
+                </View>
+                <Text style={styles.loadingStepText}>Step {activeStageIndex + 1} of 4</Text>
+              </View>
+              <View style={styles.loadingTrack}>
+                <View
+                  style={[
+                    styles.loadingBar,
+                    { width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          ) : null}
+
+          {/* Bottom Action Button */}
+          <Pressable
+            style={[styles.verifyButton, (!screenshot || loading) && styles.verifyButtonDisabled]}
             disabled={!screenshot || loading}
             onPress={runVerify}
           >
-            {loading ? <ActivityIndicator color="#F4EEDC" /> : (
-              <Text style={ui.btnVerifyText}>{loading ? t('check.verifying') : t('check.verifyBtn')}</Text>
+            {loading ? (
+              <ActivityIndicator color="#F4EEDC" />
+            ) : (
+              <View style={styles.verifyBtnContent}>
+                <Ionicons name="shield-checkmark" size={20} color="#E4C977" />
+                <Text style={styles.verifyBtnText}>Verify Receipt</Text>
+                <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.9)" />
+              </View>
             )}
           </Pressable>
-        </>
+          <Text style={styles.speedSub}>Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection</Text>
+        </View>
       ) : null}
 
-      {step === 3 && verifyMode === 'reference' ? (
-        <>
-          <Text style={styles.stepTitle}>{t('check.stepPaymentId')}</Text>
-          <Text style={styles.stepHint}>{t('check.stepPaymentIdHint')}</Text>
-          <View style={styles.infoBox}>
-            <Text style={styles.infoTitle}>{methods.find((m) => m.id === method)?.label}</Text>
-            <Text style={styles.infoBody}>{referenceDetailByMethod[method]}</Text>
+      {verifyMode === 'reference' ? (
+        <View style={styles.stepSection}>
+          <View style={styles.stepHeading}>
+            <View style={styles.stepCircle}>
+              <Text style={styles.stepNumber}>3</Text>
+            </View>
+            <Text style={styles.stepTitle}>DIRECT PAYMENT ID QUERY</Text>
           </View>
+          <Text style={styles.stepSub}>
+            Enter the bank transaction reference number to query the official ledger directly.
+          </Text>
+
           {referenceFields.map((field) => (
-            <View key={field.key}>
-              <Text style={ui.label}>{field.label}</Text>
+            <View key={field.key} style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>{field.label}</Text>
               <TextInput
-                style={ui.input}
+                style={styles.fieldInput}
                 value={referenceForm[field.key]}
-                onChangeText={(v) => setReferenceForm((prev) => ({ ...prev, [field.key]: v }))}
+                onChangeText={(v) =>
+                  setReferenceForm((prev) => ({ ...prev, [field.key]: v }))
+                }
                 placeholder={field.placeholder}
                 placeholderTextColor={colors.textTertiary}
                 autoCapitalize="characters"
                 autoCorrect={false}
               />
-              {field.hint ? <Text style={ui.helper}>{field.hint}</Text> : null}
+              {field.hint ? <Text style={styles.fieldHint}>{field.hint}</Text> : null}
             </View>
           ))}
+
           {payToMyAccountBlock}
+
+          {loading ? (
+            <View style={styles.loadingBanner}>
+              <View style={styles.loadingBannerTop}>
+                <View style={styles.loadingBannerLeft}>
+                  <ActivityIndicator size="small" color="#C6A24E" />
+                  <Text style={styles.loadingStageText}>{VERIFY_STAGES[activeStageIndex]}</Text>
+                </View>
+                <Text style={styles.loadingStepText}>Step {activeStageIndex + 1} of 4</Text>
+              </View>
+              <View style={styles.loadingTrack}>
+                <View
+                  style={[
+                    styles.loadingBar,
+                    { width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          ) : null}
+
           <Pressable
-            style={[ui.btnVerify, (!referenceReady || loading) && ui.btnDisabled]}
+            style={[
+              styles.verifyButton,
+              (!referenceReady || loading) && styles.verifyButtonDisabled,
+            ]}
             disabled={!referenceReady || loading}
             onPress={runReferenceVerify}
           >
-            {loading ? <ActivityIndicator color="#F4EEDC" /> : (
-              <Text style={ui.btnVerifyText}>{t('check.verifyPaymentId')}</Text>
+            {loading ? (
+              <ActivityIndicator color="#F4EEDC" />
+            ) : (
+              <View style={styles.verifyBtnContent}>
+                <Ionicons name="shield-checkmark" size={20} color="#E4C977" />
+                <Text style={styles.verifyBtnText}>Verify Receipt</Text>
+                <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.9)" />
+              </View>
             )}
           </Pressable>
-          <Text style={styles.costHint}>{t('check.costRange')}</Text>
-        </>
+          <Text style={styles.speedSub}>Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection</Text>
+        </View>
       ) : null}
 
-      {step === 3 && verifyMode === 'sms' ? (
-        <>
-          <Text style={styles.stepTitle}>{t('check.stepSms')}</Text>
-          <Text style={styles.stepHint}>{t('check.stepSmsHint')}</Text>
-          <Text style={ui.label}>{t('check.smsLabel')}</Text>
+      {verifyMode === 'sms' ? (
+        <View style={styles.stepSection}>
+          <View style={styles.stepHeading}>
+            <View style={styles.stepCircle}>
+              <Text style={styles.stepNumber}>3</Text>
+            </View>
+            <Text style={styles.stepTitle}>BANK SMS TEXT PARSER</Text>
+          </View>
+          <Text style={styles.stepSub}>
+            Paste the complete SMS received from 127, CBE, or bank shortcodes.
+          </Text>
+
+          <View style={styles.smsHeaderRow}>
+            <Text style={styles.fieldLabel}>SMS Message Content</Text>
+            <Pressable
+              onPress={() => {
+                const sample = SMS_PLACEHOLDERS[method] || SMS_PLACEHOLDERS.telebirr
+                setSmsText(sample)
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.pasteSampleLink}>Paste sample</Text>
+            </Pressable>
+          </View>
+
           <TextInput
-            style={[ui.input, styles.smsInput]}
+            style={styles.smsTextarea}
             value={smsText}
             onChangeText={setSmsText}
-            placeholder={SMS_PLACEHOLDERS[method]}
+            placeholder={
+              SMS_PLACEHOLDERS[method] || 'Paste complete official bank transaction SMS here...'
+            }
             placeholderTextColor={colors.textTertiary}
             multiline
+            numberOfLines={4}
             textAlignVertical="top"
             autoCorrect={false}
           />
-          <Text style={ui.helper}>
-            {method === 'telebirr' ? t('check.stepSmsHintTelebirr') : t('check.stepSmsHintCbe')}
-          </Text>
+
           {payToMyAccountBlock}
+
+          {loading ? (
+            <View style={styles.loadingBanner}>
+              <View style={styles.loadingBannerTop}>
+                <View style={styles.loadingBannerLeft}>
+                  <ActivityIndicator size="small" color="#C6A24E" />
+                  <Text style={styles.loadingStageText}>{VERIFY_STAGES[activeStageIndex]}</Text>
+                </View>
+                <Text style={styles.loadingStepText}>Step {activeStageIndex + 1} of 4</Text>
+              </View>
+              <View style={styles.loadingTrack}>
+                <View
+                  style={[
+                    styles.loadingBar,
+                    { width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` },
+                  ]}
+                />
+              </View>
+            </View>
+          ) : null}
+
           <Pressable
-            style={[ui.btnVerify, (smsText.trim().length < 40 || loading) && ui.btnDisabled]}
+            style={[
+              styles.verifyButton,
+              (smsText.trim().length < 40 || loading) && styles.verifyButtonDisabled,
+            ]}
             disabled={smsText.trim().length < 40 || loading}
             onPress={runSmsVerify}
           >
-            {loading ? <ActivityIndicator color="#F4EEDC" /> : (
-              <Text style={ui.btnVerifyText}>{t('check.verifySms')}</Text>
+            {loading ? (
+              <ActivityIndicator color="#F4EEDC" />
+            ) : (
+              <View style={styles.verifyBtnContent}>
+                <Ionicons name="shield-checkmark" size={20} color="#E4C977" />
+                <Text style={styles.verifyBtnText}>Verify Receipt</Text>
+                <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.9)" />
+              </View>
             )}
           </Pressable>
-          <Text style={styles.costHint}>{t('check.costRange')}</Text>
-        </>
-      ) : null}
-    </View>
-  )
-
-  const body = (
-    <View style={styles.stage}>
-      <View style={styles.desk}>{flow}</View>
-      {!showingResult ? (
-        <View style={styles.template}>
-          <VerificationFormatGuide method={method} mode={verifyMode || 'screenshot'} />
+          <Text style={styles.speedSub}>Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection</Text>
         </View>
       ) : null}
     </View>
   )
 
+  const activeContent = rejected ? failedOutcome : step === successStep ? successOutcome : formFlow
+
   if (embedded) {
     if (!active) return null
-    return body
+    return (
+      <View style={styles.embeddedDesk}>
+        {activeContent}
+      </View>
+    )
   }
 
   if (!visible) return null
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
-      <View style={styles.sheet}>
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, space[4]) }]}>
-          <Text style={styles.headerTitle}>{t('check.title')}</Text>
-          <Pressable onPress={handleClose} hitSlop={12} accessibilityLabel={t('common.close')}>
+      <View style={styles.modalScreen}>
+        <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, space[4]) }]}>
+          <Text style={styles.modalHeaderTitle}>Verify Receipt</Text>
+          <Pressable onPress={handleClose} hitSlop={12}>
             <Ionicons name="close" size={24} color={colors.ink} />
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
-          {body}
+        <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.embeddedDesk}>
+            {activeContent}
+          </View>
         </ScrollView>
       </View>
     </Modal>
@@ -791,84 +1043,108 @@ export default function CheckerModal({
 }
 
 const styles = StyleSheet.create({
-  stage: { gap: space[4] },
-  desk: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: 12,
+  embeddedDesk: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    gap: 10,
-    shadowColor: '#0E2420',
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    borderColor: 'rgba(27,70,58,0.14)',
+    padding: space[4],
+    shadowColor: '#1B463A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: space[3],
   },
-  template: { marginBottom: space[2] },
-  deskHead: { gap: 4, marginBottom: 4 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  deskTitle: { fontSize: 18, fontWeight: '600', color: colors.ink, letterSpacing: -0.3 },
-  liveStamp: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: colors.verified,
-    borderWidth: 1.5,
-    borderColor: colors.verified,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    overflow: 'hidden',
-    borderRadius: 2,
+  modalScreen: {
+    flex: 1,
+    backgroundColor: colors.parchment,
   },
-  deskHint: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
-  stepLabel: {
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: space[4],
+    paddingBottom: space[3],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: '#FFFFFF',
   },
-  stepLabelText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.7,
+  modalHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#091A16',
+  },
+  modalScroll: {
+    padding: space[4],
+    paddingBottom: space[10],
+  },
+  formContainer: {
+    gap: space[4],
+  },
+  stepSection: {
+    gap: space[2],
+  },
+  stepHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  stepCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#1B463A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumber: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  stepTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#091A16',
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
-    color: colors.textSecondary,
   },
-  stepNumWrap: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.ink,
+  stepSub: {
+    fontSize: 11,
+    color: '#40564C',
+    marginBottom: 4,
+  },
+  // ── Step 1: Bank Cards ──
+  bankGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  bankCard: {
+    width: '48%',
+    minHeight: 92,
+    borderRadius: 16,
+    padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  stepNum: { color: colors.parchment, fontSize: 10, fontWeight: '700' },
-  bankGrid: { flexDirection: 'row', gap: 8 },
-  bank: {
-    flex: 1,
     position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    minHeight: 72,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: 'rgba(14,36,32,0.16)',
-    borderRadius: 14,
-    backgroundColor: '#fff',
   },
-  bankOn: {
+  bankCardDefault: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(27,70,58,0.14)',
+  },
+  bankCardSelected: {
+    backgroundColor: '#EBF5EE',
     borderWidth: 2,
     borderColor: '#1B463A',
-    backgroundColor: '#E8F3EC',
   },
-  pick: {
+  bankCheckBadge: {
     position: 'absolute',
-    top: 5,
-    right: 5,
+    top: 7,
+    right: 7,
     width: 16,
     height: 16,
     borderRadius: 8,
@@ -876,210 +1152,481 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bankMark: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
+  bankLogoWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    padding: 3,
     borderWidth: 1,
-    borderColor: 'rgba(14,36,32,0.08)',
-  },
-  bankLogo: { width: '100%', height: '100%' },
-  bankName: { fontSize: 10, fontWeight: '700', color: colors.ink },
-  bankNameOn: { color: '#1B463A' },
-  modeGrid: { flexDirection: 'row', gap: 8 },
-  modeBtn: {
-    flex: 1,
-    position: 'relative',
+    borderColor: 'rgba(27,70,58,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    minHeight: 64,
-    paddingVertical: 10,
-    borderWidth: 1.5,
-    borderColor: 'rgba(14,36,32,0.16)',
-    borderRadius: 14,
-    backgroundColor: '#fff',
+    marginBottom: 5,
   },
-  modeName: { fontSize: 11, fontWeight: '700', color: colors.ink, textAlign: 'center' },
-  flow: { gap: space[3] },
-  stepTitle: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  stepHint: { fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
-  dropZone: {
-    borderWidth: 2,
-    borderColor: '#1B463A',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    backgroundColor: 'rgba(27, 70, 58, 0.06)',
-    padding: 14,
-    minHeight: 132,
+  bankLogoImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 6,
+  },
+  bankLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#091A16',
+    textAlign: 'center',
+  },
+  bankType: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#40564C',
+    marginTop: 1,
+    textAlign: 'center',
+  },
+  // ── Step 2: Verification Mode Tabs ──
+  modesRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modeTab: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    paddingHorizontal: 6,
   },
-  dropHas: { minHeight: 120 },
-  uploadIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
+  modeTabActive: {
     backgroundColor: '#1B463A',
+    borderWidth: 2,
+    borderColor: '#1B463A',
+  },
+  modeTabInactive: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: 'rgba(27,70,58,0.16)',
+  },
+  modeTabText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  modeTabTextActive: {
+    color: '#FFFFFF',
+  },
+  modeTabTextInactive: {
+    color: '#091A16',
+  },
+  // ── Step 3: Screenshot Dropzone ──
+  dropzone: {
+    borderRadius: 18,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+    padding: space[4],
+  },
+  dropzoneEmpty: {
+    borderColor: 'rgba(27,70,58,0.22)',
+    backgroundColor: 'rgba(250,248,245,0.85)',
+  },
+  dropzoneFilled: {
+    borderColor: '#1B463A',
+    backgroundColor: '#F2F8F4',
+  },
+  dropEmptyContent: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  uploadIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(27,70,58,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
   },
-  uploadTitle: { fontSize: 14, fontWeight: '800', color: colors.ink, textAlign: 'center' },
-  uploadHint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', maxWidth: 280 },
-  uploadCta: {
-    marginTop: 4,
-    minHeight: 36,
-    minWidth: 120,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    overflow: 'hidden',
-    borderRadius: 8,
-    backgroundColor: '#1B463A',
-    color: '#F4EEDC',
+  dropMainText: {
     fontSize: 13,
     fontWeight: '800',
+    color: '#091A16',
     textAlign: 'center',
   },
-  preview: {
-    width: '100%',
-    height: 96,
+  dropSubText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#40564C',
+    textAlign: 'center',
     marginTop: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#fff',
+    maxWidth: 280,
   },
-  pickRow: { flexDirection: 'row', gap: space[2] },
-  verifying: { textAlign: 'center', fontSize: 13, color: colors.textSecondary },
-  infoBox: {
-    padding: space[3],
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(198, 162, 78, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(198, 162, 78, 0.35)',
+  dropActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
   },
-  infoTitle: { fontSize: 13, fontWeight: '700', color: colors.ink },
-  infoBody: { marginTop: 4, fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
-  smsInput: { minHeight: 160, textAlignVertical: 'top', fontSize: 13 },
-  costHint: { textAlign: 'center', fontSize: 12, color: colors.textSecondary },
-  outcome: { gap: 14 },
-  failHero: {
-    alignItems: 'flex-start',
-    gap: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 17,
+  browseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1B463A',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 12,
-    backgroundColor: '#7C2A33',
   },
-  outcomeTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#F4EEDC',
-    letterSpacing: -0.3,
-    lineHeight: 24,
+  browseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
-  outcomeLead: {
-    fontSize: 14,
-    color: 'rgba(244, 238, 220, 0.78)',
-    lineHeight: 21,
-  },
-  prevLine: { fontSize: 13, color: colors.textSecondary },
-  outcomeCta: { gap: 9, paddingTop: 8 },
-  balanceNote: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
-  anotherBtn: {
-    backgroundColor: '#C6A24E',
-    borderRadius: 8,
-    minHeight: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space[5],
-    shadowColor: '#C6A24E',
-    shadowOpacity: 0.55,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  anotherText: { color: '#0E2420', fontWeight: '800', fontSize: 16 },
-  againBtn: {
+  cameraButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: 'rgba(14, 36, 32, 0.2)',
-    borderRadius: 8,
-    minHeight: 54,
-  },
-  againText: { color: colors.ink, fontWeight: '800', fontSize: 16 },
-  rowBtns: { flexDirection: 'row', gap: space[3] },
-  flexBtn: { flex: 1 },
-  payBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 40,
-    paddingVertical: 5,
-    paddingLeft: 10,
-    paddingRight: 6,
-    borderRadius: 10,
+    gap: 6,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgElevated,
+    borderColor: 'rgba(27,70,58,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  cameraButtonText: {
+    color: colors.birrGreen,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  dropPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dropPreviewThumbWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(27,70,58,0.2)',
+    backgroundColor: '#FFFFFF',
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropPreviewThumb: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  dropPreviewInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  readyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1B463A',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  readyBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  fileDetailsText: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    color: '#40564C',
+  },
+  changeLinkText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B463A',
+    textDecorationLine: 'underline',
+  },
+  // ── Payment to My Account Block ──
+  payBox: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
   },
   payBoxOn: {
-    borderColor: 'rgba(62, 143, 98, 0.42)',
-    backgroundColor: 'rgba(62, 143, 98, 0.1)',
+    backgroundColor: '#EBF5EE',
+    borderColor: 'rgba(27,70,58,0.3)',
   },
-  payBoxLocked: { backgroundColor: colors.bgSubtle },
-  payRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
-  paySwitch: {
-    width: 32,
-    height: 18,
-    borderRadius: 999,
-    backgroundColor: 'rgba(14, 36, 32, 0.2)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 2,
+  payBoxOff: {
+    backgroundColor: '#FAF8F5',
+    borderColor: 'rgba(27,70,58,0.14)',
   },
-  paySwitchOn: { backgroundColor: colors.verified },
-  paySwitchLocked: { backgroundColor: 'rgba(14, 36, 32, 0.12)' },
-  payKnob: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#fff',
-  },
-  payKnobOn: { transform: [{ translateX: 14 }] },
-  payCopy: { flex: 1, minWidth: 0 },
-  payTitle: { fontSize: 13, fontWeight: '600', color: colors.ink },
-  payTitleLocked: { color: 'rgba(14, 36, 32, 0.42)' },
-  paySaved: { marginTop: 1, fontSize: 11, fontWeight: '500', color: colors.textSecondary },
-  payAdd: {
-    height: 28,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.foilGold,
-    backgroundColor: 'rgba(198, 162, 78, 0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  payAddText: { fontSize: 12, fontWeight: '700', color: colors.ink },
-  sheet: { flex: 1, backgroundColor: colors.parchment },
-  header: {
+  payRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: space[5],
-    paddingBottom: space[4],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.bgElevated,
+    gap: 10,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.ink },
-  modalBody: { padding: space[4], paddingBottom: space[12] },
+  payInfo: {
+    flex: 1,
+  },
+  payTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  payTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#091A16',
+  },
+  paySaved: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#40564C',
+    marginTop: 2,
+  },
+  payActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  payManage: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1B463A',
+    textDecorationLine: 'underline',
+  },
+  // ── Multi-Stage Loading Banner ──
+  loadingBanner: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#FAF8F5',
+    borderWidth: 1,
+    borderColor: 'rgba(27,70,58,0.25)',
+    gap: 6,
+  },
+  loadingBannerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  loadingBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  loadingStageText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1B463A',
+  },
+  loadingStepText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#40564C',
+    fontFamily: 'monospace',
+  },
+  loadingTrack: {
+    width: '100%',
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(27,70,58,0.12)',
+    overflow: 'hidden',
+  },
+  loadingBar: {
+    height: '100%',
+    backgroundColor: '#1B463A',
+    borderRadius: 3,
+  },
+  // ── Verify Receipt Button ──
+  verifyButton: {
+    backgroundColor: '#1B463A',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1B463A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  verifyButtonDisabled: {
+    opacity: 0.5,
+  },
+  verifyBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  verifyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  speedSub: {
+    fontSize: 11,
+    color: '#40564C',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  // ── Input Fields ──
+  fieldGroup: {
+    gap: 4,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#091A16',
+  },
+  fieldInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(27,70,58,0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+    color: '#091A16',
+  },
+  fieldHint: {
+    fontSize: 10,
+    color: '#40564C',
+    fontWeight: '500',
+  },
+  smsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pasteSampleLink: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1B463A',
+    textDecorationLine: 'underline',
+  },
+  smsTextarea: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(27,70,58,0.2)',
+    borderRadius: 12,
+    padding: 10,
+    fontSize: 12,
+    fontWeight: '500',
+    fontFamily: 'monospace',
+    color: '#091A16',
+    minHeight: 80,
+  },
+  errorAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    borderRadius: 12,
+    padding: 10,
+  },
+  errorAlertText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  // ── Failure & Success Outcomes ──
+  outcomeSpace: {
+    gap: space[4],
+  },
+  failHero: {
+    backgroundColor: '#7F1D1D',
+    borderRadius: 18,
+    padding: 14,
+  },
+  failHeroTop: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  failIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#991B1B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#F87171',
+  },
+  failHeroCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  failBadge: {
+    backgroundColor: '#991B1B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  failBadgeText: {
+    color: '#FEE2E2',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  failTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  failSubtitle: {
+    color: '#FECACA',
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 15,
+  },
+  outcomeCta: {
+    gap: 8,
+  },
+  btnPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#1B463A',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  btnPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  btnOutline: {
+    borderWidth: 1,
+    borderColor: 'rgba(27,70,58,0.2)',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  btnOutlineText: {
+    color: '#091A16',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  successCtaRow: {
+    gap: 8,
+  },
+  feeNote: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#40564C',
+    textAlign: 'center',
+  },
 })
