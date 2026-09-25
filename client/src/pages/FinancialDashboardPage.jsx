@@ -332,96 +332,108 @@ export default function FinancialDashboardPage() {
         </div>
 
         {/* ── Top Metrics Cards (4 Key Financial Indicators) ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* 1. Total Verified Volume */}
-          <div className="bg-white rounded-3xl border border-[rgba(27,70,58,0.14)] p-5 sm:p-6 shadow-sm relative overflow-hidden">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[11px] font-black uppercase tracking-wider text-[#40564C]">
-                Total Verified Volume
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-[rgba(27,70,58,0.14)] p-3.5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#40564C] truncate">
+                Verified Volume
               </span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <CheckCircle2 size={16} strokeWidth={2.5} />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={14} className="sm:hidden" strokeWidth={2.5} />
+                <CheckCircle2 size={16} className="hidden sm:block" strokeWidth={2.5} />
               </div>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-mono tabular-nums text-2xl sm:text-3xl font-black text-[#091A16] tracking-tight">
-                {metrics.totalVerifiedVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-              <span className="text-xs font-extrabold text-[#1B463A] uppercase">ETB</span>
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="font-mono tabular-nums text-lg sm:text-3xl font-black text-[#091A16] tracking-tight">
+                  {metrics.totalVerifiedVolume.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                </span>
+                <span className="text-[10px] sm:text-xs font-extrabold text-[#1B463A] uppercase">ETB</span>
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold mt-1 line-clamp-1">
+                Total authenticated funds
+              </p>
             </div>
-            <p className="text-[11px] text-[#40564C] font-semibold mt-1">
-              Total transaction funds authenticated
-            </p>
           </div>
 
           {/* 2. Total Decreased Birr (Fees Paid) */}
-          <div className="bg-white rounded-3xl border border-[rgba(27,70,58,0.14)] p-5 sm:p-6 shadow-sm relative overflow-hidden">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[11px] font-black uppercase tracking-wider text-[#40564C]">
-                Total Decreased Fees
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-[rgba(27,70,58,0.14)] p-3.5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#40564C] truncate">
+                Decreased Fees
               </span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center">
-                <Coins size={16} strokeWidth={2.5} />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center shrink-0">
+                <Coins size={14} className="sm:hidden" strokeWidth={2.5} />
+                <Coins size={16} className="hidden sm:block" strokeWidth={2.5} />
               </div>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-mono tabular-nums text-2xl sm:text-3xl font-black text-[#B45309] tracking-tight">
-                −{metrics.totalFeesDeducted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-              <span className="text-xs font-extrabold text-[#B45309] uppercase">Birr</span>
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="font-mono tabular-nums text-lg sm:text-3xl font-black text-[#B45309] tracking-tight">
+                  −{metrics.totalFeesDeducted.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+                </span>
+                <span className="text-[10px] sm:text-xs font-extrabold text-[#B45309] uppercase">Birr</span>
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold mt-1 line-clamp-1">
+                Audit service charges
+              </p>
             </div>
-            <p className="text-[11px] text-[#40564C] font-semibold mt-1">
-              Service charges decreased across all checks
-            </p>
           </div>
 
           {/* 3. Total Verifications Count */}
-          <div className="bg-white rounded-3xl border border-[rgba(27,70,58,0.14)] p-5 sm:p-6 shadow-sm relative overflow-hidden">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[11px] font-black uppercase tracking-wider text-[#40564C]">
-                Verification Audits
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-[rgba(27,70,58,0.14)] p-3.5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#40564C] truncate">
+                Total Audits
               </span>
-              <div className="w-8 h-8 rounded-xl bg-[#1B463A]/10 text-[#1B463A] flex items-center justify-center">
-                <FileSpreadsheet size={16} strokeWidth={2.5} />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#1B463A]/10 text-[#1B463A] flex items-center justify-center shrink-0">
+                <FileSpreadsheet size={14} className="sm:hidden" strokeWidth={2.5} />
+                <FileSpreadsheet size={16} className="hidden sm:block" strokeWidth={2.5} />
               </div>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-mono tabular-nums text-2xl sm:text-3xl font-black text-[#091A16] tracking-tight">
-                {metrics.totalCount}
-              </span>
-              <span className="text-xs font-extrabold text-[#1B463A]">Checks</span>
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="font-mono tabular-nums text-lg sm:text-3xl font-black text-[#091A16] tracking-tight">
+                  {metrics.totalCount}
+                </span>
+                <span className="text-[10px] sm:text-xs font-extrabold text-[#1B463A]">Checks</span>
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold mt-1 line-clamp-1">
+                <span className="text-emerald-700 font-bold">{metrics.genuineCount} OK</span> ·{' '}
+                <span className="text-red-700 font-bold">{metrics.tamperedCount} Flag</span>
+              </p>
             </div>
-            <p className="text-[11px] text-[#40564C] font-semibold mt-1">
-              <span className="text-emerald-700 font-bold">{metrics.genuineCount} Genuine</span> ·{' '}
-              <span className="text-red-700 font-bold">{metrics.tamperedCount} Tampered</span>
-            </p>
           </div>
 
           {/* 4. Current Available Balance */}
-          <div className="bg-white rounded-3xl border border-[rgba(27,70,58,0.14)] p-5 sm:p-6 shadow-sm relative overflow-hidden">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[11px] font-black uppercase tracking-wider text-[#40564C]">
-                Available Balance
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-[rgba(27,70,58,0.14)] p-3.5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#40564C] truncate">
+                Balance
               </span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-[#C6A24E] flex items-center justify-center">
-                <Wallet size={16} strokeWidth={2.5} />
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-50 text-[#C6A24E] flex items-center justify-center shrink-0">
+                <Wallet size={14} className="sm:hidden" strokeWidth={2.5} />
+                <Wallet size={16} className="hidden sm:block" strokeWidth={2.5} />
               </div>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-mono tabular-nums text-2xl sm:text-3xl font-black text-[#091A16] tracking-tight">
-                {Number(balance || 0).toFixed(2)}
-              </span>
-              <span className="text-xs font-extrabold text-[#1B463A] uppercase">ETB</span>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <p className="text-[11px] text-[#40564C] font-semibold">Active live balance</p>
-              <button
-                type="button"
-                onClick={() => setTopupOpen(true)}
-                className="text-[11px] font-black text-[#1B463A] hover:underline"
-              >
-                + Top Up
-              </button>
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="font-mono tabular-nums text-lg sm:text-3xl font-black text-[#091A16] tracking-tight">
+                  {Number(balance || 0).toFixed(2)}
+                </span>
+                <span className="text-[10px] sm:text-xs font-extrabold text-[#1B463A] uppercase">ETB</span>
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold">Active</p>
+                <button
+                  type="button"
+                  onClick={() => setTopupOpen(true)}
+                  className="text-[10px] sm:text-[11px] font-black text-[#1B463A] hover:underline"
+                >
+                  + Top Up
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -437,7 +449,7 @@ export default function FinancialDashboardPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
             {Object.keys(BANK_LABELS).map((bankKey) => {
               const stat = metrics.bankStats[bankKey] || { volume: 0, fees: 0, count: 0 }
               const logo = BANK_LOGOS[bankKey]
@@ -503,7 +515,7 @@ export default function FinancialDashboardPage() {
               </div>
 
               {/* Filter controls */}
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
                 {/* Bank Gateway Filter */}
                 <select
                   className="input py-2.5 px-3 rounded-xl bg-white border border-[rgba(27,70,58,0.15)] text-xs font-bold text-[#091A16] cursor-pointer"

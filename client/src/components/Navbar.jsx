@@ -278,7 +278,23 @@ export default function Navbar() {
         </div>
 
         <div className="flex md:hidden items-center gap-1.5 ml-auto flex-shrink-0">
-          <LangToggle />
+          <button
+            type="button"
+            onClick={() => {
+              if (location.pathname !== '/dashboard') {
+                navigate('/dashboard')
+              } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }
+            }}
+            className={`navbar-tool-mobile-verify ${location.pathname === '/dashboard' ? 'active' : ''}`}
+            title="Verify"
+            aria-label="Verify"
+          >
+            <ShieldCheck size={16} strokeWidth={2.2} />
+            <span>Verify</span>
+          </button>
+
           {user && (
             <>
               <span className="credit-pill credit-pill-mobile">
@@ -345,6 +361,15 @@ export default function Navbar() {
           </div>
 
           <div className="nav-drawer-body">
+            {/* Language toggle inside mobile drawer */}
+            <div className="px-3 py-2 rounded-xl bg-white/10 border border-[rgba(198,162,78,0.25)] mb-2 flex items-center justify-between">
+              <span className="text-xs font-bold text-[var(--color-parchment)] flex items-center gap-1.5">
+                <Globe size={15} className="text-[#E4C977]" />
+                <span>Language / ቋንቋ</span>
+              </span>
+              <LangToggle />
+            </div>
+
             {user ? (
               <>
                 <p className="nav-drawer-user">{user.email || user.name}</p>

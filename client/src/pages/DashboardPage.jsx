@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useSearchParams } from 'react-router-dom'
 import { TrendingUp } from 'lucide-react'
 import { fetchBalance, submitTopUp, submitTopUpReference, submitTopUpSms } from '../features/balance/balanceSlice'
 import { fetchCheckHistory, performCheck, performReferenceCheck, performSmsCheck } from '../features/checks/checksSlice'
 import BalanceCard from '../components/BalanceCard'
-import BottomNav from '../components/BottomNav'
 import TopUpModal from '../components/TopUpModal'
 import CheckerModal from '../components/CheckerModal'
 import CheckHistory from '../components/CheckHistory'
@@ -21,11 +21,20 @@ export default function DashboardPage() {
   const dispatch = useDispatch()
   const { t } = useLocale()
   const toast = useToast()
+  const [searchParams] = useSearchParams()
   const { current: balance, submitting: topupLoading, error: balanceError, loadError: balanceLoadError } = useSelector(s => s.balance)
   const { list: checks, loading: checksLoading, submitting: checkLoading, error: checkError, loadError: historyLoadError, lastCheck, lastResolvedDetails } = useSelector(s => s.checks)
-  const { topupOpen, setTopupOpen, setCheckerOpen } = useDashboardUi()
-  const [mobileTab, setMobileTab] = useState('home')
+  const { topupOpen, setTopupOpen, setCheckerOpen, mobileTab, setMobileTab } = useDashboardUi()
   const [onboardingOpen, setOnboardingOpen] = useState(false)
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'history') {
+      setMobileTab('history')
+    } else if (tabParam === 'verify' || tabParam === 'home') {
+      setMobileTab('home')
+    }
+  }, [searchParams, setMobileTab])
 
   useEffect(() => {
     dispatch(fetchBalance())
@@ -252,13 +261,6 @@ export default function DashboardPage() {
         onSmsSubmit={handleTopUpSmsSubmit}
         loading={topupLoading}
         error={balanceError}
-      />
-
-      <BottomNav
-        activeTab={mobileTab}
-        onTabChange={setMobileTab}
-        onFabClick={goVerify}
-        onTopUpClick={() => setTopupOpen(true)}
       />
 
       <OnboardingModal

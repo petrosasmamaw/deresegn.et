@@ -5,6 +5,7 @@ const DashboardUiContext = createContext(null)
 export function DashboardUiProvider({ children }) {
   const [topupOpen, setTopupOpen] = useState(false)
   const [checkerOpen, setCheckerOpen] = useState(false)
+  const [mobileTab, setMobileTab] = useState('home')
 
   const value = useMemo(
     () => ({
@@ -12,10 +13,12 @@ export function DashboardUiProvider({ children }) {
       setTopupOpen,
       checkerOpen,
       setCheckerOpen,
+      mobileTab,
+      setMobileTab,
       openTopUp: () => setTopupOpen(true),
       openVerify: () => setCheckerOpen(true),
     }),
-    [topupOpen, checkerOpen],
+    [topupOpen, checkerOpen, mobileTab],
   )
 
   return (

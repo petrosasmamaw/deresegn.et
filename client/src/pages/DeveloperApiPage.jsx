@@ -252,7 +252,7 @@ export default function DeveloperApiPage() {
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
             Price is charged from your wallet. Capacity is verified receipt amounts (not the in-app per-check fee).
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
             {packages.map((pkg) => {
               const active = selectedPackage === pkg.id
               const accent = PACKAGE_ACCENTS[pkg.id] || '#C6A24E'
@@ -261,7 +261,7 @@ export default function DeveloperApiPage() {
                   key={pkg.id}
                   type="button"
                   onClick={() => setSelectedPackage(pkg.id)}
-                  className="text-left rounded-xl p-4 transition-transform"
+                  className={`text-left rounded-xl p-3 sm:p-4 transition-transform ${pkg.id === 'enterprise' ? 'col-span-2 sm:col-span-1' : ''}`}
                   style={{
                     border: active ? `2px solid ${accent}` : '1px solid rgba(14,36,32,0.12)',
                     background: active ? 'rgba(198,162,78,0.12)' : 'var(--color-parchment)',
@@ -269,11 +269,11 @@ export default function DeveloperApiPage() {
                     transform: active ? 'translateY(-2px)' : 'none',
                   }}
                 >
-                  <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: accent }}>{pkg.label}</p>
-                  <p className="font-display text-2xl font-bold" style={{ color: 'var(--color-ink)' }}>{pkg.priceBirr}</p>
-                  <p className="text-xs text-[var(--color-text-secondary)] mb-2">Birr</p>
-                  <p className="text-sm font-semibold" style={{ color: accent }}>→ {pkg.capacityBirr} Birr verify</p>
-                  <p className="text-[11px] text-[var(--color-text-tertiary)] mt-2 leading-snug">{pkg.note}</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider mb-1 truncate" style={{ color: accent }}>{pkg.label}</p>
+                  <p className="font-display text-xl sm:text-2xl font-bold" style={{ color: 'var(--color-ink)' }}>{pkg.priceBirr}</p>
+                  <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mb-1 sm:mb-2">Birr</p>
+                  <p className="text-xs sm:text-sm font-semibold truncate" style={{ color: accent }}>→ {pkg.capacityBirr} Birr</p>
+                  <p className="text-[10px] sm:text-[11px] text-[var(--color-text-tertiary)] mt-1.5 sm:mt-2 leading-snug line-clamp-2">{pkg.note}</p>
                 </button>
               )
             })}
