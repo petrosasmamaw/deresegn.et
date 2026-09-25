@@ -329,15 +329,43 @@ app.get('/', (c) => {
   return c.text('Deresegn Cloudflare Worker API is active');
 });
 
-// 7. Global error handler
+// 7. Global error & not found handlers
 app.onError((err, c) => {
   console.error('[Global Error]', err);
-  return c.json(
-    {
+  const origin = c.req.header('origin');
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  if (origin && isTrustedOrigin(origin)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+    headers.set('Access-Control-Allow-Credentials', 'true');
+  }
+  return new Response(
+    JSON.stringify({
       success: false,
       message: err.message || 'Internal Server Error',
+    }),
+    {
+      status: 500,
+      headers,
     },
-    500,
+  );
+});
+
+app.notFound((c) => {
+  const origin = c.req.header('origin');
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  if (origin && isTrustedOrigin(origin)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+    headers.set('Access-Control-Allow-Credentials', 'true');
+  }
+  return new Response(
+    JSON.stringify({
+      success: false,
+      message: 'Resource not found',
+    }),
+    {
+      status: 404,
+      headers,
+    },
   );
 });
 

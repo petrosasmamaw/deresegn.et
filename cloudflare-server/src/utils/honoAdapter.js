@@ -110,32 +110,43 @@ export function adapt(handler) {
       await handler(req, res);
     } catch (err) {
       console.error('[HonoAdapter Error]', err);
+      const errHeaders = new Headers({ 'Content-Type': 'application/json' });
       if (trusted) {
-        c.header('Access-Control-Allow-Origin', origin);
-        c.header('Access-Control-Allow-Credentials', 'true');
+        errHeaders.set('Access-Control-Allow-Origin', origin);
+        errHeaders.set('Access-Control-Allow-Credentials', 'true');
       }
-      return c.json(
-        {
+      return new Response(
+        JSON.stringify({
           success: false,
           message: err.message || 'Internal Server Error',
+        }),
+        {
+          status: 500,
+          headers: errHeaders,
         },
-        500,
       );
     }
 
+    const finalHeaders = new Headers();
+    if (c.res && c.res.headers) {
+      for (const [k, v] of c.res.headers.entries()) {
+        finalHeaders.set(k, v);
+      }
+    }
     if (trusted) {
-      c.header('Access-Control-Allow-Origin', origin);
-      c.header('Access-Control-Allow-Credentials', 'true');
+      finalHeaders.set('Access-Control-Allow-Origin', origin);
+      finalHeaders.set('Access-Control-Allow-Credentials', 'true');
     }
-
     for (const [key, value] of Object.entries(responseHeaders)) {
-      c.header(key, value);
+      finalHeaders.set(key, value);
     }
-
     if (isJson) {
-      c.header('Content-Type', 'application/json');
+      finalHeaders.set('Content-Type', 'application/json');
     }
 
-    return c.body(responseBody, statusCode);
+    return new Response(responseBody, {
+      status: statusCode,
+      headers: finalHeaders,
+    });
   };
 }

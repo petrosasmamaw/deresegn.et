@@ -2,6 +2,7 @@ import { auth } from '../../auth.mjs';
 import { db } from '../config/drizzle.js';
 import * as schema from '../db/schema.js';
 import { eq, or } from 'drizzle-orm';
+import { isTrustedOrigin } from '../config/clientOrigins.js';
 
 export async function authenticateUser(c, next) {
   try {
@@ -68,6 +69,11 @@ export async function authenticateUser(c, next) {
     }
 
     if (!session?.user) {
+      const origin = c.req.header('origin');
+      if (origin && isTrustedOrigin(origin)) {
+        c.header('Access-Control-Allow-Origin', origin);
+        c.header('Access-Control-Allow-Credentials', 'true');
+      }
       return c.json({ success: false, message: 'Unauthorized' }, 401);
     }
 
@@ -78,6 +84,11 @@ export async function authenticateUser(c, next) {
     await next();
   } catch (err) {
     console.error('[AUTH]', err);
+    const origin = c.req.header('origin');
+    if (origin && isTrustedOrigin(origin)) {
+      c.header('Access-Control-Allow-Origin', origin);
+      c.header('Access-Control-Allow-Credentials', 'true');
+    }
     return c.json({ success: false, message: 'Authentication error' }, 500);
   }
 }
