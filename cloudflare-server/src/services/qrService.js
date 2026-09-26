@@ -19,7 +19,7 @@ const jsQR = typeof jsQRRaw === 'function' ? jsQRRaw : (jsQRRaw?.default || jsQR
 
 const IS_WORKERS = isWorkersRuntime();
 const QR_SCAN_MAX_DIM = IS_WORKERS
-  ? Number(process.env.QR_SCAN_MAX_DIM) || 1400
+  ? Number(process.env.QR_SCAN_MAX_DIM) || 640
   : Number(process.env.QR_SCAN_MAX_DIM) || 2200;
 const QR_SCAN_MIN_DIM = 400;
 const WORKERS_QR_VARIANT_CAP = 4;
@@ -301,8 +301,13 @@ function scanZXingFromLuminance(luminance, width, height, Binarizer = HybridBina
 
 function scanBitmapJsOnly(bitmap) {
   if (!bitmap?.data || !bitmap.width || !bitmap.height) return null;
-  const jsResult = scanJsQR(bitmap, 'dontInvert') || scanJsQR(bitmap, 'attemptBoth');
-  return jsResult?.data || null;
+  const jsResult = scanJsQR(bitmap, 'dontInvert');
+  if (jsResult?.data) return jsResult.data;
+  if (!IS_WORKERS) {
+    const invertResult = scanJsQR(bitmap, 'attemptBoth');
+    if (invertResult?.data) return invertResult.data;
+  }
+  return null;
 }
 
 function scanBitmap(bitmap) {
@@ -589,6 +594,16 @@ export function scanImageForQrJsOnly(image, shouldStop = () => false, validate =
   if (!image?.bitmap) return null;
   const direct = scanBitmapJsOnly(image.bitmap);
   if (direct && validate(direct)) return direct;
+  if (shouldStop()) return null;
+
+  if (IS_WORKERS) {
+    const { width, height } = image.bitmap;
+    const bottomY = Math.floor(height * 0.40);
+    const bottomH = height - bottomY;
+    const hit = scanBitmapJsOnly(cropBitmap(image.bitmap, 0, bottomY, width, bottomH));
+    if (hit && validate(hit)) return hit;
+    return null;
+  }
 
   const { width, height } = image.bitmap;
   const crops = [

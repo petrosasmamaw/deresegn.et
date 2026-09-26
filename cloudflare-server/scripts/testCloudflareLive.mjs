@@ -102,6 +102,46 @@ async function testLive() {
     console.log('Dashen full response:', dashenJson);
   }
 
+  console.log('\n--- 3b. Testing Dashen Mobile JPEG Screenshot Verification ---');
+  const dashenJpgPath = path.join(__dirname, '../../deresegn-mobile-app/assets/receipts/dashen.jpg');
+  if (fs.existsSync(dashenJpgPath)) {
+    const dashenJpgBuf = fs.readFileSync(dashenJpgPath);
+    const dashenJpgBlob = new Blob([dashenJpgBuf], { type: 'image/jpeg' });
+    const dashenJpgForm = new FormData();
+    dashenJpgForm.append('screenshot', dashenJpgBlob, 'dashen-mobile.jpg');
+    dashenJpgForm.append('method', 'dashen');
+    dashenJpgForm.append('withDetails', 'false');
+
+    const dashenJpgRes = await fetch(`${CF_BASE}/check`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookie,
+        Origin: ORIGIN,
+      },
+      body: dashenJpgForm,
+    });
+    const dashenJpgText = await dashenJpgRes.text();
+    let dashenJpgJson = null;
+    try {
+      dashenJpgJson = JSON.parse(dashenJpgText);
+    } catch {
+      console.error('Dashen JPG response is NOT JSON! Status:', dashenJpgRes.status, 'Body:', dashenJpgText.slice(0, 500));
+    }
+    console.log('Dashen JPG screenshot status:', dashenJpgRes.status);
+    if (dashenJpgJson) {
+      console.log('Dashen JPG success:', dashenJpgJson.success);
+      console.log('Dashen JPG message:', dashenJpgJson.message);
+    }
+    if (dashenJpgJson?.data?.check) {
+      console.log('Dashen JPG check details:', {
+        txCode: dashenJpgJson.data.check.transactionCode,
+        amount: dashenJpgJson.data.check.amount,
+        sender: dashenJpgJson.data.check.senderName,
+        receiver: dashenJpgJson.data.check.receiverName,
+      });
+    }
+  }
+
   console.log('\n--- 4. Testing CBE Screenshot Verification ---');
   const cbeImgPath = path.join(__dirname, '../../server/training/receipt-samples/cbe-success-card.png');
   const cbeBuf = fs.readFileSync(cbeImgPath);

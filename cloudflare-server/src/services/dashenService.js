@@ -499,6 +499,18 @@ function enrichSuccessFields(qrData, qrFields, extracted = null) {
   if (!enriched.amount && extracted?.amount != null) {
     enriched.amount = String(extracted.amount);
   }
+  if (!enriched.senderName && extracted?.senderName) {
+    enriched.senderName = extracted.senderName;
+  }
+  if (!enriched.senderAccount && extracted?.senderAccount) {
+    enriched.senderAccount = extracted.senderAccount;
+  }
+  if (!enriched.receiverName && extracted?.receiverName) {
+    enriched.receiverName = extracted.receiverName;
+  }
+  if (!enriched.receiverAccount && extracted?.receiverAccount) {
+    enriched.receiverAccount = extracted.receiverAccount;
+  }
   return enriched;
 }
 

@@ -6,7 +6,7 @@ const OCR_MAX_EDGE = 1600;
 const OCR_JPEG_QUALITY = 78;
 const IS_WORKERS = isWorkersRuntime();
 const QR_SCAN_MAX_DIM = IS_WORKERS
-  ? Number(process.env.QR_SCAN_MAX_DIM) || 1400
+  ? Number(process.env.QR_SCAN_MAX_DIM) || 640
   : Number(process.env.QR_SCAN_MAX_DIM) || 2200;
 const QR_SCAN_MIN_DIM = 400;
 
