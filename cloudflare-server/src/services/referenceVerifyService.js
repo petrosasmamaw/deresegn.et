@@ -1,5 +1,9 @@
 import { normalizeTxCode } from '../utils/txCode.js';
-import { fetchTelebirrReceipt, normalizeTelebirrInvoiceId } from './telebirrReceiptService.js';
+import {
+  fetchTelebirrReceipt,
+  normalizeTelebirrInvoiceId,
+  extractTelebirrInvoiceFromText,
+} from './telebirrReceiptService.js';
 import { fetchDashenTransactionByReference } from './dashenService.js';
 import {
   fetchCbeTransactionByReference,
@@ -93,7 +97,7 @@ export function validateReferenceInput(method, { transactionCode, accountSuffix 
 
   switch (method) {
     case 'telebirr': {
-      const id = normalizeTelebirrInvoiceId(code);
+      const id = normalizeTelebirrInvoiceId(code) || extractTelebirrInvoiceFromText(code);
       if (!id) {
         throw validationError('Enter a valid Telebirr Invoice No. (10 characters, e.g. DG65L5I9M5)', 'transactionCode');
       }

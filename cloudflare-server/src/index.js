@@ -74,7 +74,11 @@ app.use('*', async (c, next) => {
   c.header('X-Frame-Options', 'SAMEORIGIN');
   c.header('Referrer-Policy', 'no-referrer');
 
-  ensureInitTables().catch(() => {});
+  if (c.executionCtx?.waitUntil) {
+    c.executionCtx.waitUntil(ensureInitTables());
+  } else {
+    ensureInitTables().catch(() => {});
+  }
 
   await next();
 });

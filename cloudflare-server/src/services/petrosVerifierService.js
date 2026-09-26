@@ -163,8 +163,8 @@ export async function fetchTelebirrViaPetros(invoiceId) {
   const started = Date.now();
   const telebirrTimeoutMs = Number(process.env.TELEBIRR_PETROS_TIMEOUT_MS) || 12000;
   const attempts = [
-    { path: '/verify-telebirr', body: { reference: id } },
     { path: '/verify', body: { reference: id, bank: 'telebirr' } },
+    { path: '/verify-telebirr', body: { reference: id } },
   ];
 
   for (const attempt of attempts) {

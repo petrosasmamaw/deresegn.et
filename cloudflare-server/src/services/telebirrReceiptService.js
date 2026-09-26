@@ -170,21 +170,17 @@ export async function fetchTelebirrReceipt(invoiceId) {
 
   const fetchPromise = (async () => {
     try {
-      // 1) Petros verifier (payment ID → official Telebirr record)
       if (shouldPreferPetros() && isPetrosVerifierConfigured()) {
         const fromPetros = await fetchTelebirrViaPetros(id);
         if (fromPetros) {
           console.log('[Telebirr] Official receipt loaded:', id, 'amount', fromPetros.amount, 'via petros');
           return fromPetros;
         }
-        if (!/^(1|true|yes)$/i.test(String(process.env.TELEBIRR_FORCE_DIRECT || ''))) {
-          console.warn('[Telebirr] Petros miss — skipping slow Ethio Telecom HTML');
-          return null;
-        }
+        console.log('[Telebirr] Petros miss — falling back to direct Ethio Telecom HTML');
       }
 
       if (shouldSkipDirect()) {
-        console.warn('[Telebirr] Petros miss and TELEBIRR_SKIP_DIRECT=true — skipping Ethio Telecom');
+        console.warn('[Telebirr] TELEBIRR_SKIP_DIRECT=true — skipping Ethio Telecom');
         return null;
       }
 

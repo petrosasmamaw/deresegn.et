@@ -3,6 +3,7 @@
  * Inspired by https://github.com/NahomAl/ethiobank_receipts/blob/main/ethiobank_receipts/extractors/dashen.py
  * Fast path: parallel QR scan + Gemini OCR; VAT falls back to official PDF by IPSS reference.
  */
+import crypto from 'node:crypto';
 import fs from 'fs/promises';
 import {
   parseQrPayload,
@@ -22,11 +23,11 @@ import { outboundFetch, BANK_FETCH_TIMEOUT_MS, BANK_FETCH_RETRIES } from '../uti
 
 const RECEIPT_BASE = 'https://receipt.dashensuperapp.com/receipt';
 const DASHEN_REF_RE = /\b(\d{3}(?:IPSS|OBTS|ETAP)[A-Z0-9]{8,})\b/i;
-const QR_BUDGET_MS = 3000;
-const DASHEN_PDF_TIMEOUT_MS = 2500;
+const QR_BUDGET_MS = 6000;
+const DASHEN_PDF_TIMEOUT_MS = 3500;
 const PDF_TIMEOUT_MS = BANK_FETCH_TIMEOUT_MS;
-const SUPERAPP_OCR_GRACE_MS = Number(process.env.DASHEN_SUPERAPP_OCR_GRACE_MS) || 0;
-const DASHEN_JSQR_MS = Number(process.env.DASHEN_JSQR_MS) || 600;
+const SUPERAPP_OCR_GRACE_MS = Number(process.env.DASHEN_SUPERAPP_OCR_GRACE_MS) || 6000;
+const DASHEN_JSQR_MS = Number(process.env.DASHEN_JSQR_MS) || 800;
 
 function firstTruthy(...promises) {
   return new Promise((resolve) => {
@@ -419,15 +420,44 @@ async function decodeDashenQrFromBuffer(buffer, { maxMs = QR_BUDGET_MS, prepared
       return jsqrHit;
     }
 
+    if (isWorkersRuntime()) {
+      return buildQrDataFromRaw(null);
+    }
+
+    const { width, height } = prepared.bitmap;
+    const midY = Math.floor(height * 0.18);
+    const midH = Math.floor(height * 0.64);
+    const bottomY = Math.floor(height * 0.50);
+    const bottomH = Math.floor(height * 0.45);
+
+    // Fast priority: targeted lower-half crop (scaled 2.5x) is the instant hit for Dashen success screens
+    const priority = [
+      prepared.clone().crop({ x: 0, y: bottomY, w: width, h: Math.min(bottomH, height - bottomY) }).scale(2.5),
+      prepared.clone().crop({ x: 0, y: bottomY, w: width, h: height - bottomY }).scale(2),
+      prepared.clone().crop({ x: 0, y: midY, w: width, h: midH }).scale(2),
+      prepared.clone().scale(2),
+      prepared,
+    ];
+
+    for (const variant of priority) {
+      if (shouldStop()) break;
+      const raw = scanBitmapForData(variant.bitmap);
+      const hit = acceptRaw(raw, 'any');
+      if (hit) {
+        console.log('[Dashen] QR decoded (priority)');
+        return hit;
+      }
+    }
+
     if (shouldStop()) return buildQrDataFromRaw(null);
 
-    await new Promise((r) => setTimeout(r, 0));
-    const raw = scanImageForQrValidated(prepared, shouldStop, accept);
-    const hit = acceptRaw(raw, 'any');
-    if (hit) {
-      console.log('[Dashen] QR decoded (multi-pass)');
-      return hit;
-    }
+    const hitSuccess = scanDashenSuccessQr(prepared, Math.max(0, deadline - Date.now()));
+    if (hitSuccess) return hitSuccess;
+
+    if (shouldStop()) return buildQrDataFromRaw(null);
+
+    const hitVat = scanDashenVatBottomQr(prepared);
+    if (hitVat) return hitVat;
   } catch (err) {
     console.warn('[Dashen] QR scan error:', err.message);
   }
@@ -663,6 +693,28 @@ export async function verifyDashenReceipt({ buffer, mime = 'image/jpeg', screens
       transactionCode: refFromText,
       amount: String(extracted.amount),
     });
+  } else if (!qrData?.raw && extracted?.amount != null) {
+    const hashBasis = [
+      extracted.amount,
+      extracted.senderAccount,
+      extracted.receiverAccount,
+      extracted.senderName,
+      extracted.receiverName,
+      extracted.date,
+    ].filter(Boolean).join('_');
+    const digest = crypto.createHash('md5').update(hashBasis || String(Date.now())).digest('hex');
+    const syntheticToken = `superappreceipt_${digest}`;
+    qrData = {
+      raw: syntheticToken,
+      transactionCode: null,
+      verificationUrl: null,
+      verificationToken: syntheticToken,
+      dashenReference: null,
+      dashenReceiptToken: syntheticToken,
+      decodedPayload: syntheticToken,
+      dashenSuccessScreen: true,
+      synthetic: true,
+    };
   }
 
   let qrFields = extractQrReceiptFields('dashen', qrData);
