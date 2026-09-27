@@ -68,10 +68,10 @@ export default function BottomNav({ activeTab: propActiveTab, onTabChange: propO
               type="button"
               onClick={() => handleNav('/finance')}
               className={`bottom-nav-tab${isFinance ? ' active' : ''}`}
-              aria-label="Finance"
+              aria-label={t('nav.finance')}
             >
               <Coins size={20} strokeWidth={isFinance ? 2.5 : 2} className={isFinance ? 'text-[#E4C977]' : ''} />
-              <span className={isFinance ? 'font-black text-[#E4C977]' : ''}>Finance</span>
+              <span className={isFinance ? 'font-black text-[#E4C977]' : ''}>{t('nav.finance')}</span>
             </button>
 
             {/* 2. Accounts */}
@@ -79,10 +79,10 @@ export default function BottomNav({ activeTab: propActiveTab, onTabChange: propO
               type="button"
               onClick={() => handleNav('/accounts')}
               className={`bottom-nav-tab${isAccounts ? ' active' : ''}`}
-              aria-label={t('nav.myAccounts')}
+              aria-label={t('nav.accounts')}
             >
               <Wallet size={20} strokeWidth={isAccounts ? 2.5 : 2} className={isAccounts ? 'text-[#E4C977]' : ''} />
-              <span className={isAccounts ? 'font-black text-[#E4C977]' : ''}>Accounts</span>
+              <span className={isAccounts ? 'font-black text-[#E4C977]' : ''}>{t('nav.accounts')}</span>
             </button>
 
             {/* 3. Center FAB spacer slot */}
@@ -93,10 +93,10 @@ export default function BottomNav({ activeTab: propActiveTab, onTabChange: propO
               type="button"
               onClick={handleHistory}
               className={`bottom-nav-tab${isHistory ? ' active' : ''}`}
-              aria-label="History"
+              aria-label={t('nav.history')}
             >
               <History size={20} strokeWidth={isHistory ? 2.5 : 2} className={isHistory ? 'text-[#E4C977]' : ''} />
-              <span className={isHistory ? 'font-black text-[#E4C977]' : ''}>History</span>
+              <span className={isHistory ? 'font-black text-[#E4C977]' : ''}>{t('nav.history')}</span>
             </button>
 
             {/* 5. API */}
@@ -104,10 +104,10 @@ export default function BottomNav({ activeTab: propActiveTab, onTabChange: propO
               type="button"
               onClick={() => handleNav('/developer')}
               className={`bottom-nav-tab${isDeveloper ? ' active' : ''}`}
-              aria-label={t('nav.getApi')}
+              aria-label={t('nav.api')}
             >
               <KeyRound size={20} strokeWidth={isDeveloper ? 2.5 : 2} className={isDeveloper ? 'text-[#E4C977]' : ''} />
-              <span className={isDeveloper ? 'font-black text-[#E4C977]' : ''}>API</span>
+              <span className={isDeveloper ? 'font-black text-[#E4C977]' : ''}>{t('nav.api')}</span>
             </button>
           </div>
 
@@ -116,10 +116,10 @@ export default function BottomNav({ activeTab: propActiveTab, onTabChange: propO
             type="button"
             onClick={handleFab}
             className={`bottom-nav-fab${isVerify ? ' ring-2 ring-[#E4C977]' : ''}`}
-            aria-label="Verify Receipt"
+            aria-label={t('nav.verify')}
           >
             <ShieldCheck size={24} strokeWidth={2.5} className="text-[#E4C977]" />
-            <span className="text-[10px] tracking-wider font-extrabold text-white">Verify</span>
+            <span className="text-[10px] tracking-wider font-extrabold text-white">{t('nav.verify')}</span>
           </button>
         </div>
       </nav>

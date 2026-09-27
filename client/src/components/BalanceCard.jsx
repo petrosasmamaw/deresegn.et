@@ -45,9 +45,9 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
             </div>
             <p className="text-xs font-semibold text-[#40564C] mt-0.5">
               {error ? (
-                <span role="alert" className="text-red-600 font-bold">Failed to load balance</span>
+                <span role="alert" className="text-red-600 font-bold">{t('balance.loadFailed')}</span>
               ) : (
-                'Birr available for live verification'
+                t('balance.birrAvailable')
               )}
             </p>
           </div>
@@ -62,7 +62,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
             className="flex-1 sm:flex-none px-5 py-3 rounded-2xl bg-gradient-to-r from-[#D4AF37] via-[#C6A24E] to-[#B8933E] text-[#091A16] font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs hover:brightness-105 active:scale-98 transition-all cursor-pointer"
           >
             <TrendingUp size={16} strokeWidth={2.5} />
-            <span>Top Up Balance</span>
+            <span>{t('common.topUpBalance')}</span>
           </button>
 
           {/* Secondary Actions */}
@@ -72,7 +72,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
             className="flex-1 sm:flex-none px-4 py-3 rounded-2xl border border-[rgba(27,70,58,0.18)] bg-[#FAF8F5] hover:bg-white text-[#091A16] font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
           >
             <Layers size={15} className="text-[#1B463A]" />
-            <span>Verification Pricing</span>
+            <span>{t('balance.pricing')}</span>
           </button>
 
           <button
@@ -81,7 +81,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
             className="flex-1 sm:flex-none px-4 py-3 rounded-2xl border border-[rgba(27,70,58,0.18)] bg-[#FAF8F5] hover:bg-white text-[#091A16] font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
           >
             <ShieldCheck size={15} className="text-[#1B463A]" />
-            <span>My Accounts</span>
+            <span>{t('balance.myAccounts')}</span>
           </button>
 
           <Link
@@ -89,7 +89,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
             className="flex-1 sm:flex-none px-4 py-3 rounded-2xl border border-[rgba(27,70,58,0.18)] bg-[#FAF8F5] hover:bg-white text-[#091A16] font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
           >
             <Coins size={15} className="text-[#1B463A]" />
-            <span>Financial Ledger</span>
+            <span>{t('balance.financialLedger')}</span>
           </Link>
 
           <button
@@ -98,7 +98,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
             className="flex-1 sm:flex-none px-4 py-3 rounded-2xl border border-[rgba(27,70,58,0.18)] bg-[#FAF8F5] hover:bg-white text-[#091A16] font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
           >
             <KeyRound size={15} className="text-[#1B463A]" />
-            <span>Get API</span>
+            <span>{t('balance.getApi')}</span>
           </button>
         </div>
       </section>
@@ -107,7 +107,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
       <Modal
         isOpen={pricingOpen}
         onClose={() => setPricingOpen(false)}
-        title="Verification Pricing Tiers"
+        title={t('pricing.tiersTitle')}
         contentClassName="max-w-2xl"
       >
         <div className="modal-body space-y-4 text-left">
@@ -118,7 +118,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
               onClick={() => { setPricingOpen(false); onTopUpClick() }}
               className="btn-primary text-xs font-extrabold px-5 py-2.5"
             >
-              Top Up Now
+              {t('pricing.topUpNow')}
             </button>
           </div>
         </div>
@@ -128,12 +128,12 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
       <Modal
         isOpen={accountsOpen}
         onClose={() => setAccountsOpen(false)}
-        title="Connected Merchant Accounts"
+        title={t('balance.connectedAccounts')}
         contentClassName="max-w-lg"
       >
         <div className="modal-body space-y-4 text-left">
           <p className="text-xs text-[#40564C] leading-relaxed">
-            These registered accounts are automatically protected against redirected screenshot scams. Payments made to other numbers will be immediately flagged.
+            {t('balance.connectedAccountsSub')}
           </p>
 
           <div className="space-y-2">
@@ -147,7 +147,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
-                ACTIVE
+                {t('ledger.active')}
               </span>
             </div>
 
@@ -161,7 +161,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
                 </span>
               </div>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
-                ACTIVE
+                {t('ledger.active')}
               </span>
             </div>
           </div>
@@ -172,7 +172,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
               onClick={() => setAccountsOpen(false)}
               className="text-xs font-bold text-[#1B463A] hover:underline flex items-center gap-1"
             >
-              <span>Manage all accounts</span>
+              <span>{t('balance.manageAllAccounts')}</span>
               <ExternalLink size={13} />
             </Link>
             <button
@@ -180,7 +180,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
               onClick={() => setAccountsOpen(false)}
               className="btn-secondary text-xs px-4 py-2"
             >
-              Close
+              {t('common.close')}
             </button>
           </div>
         </div>
@@ -190,12 +190,12 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
       <Modal
         isOpen={apiOpen}
         onClose={() => setApiOpen(false)}
-        title="Developer Verification API"
+        title={t('balance.apiTitle')}
         contentClassName="max-w-xl"
       >
         <div className="modal-body space-y-4 text-left">
           <p className="text-xs text-[#40564C] leading-relaxed">
-            Integrate instant Ethiopian receipt verification directly into your Telegram bots, ERP, or e-commerce checkout.
+            {t('balance.apiDesc')}
           </p>
 
           <div className="rounded-xl bg-[#091A16] p-4 text-emerald-400 font-mono text-xs overflow-x-auto relative">
@@ -207,12 +207,12 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
               {copiedSnippet ? (
                 <>
                   <Check size={12} className="text-emerald-400" />
-                  <span>Copied</span>
+                  <span>{t('common.copied')}</span>
                 </>
               ) : (
                 <>
                   <Copy size={12} />
-                  <span>Copy cURL</span>
+                  <span>{t('common.copyCurl')}</span>
                 </>
               )}
             </button>
@@ -225,7 +225,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
               onClick={() => setApiOpen(false)}
               className="btn-primary text-xs font-bold px-4 py-2 flex items-center gap-1.5"
             >
-              <span>View Full API Docs & Keys</span>
+              <span>{t('balance.viewApiDocs')}</span>
               <ExternalLink size={13} />
             </Link>
             <button
@@ -233,7 +233,7 @@ export default function BalanceCard({ balance = 0, error = null, onTopUpClick })
               onClick={() => setApiOpen(false)}
               className="btn-secondary text-xs px-4 py-2"
             >
-              Close
+              {t('common.close')}
             </button>
           </div>
         </div>

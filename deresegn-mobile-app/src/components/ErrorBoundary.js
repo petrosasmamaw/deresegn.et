@@ -1,12 +1,40 @@
 import { Component } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { logger } from '../lib/logger'
+import { useLocale } from '../i18n/LocaleContext'
 
 /**
  * Catches render/runtime errors anywhere below it so a single component crash
  * shows a recovery screen instead of a white screen or a hard native crash.
  * "Try again" clears the error and re-mounts the tree.
  */
+function ErrorFallback({ message, onReset }) {
+  let t = (k) => k
+  try {
+    const ctx = useLocale()
+    if (ctx?.t) t = ctx.t
+  } catch {
+    // outside provider fallback
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>{t('common.somethingWentWrong') || 'Something went wrong'}</Text>
+        <Text style={styles.body}>
+          {t('common.errorBoundaryBody') || 'The app hit an unexpected error. You can try again — your session is safe.'}
+        </Text>
+        {__DEV__ && message ? (
+          <Text style={styles.detail}>{message}</Text>
+        ) : null}
+        <Pressable style={styles.button} onPress={onReset}>
+          <Text style={styles.buttonText}>{t('common.tryAgain') || 'Try again'}</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
+  )
+}
+
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -31,23 +59,7 @@ export default class ErrorBoundary extends Component {
 
   render() {
     if (!this.state.hasError) return this.props.children
-
-    return (
-      <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.body}>
-            The app hit an unexpected error. You can try again — your session is safe.
-          </Text>
-          {__DEV__ && this.state.message ? (
-            <Text style={styles.detail}>{this.state.message}</Text>
-          ) : null}
-          <Pressable style={styles.button} onPress={this.handleReset}>
-            <Text style={styles.buttonText}>Try again</Text>
-          </Pressable>
-        </ScrollView>
-      </View>
-    )
+    return <ErrorFallback message={this.state.message} onReset={this.handleReset} />
   }
 }
 

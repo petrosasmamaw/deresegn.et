@@ -126,8 +126,8 @@ export default function AdminDashboard() {
         <div className="container mx-auto space-y-8">
           {/* Header */}
           <div>
-            <h1 className="page-title mb-2">Admin Dashboard</h1>
-            <p className="text-[var(--color-text-secondary)]">Manage and monitor user activities</p>
+            <h1 className="page-title mb-2">{t('admin.title')}</h1>
+            <p className="text-[var(--color-text-secondary)]">{t('admin.webWriteNote') || 'Manage and monitor user activities'}</p>
           </div>
 
           {error && (
@@ -202,20 +202,20 @@ export default function AdminDashboard() {
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
                   <p className="meta-label">
-                    Total Users
+                    {t('admin.stats.totalUsers')}
                   </p>
                   <Users size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
                 </div>
                 <p className="amount-mono-lg">
                   {dashboardData.stats.totalUsers}
                 </p>
-                <p className="text-xs text-[var(--color-text-secondary)] mt-2">Active users</p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-2">{t('admin.stats.activeUsers')}</p>
               </div>
 
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
                   <p className="meta-label">
-                    Total Balance
+                    {t('admin.stats.totalBalance')}
                   </p>
                   <Zap size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
                 </div>
@@ -224,39 +224,39 @@ export default function AdminDashboard() {
                     ? dashboardData.stats.totalBalance.toFixed(2)
                     : 0}
                 </p>
-                <p className="text-xs text-[var(--color-text-secondary)] mt-2">Birr in system</p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-2">{t('admin.stats.birrInSystem')}</p>
               </div>
 
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
                   <p className="meta-label">
-                    Verifications
+                    {t('admin.stats.verifications')}
                   </p>
                   <Activity size={20} style={{ color: 'var(--color-verified)' }} strokeWidth={2} />
                 </div>
                 <p className="amount-mono-lg">
                   {dashboardData.stats.totalChecks}
                 </p>
-                <p className="text-xs text-[var(--color-text-secondary)] mt-2">Total checks</p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-2">{t('admin.stats.completed')}</p>
               </div>
 
               <div className="stat-card">
                 <div className="flex items-center justify-between mb-4">
                   <p className="meta-label">
-                    Top-Ups
+                    {t('admin.topups')}
                   </p>
                   <TrendingUp size={20} style={{ color: 'var(--color-foil-gold)' }} strokeWidth={2} />
                 </div>
                 <p className="amount-mono-lg">
                   {dashboardData.stats.totalTopups}
                 </p>
-                <p className="text-xs text-[var(--color-text-secondary)] mt-2">Completed</p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-2">{t('admin.stats.completed')}</p>
               </div>
 
               <div className="stat-card sm:col-span-2 lg:col-span-1">
                 <div className="flex items-center justify-between mb-4">
                   <p className="meta-label">
-                    Reg. Bonuses
+                    {t('admin.stats.regBonuses')}
                   </p>
                   <Gift size={20} style={{ color: 'var(--color-verified)' }} strokeWidth={2} />
                 </div>
@@ -264,7 +264,7 @@ export default function AdminDashboard() {
                   {Number(dashboardData.stats.bonusTotalGiven || 0).toFixed(2)}
                 </p>
                 <p className="text-xs text-[var(--color-text-secondary)] mt-2">
-                  {dashboardData.stats.bonusCount ?? 0} bonuses given
+                  {t('admin.stats.bonusesGiven', { count: dashboardData.stats.bonusCount ?? 0 })}
                 </p>
               </div>
             </div>

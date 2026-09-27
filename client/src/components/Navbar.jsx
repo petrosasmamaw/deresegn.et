@@ -93,22 +93,22 @@ export default function Navbar() {
                 type="button"
                 onClick={() => navigate('/dashboard')}
                 className={`navbar-tool ${location.pathname === '/dashboard' ? 'active' : ''}`}
-                title="Verify"
-                aria-label="Verify"
+                title={t('nav.verify')}
+                aria-label={t('nav.verify')}
               >
                 <ShieldCheck size={16} strokeWidth={2} />
-                <span>Verify</span>
+                <span>{t('nav.verify')}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => navigate('/finance')}
                 className={`navbar-tool ${location.pathname.startsWith('/finance') ? 'active' : ''}`}
-                title="Finance"
-                aria-label="Finance"
+                title={t('nav.finance')}
+                aria-label={t('nav.finance')}
               >
                 <Coins size={16} strokeWidth={2} />
-                <span>Finance</span>
+                <span>{t('nav.finance')}</span>
               </button>
 
               <button
@@ -200,7 +200,7 @@ export default function Navbar() {
                       </div>
                     </div>
                     <div className="mt-2.5 pt-2 border-t border-[rgba(27,70,58,0.08)] flex items-center justify-between text-xs">
-                      <span className="text-[#40564C] font-medium">Balance</span>
+                      <span className="text-[#40564C] font-medium">{t('ledger.balance')}</span>
                       <span className="font-extrabold text-[#091A16]">{balance} {t('common.birr')}</span>
                     </div>
                   </div>
@@ -222,7 +222,7 @@ export default function Navbar() {
                       className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <Home size={16} className="text-[#1B463A]" />
-                      <span>Back to Home</span>
+                      <span>{t('common.home')}</span>
                     </button>
 
                     <button
@@ -231,7 +231,7 @@ export default function Navbar() {
                       className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-[#1F362D] hover:text-[#091A16] hover:bg-white rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <Coins size={16} className="text-[#1B463A]" />
-                      <span>Finance</span>
+                      <span>{t('nav.finance')}</span>
                     </button>
 
                     <button
@@ -288,11 +288,11 @@ export default function Navbar() {
               }
             }}
             className={`navbar-tool-mobile-verify ${location.pathname === '/dashboard' ? 'active' : ''}`}
-            title="Verify"
-            aria-label="Verify"
+            title={t('nav.verify')}
+            aria-label={t('nav.verify')}
           >
             <ShieldCheck size={16} strokeWidth={2.2} />
-            <span>Verify</span>
+            <span>{t('nav.verify')}</span>
           </button>
 
           {user && (
@@ -380,7 +380,7 @@ export default function Navbar() {
                   tabIndex={menuOpen ? 0 : -1}
                 >
                   <Home size={18} strokeWidth={2} />
-                  <span>Back to Home</span>
+                  <span>{t('common.home')}</span>
                 </button>
                 <button
                   type="button"
@@ -389,7 +389,7 @@ export default function Navbar() {
                   tabIndex={menuOpen ? 0 : -1}
                 >
                   <ShieldCheck size={18} strokeWidth={2} />
-                  <span>Verify</span>
+                  <span>{t('nav.verify')}</span>
                 </button>
                 <button
                   type="button"
@@ -402,7 +402,7 @@ export default function Navbar() {
                 </button>
                 <button type="button" onClick={() => go('/finance')} className="nav-drawer-link" tabIndex={menuOpen ? 0 : -1}>
                   <Coins size={18} strokeWidth={2} />
-                  <span>Finance</span>
+                  <span>{t('nav.finance')}</span>
                 </button>
                 <button type="button" onClick={() => go('/accounts')} className="nav-drawer-link" tabIndex={menuOpen ? 0 : -1}>
                   <Wallet size={18} strokeWidth={2} />

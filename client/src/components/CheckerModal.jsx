@@ -85,11 +85,11 @@ const EMPTY_REFERENCE = {
   accountSuffix: '',
 }
 
-const VERIFY_STAGES = [
-  'Optical OCR & Text Extraction...',
-  'Analyzing Font Metrics & Pixel Geometry...',
-  'Cross-referencing Official Bank Gateway...',
-  'Validating Merchant Recipient Account...',
+const VERIFY_STAGE_KEYS = [
+  'check.stage1',
+  'check.stage2',
+  'check.stage3',
+  'check.stage4',
 ]
 
 export default function CheckerModal({
@@ -126,6 +126,11 @@ export default function CheckerModal({
 
   const active = embedded || isOpen
 
+  const verifyStages = useMemo(
+    () => VERIFY_STAGE_KEYS.map((k) => t(k)),
+    [t],
+  )
+
   // Multi-stage loading progress animation
   useEffect(() => {
     if (!loading) {
@@ -133,7 +138,7 @@ export default function CheckerModal({
       return
     }
     const interval = setInterval(() => {
-      setActiveStageIndex((prev) => (prev < VERIFY_STAGES.length - 1 ? prev + 1 : prev))
+      setActiveStageIndex((prev) => (prev < VERIFY_STAGE_KEYS.length - 1 ? prev + 1 : prev))
     }, 900)
     return () => clearInterval(interval)
   }, [loading])
@@ -286,12 +291,15 @@ export default function CheckerModal({
     setRejected(false)
     setFailureIssues([])
 
+    const canMatchMyAccount = Boolean(savedForMethod)
+    const isMatchActive = canMatchMyAccount && matchMyAccount
+
     const result = await onSubmit({
       screenshot,
       method,
       form: EMPTY_FORM,
       withDetails: false,
-      matchMyAccount,
+      matchMyAccount: isMatchActive,
     })
 
     if (result?.failed) {
@@ -312,11 +320,14 @@ export default function CheckerModal({
     setRejected(false)
     setFailureIssues([])
 
+    const canMatchMyAccount = Boolean(savedForMethod)
+    const isMatchActive = canMatchMyAccount && matchMyAccount
+
     const result = await onReferenceSubmit({
       method,
       transactionCode: referenceForm.transactionCode,
       accountSuffix: referenceForm.accountSuffix,
-      matchMyAccount,
+      matchMyAccount: isMatchActive,
     })
 
     if (result?.failed) {
@@ -337,7 +348,10 @@ export default function CheckerModal({
     setRejected(false)
     setFailureIssues([])
 
-    const result = await onSmsSubmit({ method, smsText, matchMyAccount })
+    const canMatchMyAccount = Boolean(savedForMethod)
+    const isMatchActive = canMatchMyAccount && matchMyAccount
+
+    const result = await onSmsSubmit({ method, smsText, matchMyAccount: isMatchActive })
 
     if (result?.failed) {
       setFailureIssues(result.issues || [])
@@ -357,48 +371,51 @@ export default function CheckerModal({
     await runVerify()
   }
 
-  const defaultAccountLine = 'seifeslasie asmamaw abebe · 0989886956'
+  const canMatchMyAccount = Boolean(savedForMethod)
+  const isMatchActive = canMatchMyAccount && matchMyAccount
+  const currentMethodName = t(`method.short.${method}`) || method
   const displayAccount = savedForMethod
     ? `${savedForMethod.accountName} · ${savedForMethod.accountNumber}`
-    : defaultAccountLine
+    : t('check.noAccountSavedWeb', { bank: currentMethodName })
 
   const payToMyAccountBlock = (
     <div
       className={`p-3.5 sm:p-4 rounded-2xl border transition-all ${
-        matchMyAccount
+        isMatchActive
           ? 'bg-[#EBF5EE] border-[#1B463A]/40 shadow-xs ring-1 ring-[#1B463A]/10'
           : 'bg-[#FAF8F5] border-[rgba(27,70,58,0.14)]'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
-        <label className="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer select-none">
+        <label className={`flex items-center gap-3.5 flex-1 min-w-0 select-none ${canMatchMyAccount ? 'cursor-pointer' : 'cursor-default opacity-80'}`}>
           <div className="relative inline-flex items-center shrink-0">
             <input
               type="checkbox"
-              checked={matchMyAccount}
-              onChange={(e) => setMatchMyAccount(e.target.checked)}
+              checked={isMatchActive}
+              disabled={!canMatchMyAccount}
+              onChange={(e) => canMatchMyAccount && setMatchMyAccount(e.target.checked)}
               className="sr-only"
             />
             <div
               className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
-                matchMyAccount ? 'bg-[#1B463A]' : 'bg-gray-300'
+                isMatchActive ? 'bg-[#1B463A]' : 'bg-gray-300'
               }`}
             >
               <div
                 className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                  matchMyAccount ? 'translate-x-5' : 'translate-x-0'
+                  isMatchActive ? 'translate-x-5' : 'translate-x-0'
                 }`}
               />
             </div>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <Lock size={12} className={matchMyAccount ? 'text-[#1B463A]' : 'text-gray-400'} />
+              <Lock size={12} className={isMatchActive ? 'text-[#1B463A]' : 'text-gray-400'} />
               <span className="text-xs font-bold text-[#091A16] block">
-                Payment to my account
+                {t('check.payToMyAccount')}
               </span>
             </div>
-            <span className="text-[11px] text-[#40564C] font-semibold block truncate mt-0.5">
+            <span className={`text-[11px] font-semibold block truncate mt-0.5 ${savedForMethod ? 'text-[#40564C]' : 'text-gray-400 italic'}`}>
               {displayAccount}
             </span>
           </div>
@@ -408,7 +425,7 @@ export default function CheckerModal({
           onClick={embedded ? undefined : handleClose}
           className="text-xs font-bold text-[#1B463A] hover:underline shrink-0"
         >
-          Manage
+          {t('common.manage')}
         </Link>
       </div>
     </div>
@@ -445,9 +462,39 @@ export default function CheckerModal({
     setStep(3)
   }
 
+  const isMyAccountError = failureIssues.some((i) => String(i.code || '').startsWith('MY_ACCOUNT'))
+  const isDuplicate = failureIssues.some((i) => i.code === 'DUPLICATE_TX')
+  const isNotFound = failureIssues.some(
+    (i) => i.code === 'OFFICIAL_RECORD_NOT_FOUND' || i.code === 'INVALID_REFERENCE_INPUT',
+  )
+
+  const failBadgeText = isMyAccountError
+    ? t('result.badgeWrongAccount') || 'WRONG RECIPIENT'
+    : isDuplicate
+      ? t('result.badgeAlreadyUsed') || 'ALREADY USED'
+      : isNotFound
+        ? t('result.badgeNotFound') || 'NOT FOUND'
+        : t('result.badgeUnverified') || 'NOT VERIFIED'
+
+  const failTitleText = isMyAccountError
+    ? t('result.titleNotMyAccount') || 'PAYMENT NOT SENT TO YOUR ACCOUNT'
+    : isDuplicate
+      ? t('result.titleAlreadyUsed') || 'RECEIPT ALREADY USED BEFORE'
+      : isNotFound
+        ? t('result.titleNotFound') || 'RECEIPT NOT FOUND AT BANK'
+        : t('result.titleMismatch') || 'RECEIPT DOES NOT MATCH BANK'
+
+  const failSubtitleText = isMyAccountError
+    ? t('result.subNotMyAccount') || 'The customer sent this payment to someone else, not to your account. Do NOT give goods or cash.'
+    : isDuplicate
+      ? t('result.subAlreadyUsed') || 'This payment was already verified earlier. Do NOT accept the same receipt twice.'
+      : isNotFound
+        ? t('result.subNotFound') || 'The bank has no record of this transaction. Check the code or ask customer for original receipt.'
+        : t('result.subMismatch') || 'This receipt does not match the official bank record. Do NOT release items or cash.'
+
   const flow = rejected ? (
     <div className="verify-outcome verify-outcome--fail space-y-4">
-      {/* ── Tampered / Rejected Banner ── */}
+      {/* ── Merchant-friendly Failure Banner ── */}
       <div className="rounded-2xl bg-gradient-to-r from-[#7F1D1D] to-[#991B1B] text-white p-5 shadow-sm text-left">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-900/70 border border-red-400 text-red-200 flex items-center justify-center shrink-0">
@@ -455,13 +502,13 @@ export default function CheckerModal({
           </div>
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest bg-red-800 text-red-200 px-2 py-0.5 rounded-full inline-block mb-1">
-              SECURITY ALERT
+              {failBadgeText}
             </span>
             <h2 className="text-base sm:text-lg font-black text-white leading-snug">
-              TAMPERED / MANIPULATION DETECTED
+              {failTitleText}
             </h2>
             <p className="text-xs text-red-200 mt-1 leading-relaxed">
-              This receipt failed cryptographic verification against official bank settlement ledgers or font metric baselines.
+              {failSubtitleText}
             </p>
           </div>
         </div>
@@ -486,7 +533,7 @@ export default function CheckerModal({
           onClick={startAnother}
           className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[rgba(27,70,58,0.2)] bg-white text-[#091A16] text-xs font-bold cursor-pointer hover:bg-[#FAF8F5]"
         >
-          Check Another Receipt
+          {t('check.checkAnother')}
         </button>
       </div>
     </div>
@@ -500,15 +547,19 @@ export default function CheckerModal({
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
         <p className="text-xs font-semibold text-[#40564C]">
           {(successCheck || lastResult)?.isRecheck
-            ? 'Free instant re-check record'
-            : `Deducted ${(successCheck || lastResult)?.balanceDeducted || getCheckCostByAmount(summaryDetails?.amount)} Birr from balance`}
+            ? t('check.freeRecheckRecord')
+            : t('check.deductedFromBalance', {
+                amount:
+                  (successCheck || lastResult)?.balanceDeducted ||
+                  getCheckCostByAmount(summaryDetails?.amount),
+              })}
         </p>
         <button
           type="button"
           onClick={startAnother}
           className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#1B463A] hover:bg-[#15382E] text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-sm"
         >
-          <span>Verify Another Receipt</span>
+          <span>{t('check.verifyAnother')}</span>
           <ArrowRight size={15} />
         </button>
       </div>
@@ -530,7 +581,7 @@ export default function CheckerModal({
             1
           </span>
           <span className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
-            Choose Bank / Mobile Wallet
+            {t('check.stepChooseBank')}
           </span>
         </div>
 
@@ -581,7 +632,7 @@ export default function CheckerModal({
             2
           </span>
           <span className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
-            Verification Method
+            {t('check.stepMethod')}
           </span>
         </div>
 
@@ -598,7 +649,7 @@ export default function CheckerModal({
             }`}
           >
             <Camera size={16} strokeWidth={2.2} className={verifyMode === 'screenshot' ? 'text-[#E4C977]' : 'text-[#1B463A]'} />
-            <span className="text-xs sm:text-sm font-extrabold">Screenshot</span>
+            <span className="text-xs sm:text-sm font-extrabold">{t('check.modeScreenshotShort')}</span>
           </button>
 
           <button
@@ -613,7 +664,7 @@ export default function CheckerModal({
             }`}
           >
             <MessageSquare size={16} strokeWidth={2.2} className={verifyMode === 'sms' ? 'text-[#E4C977]' : 'text-[#1B463A]'} />
-            <span className="text-xs sm:text-sm font-extrabold">SMS</span>
+            <span className="text-xs sm:text-sm font-extrabold">{t('check.modeSmsShort')}</span>
           </button>
 
           <button
@@ -628,7 +679,7 @@ export default function CheckerModal({
             }`}
           >
             <Hash size={16} strokeWidth={2.2} className={verifyMode === 'reference' ? 'text-[#E4C977]' : 'text-[#1B463A]'} />
-            <span className="text-xs sm:text-sm font-extrabold">Payment ID</span>
+            <span className="text-xs sm:text-sm font-extrabold">{t('check.modeReferenceShort')}</span>
           </button>
         </div>
       </div>
@@ -642,7 +693,7 @@ export default function CheckerModal({
                 3
               </span>
               <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
-                Upload Receipt Screenshot
+                {t('check.stepUpload')}
               </p>
             </div>
 
@@ -676,7 +727,7 @@ export default function CheckerModal({
                     <div className="min-w-0">
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#1B463A] text-white shadow-xs">
                         <CheckCircle2 size={12} />
-                        <span>Receipt Ready</span>
+                        <span>{t('check.receiptReady')}</span>
                       </span>
                       {fileDetails && (
                         <p className="text-xs text-[#40564C] font-mono mt-1 truncate max-w-[280px]">
@@ -686,7 +737,7 @@ export default function CheckerModal({
                     </div>
                   </div>
                   <span className="text-xs font-bold text-[#1B463A] hover:underline shrink-0">
-                    Change Screenshot
+                    {t('check.changeScreenshot')}
                   </span>
                 </div>
               ) : (
@@ -697,16 +748,16 @@ export default function CheckerModal({
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-extrabold text-[#091A16]">
-                        Drag & Drop Receipt Screenshot Here
+                        {t('check.dragDrop')}
                       </p>
                       <p className="text-xs text-[#40564C] font-medium mt-0.5">
-                        Supports PNG, JPG, or WEBP from Telebirr, CBE, Abyssinia, or Dashen.
+                        {t('check.supportsFormat')}
                       </p>
                     </div>
                   </div>
                   <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1B463A] text-white text-xs font-extrabold shadow-sm pointer-events-none shrink-0 min-h-[42px]">
                     <FileUp size={16} />
-                    <span>Browse File</span>
+                    <span>{t('check.browseFile')}</span>
                   </span>
                 </div>
               )}
@@ -722,16 +773,16 @@ export default function CheckerModal({
               <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
                 <span className="flex items-center gap-2 text-[#1B463A]">
                   <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
-                  {VERIFY_STAGES[activeStageIndex]}
+                  {verifyStages[activeStageIndex]}
                 </span>
                 <span className="font-mono text-[10px] text-[#40564C]">
-                  Step {activeStageIndex + 1} of 4
+                  {t('check.stepStageOf', { step: activeStageIndex + 1, total: verifyStages.length })}
                 </span>
               </div>
               <div className="w-full bg-[rgba(27,70,58,0.12)] h-1.5 rounded-full overflow-hidden">
                 <div
                   className="bg-[#1B463A] h-full transition-all duration-500 ease-out"
-                  style={{ width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` }}
+                  style={{ width: `${((activeStageIndex + 1) / verifyStages.length) * 100}%` }}
                 />
               </div>
             </div>
@@ -745,11 +796,11 @@ export default function CheckerModal({
               className="landing-start-verify-btn w-full py-3.5 sm:py-4 text-sm sm:text-base font-extrabold flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
             >
               <ShieldCheck size={20} className="text-[#E4C977]" />
-              <span>{loading ? 'Verifying Receipt Authenticity...' : 'Verify Receipt'}</span>
+              <span>{loading ? t('check.verifyingReceipt') : t('check.verifyButton')}</span>
               {!loading && <ArrowRight size={17} className="opacity-90" />}
             </button>
             <p className="text-[11px] text-[#40564C] text-center font-medium mt-1.5">
-              Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
+              {t('check.speedSub')}
             </p>
           </div>
         </form>
@@ -763,11 +814,11 @@ export default function CheckerModal({
                 3
               </span>
               <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
-                Direct Payment ID Query
+                {t('check.stepReference')}
               </p>
             </div>
             <p className="text-[11px] text-[#40564C] mb-2">
-              Enter the bank transaction reference number to query the official ledger directly.
+              {t('check.stepReferenceHint')}
             </p>
           </div>
 
@@ -799,16 +850,16 @@ export default function CheckerModal({
               <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
                 <span className="flex items-center gap-2 text-[#1B463A]">
                   <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
-                  {VERIFY_STAGES[activeStageIndex]}
+                  {verifyStages[activeStageIndex]}
                 </span>
                 <span className="font-mono text-[10px] text-[#40564C]">
-                  Step {activeStageIndex + 1} of 4
+                  {t('check.stepStageOf', { step: activeStageIndex + 1, total: verifyStages.length })}
                 </span>
               </div>
               <div className="w-full bg-[rgba(27,70,58,0.12)] h-1.5 rounded-full overflow-hidden">
                 <div
                   className="bg-[#1B463A] h-full transition-all duration-500 ease-out"
-                  style={{ width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` }}
+                  style={{ width: `${((activeStageIndex + 1) / verifyStages.length) * 100}%` }}
                 />
               </div>
             </div>
@@ -821,11 +872,11 @@ export default function CheckerModal({
               className="landing-start-verify-btn w-full py-3.5 sm:py-4 text-sm sm:text-base font-extrabold flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
             >
               <ShieldCheck size={20} className="text-[#E4C977]" />
-              <span>{loading ? 'Querying Official Bank Ledger...' : 'Verify Receipt'}</span>
+              <span>{loading ? t('check.verifyingReceipt') : t('check.verifyButton')}</span>
               {!loading && <ArrowRight size={17} className="opacity-90" />}
             </button>
             <p className="text-[11px] text-[#40564C] text-center font-medium mt-1.5">
-              Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
+              {t('check.speedSub')}
             </p>
           </div>
         </form>
@@ -839,18 +890,18 @@ export default function CheckerModal({
                 3
               </span>
               <p className="text-xs font-bold text-[#091A16] uppercase tracking-wider">
-                Bank SMS Text Parser
+                {t('check.stepSmsHeader')}
               </p>
             </div>
             <p className="text-[11px] text-[#40564C] mb-2">
-              Paste the complete SMS received from 127, CBE, or bank shortcodes.
+              {t('check.stepSmsHint')}
             </p>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
               <label htmlFor="sms-textarea" className="label text-xs font-bold text-[#091A16] block">
-                SMS Message Content
+                {t('check.smsContent')}
               </label>
               <button
                 type="button"
@@ -860,7 +911,7 @@ export default function CheckerModal({
                 }}
                 className="text-[10px] font-bold text-[#1B463A] hover:underline cursor-pointer"
               >
-                Paste sample
+                {t('check.pasteSample')}
               </button>
             </div>
             <textarea
@@ -881,16 +932,16 @@ export default function CheckerModal({
               <div className="flex items-center justify-between text-xs font-bold text-[#091A16]">
                 <span className="flex items-center gap-2 text-[#1B463A]">
                   <Sparkles size={14} className="animate-spin text-[#C6A24E]" />
-                  {VERIFY_STAGES[activeStageIndex]}
+                  {verifyStages[activeStageIndex]}
                 </span>
                 <span className="font-mono text-[10px] text-[#40564C]">
-                  Step {activeStageIndex + 1} of 4
+                  {t('check.stepStageOf', { step: activeStageIndex + 1, total: verifyStages.length })}
                 </span>
               </div>
               <div className="w-full bg-[rgba(27,70,58,0.12)] h-1.5 rounded-full overflow-hidden">
                 <div
                   className="bg-[#1B463A] h-full transition-all duration-500 ease-out"
-                  style={{ width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` }}
+                  style={{ width: `${((activeStageIndex + 1) / verifyStages.length) * 100}%` }}
                 />
               </div>
             </div>
@@ -903,11 +954,11 @@ export default function CheckerModal({
               className="landing-start-verify-btn w-full py-3.5 sm:py-4 text-sm sm:text-base font-extrabold flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-[0.99] shadow-md"
             >
               <ShieldCheck size={20} className="text-[#E4C977]" />
-              <span>{loading ? 'Parsing SMS & Validating Proof...' : 'Verify Receipt'}</span>
+              <span>{loading ? t('check.verifyingReceipt') : t('check.verifyButton')}</span>
               {!loading && <ArrowRight size={17} className="opacity-90" />}
             </button>
             <p className="text-[11px] text-[#40564C] text-center font-medium mt-1.5">
-              Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection
+              {t('check.speedSub')}
             </p>
           </div>
         </form>
@@ -926,7 +977,7 @@ export default function CheckerModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Verify Receipt" wide={true}>
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('check.title')} wide={true}>
       <div className="modal-body space-y-4">
         {flow}
       </div>

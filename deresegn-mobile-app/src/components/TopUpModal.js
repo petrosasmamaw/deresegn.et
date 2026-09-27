@@ -488,7 +488,7 @@ export default function TopUpModal({
                         style={[ui.btnSecondary, styles.flexBtn]}
                         onPress={() => pickImage(true)}
                       >
-                        <Text style={ui.btnSecondaryText}>Camera</Text>
+                        <Text style={ui.btnSecondaryText}>{t('check.camera')}</Text>
                       </Pressable>
                     </View>
                   </View>

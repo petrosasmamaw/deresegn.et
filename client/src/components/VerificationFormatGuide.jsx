@@ -65,7 +65,7 @@ export default function VerificationFormatGuide({ method = 'telebirr', mode = 's
           <div className="flex items-center gap-2">
             <Radio size={16} className="text-emerald-600 animate-pulse" />
             <h3 className="text-xs sm:text-sm font-black text-[#091A16] uppercase tracking-wider">
-              Bank Settlement Nodes
+              {t('cert.settlementNodes')}
             </h3>
           </div>
           <span className="text-[11px] font-extrabold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -131,7 +131,7 @@ export default function VerificationFormatGuide({ method = 'telebirr', mode = 's
         <div className="flex items-center gap-2 mb-3 pb-2.5 border-b border-[rgba(27,70,58,0.08)]">
           <Cpu size={16} className="text-[#1B463A]" />
           <h3 className="text-xs sm:text-sm font-black text-[#091A16] uppercase tracking-wider">
-            AI Forensic Anti-Tamper Engine
+            {t('cert.aiEngine')}
           </h3>
         </div>
 
@@ -141,9 +141,9 @@ export default function VerificationFormatGuide({ method = 'telebirr', mode = 's
               <Layers size={14} strokeWidth={2.5} />
             </div>
             <div>
-              <p className="text-xs font-black text-[#091A16] mb-0.5">Pixel Typography Inspection</p>
+              <p className="text-xs font-black text-[#091A16] mb-0.5">{t('cert.pixelTypography')}</p>
               <p className="text-[11px] text-[#40564C] leading-relaxed font-medium">
-                Detects Photoshop overlays, canvas font substitutions, and altered Birr digits.
+                {t('cert.pixelTypographyDesc')}
               </p>
             </div>
           </div>
@@ -153,9 +153,9 @@ export default function VerificationFormatGuide({ method = 'telebirr', mode = 's
               <FileCheck2 size={14} strokeWidth={2.5} />
             </div>
             <div>
-              <p className="text-xs font-black text-[#091A16] mb-0.5">Official Ledger Match</p>
+              <p className="text-xs font-black text-[#091A16] mb-0.5">{t('cert.officialLedgerMatch')}</p>
               <p className="text-[11px] text-[#40564C] leading-relaxed font-medium">
-                Validates cryptographic transaction existence against official bank gateway records.
+                {t('cert.officialLedgerMatchDesc')}
               </p>
             </div>
           </div>
@@ -165,17 +165,17 @@ export default function VerificationFormatGuide({ method = 'telebirr', mode = 's
               <Lock size={14} strokeWidth={2.5} />
             </div>
             <div>
-              <p className="text-xs font-black text-[#091A16] mb-0.5">Recipient Account Lock</p>
+              <p className="text-xs font-black text-[#091A16] mb-0.5">{t('cert.recipientAccountLock')}</p>
               <p className="text-[11px] text-[#40564C] leading-relaxed font-medium">
-                Ensures funds were sent to the authentic merchant number, stopping diverted screenshot scams.
+                {t('cert.recipientAccountLockDesc')}
               </p>
             </div>
           </div>
         </div>
 
         <div className="mt-4 pt-3 border-t border-[rgba(27,70,58,0.08)] flex items-center justify-between text-[11px] text-[#40564C]">
-          <span className="font-semibold">Security Standard</span>
-          <span className="font-black text-[#091A16]">Tamagn Cryptographic Seal v2.4</span>
+          <span className="font-semibold">{t('cert.securityStandard')}</span>
+          <span className="font-black text-[#091A16]">{t('cert.sealVersion')}</span>
         </div>
       </div>
     </aside>

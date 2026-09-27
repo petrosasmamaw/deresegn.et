@@ -91,21 +91,10 @@ if (result.isVerified) {
         <div className="container mx-auto max-w-3xl lg:max-w-4xl relative z-10 text-center">
           {/* Main Hero Headline - Perfectly Centered in Deep High-Contrast Emerald-Black */}
           <h1 className="text-3xl sm:text-5xl lg:text-[3.25rem] font-extrabold tracking-tight text-[#091A16] mb-5 leading-[1.14] sm:leading-[1.16]">
-            {locale === 'am' ? (
-              <>
-                <span className="landing-title-gradient">በሀሰተኛ ደረሰኝ ምክንያት ገንዘብዎን አያጡ</span>
-                <span className="block mt-2 text-xl sm:text-2xl lg:text-3xl font-black text-[#1B463A] tracking-wider">
-                  TRUSTED VERIFY
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="landing-title-gradient">Never Lose Money to a Fake Receipt Again</span>
-                <span className="block mt-2 text-xl sm:text-2xl lg:text-3xl font-black text-[#1B463A] tracking-wider">
-                  TRUSTED VERIFY
-                </span>
-              </>
-            )}
+            <span className="landing-title-gradient">{t('home.heroTitle1')}</span>
+            <span className="block mt-2 text-xl sm:text-2xl lg:text-3xl font-black text-[#1B463A] tracking-wider">
+              {t('home.heroTitle2')}
+            </span>
           </h1>
 
           {/* Subtitle - High Contrast Slate Emerald */}
@@ -279,7 +268,7 @@ if (result.isVerified) {
               </div>
               <div className="pt-4 mt-5 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-bold text-[#1B463A]">
                 <CheckCircle2 size={16} className="text-[#1B463A] shrink-0" />
-                <span>Telebirr, CBE, BoA screenshots</span>
+                <span>{t('home.method1Foot')}</span>
               </div>
             </div>
 
@@ -301,7 +290,7 @@ if (result.isVerified) {
               </div>
               <div className="pt-4 mt-5 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-bold text-[#1B463A]">
                 <CheckCircle2 size={16} className="text-[#1B463A] shrink-0" />
-                <span>Account suffix match check</span>
+                <span>{t('home.method2Foot')}</span>
               </div>
             </div>
 
@@ -323,7 +312,7 @@ if (result.isVerified) {
               </div>
               <div className="pt-4 mt-5 border-t border-[rgba(27,70,58,0.1)] flex items-center gap-2 text-xs font-bold text-[#1B463A]">
                 <CheckCircle2 size={16} className="text-[#1B463A] shrink-0" />
-                <span>Genuine sender header parse</span>
+                <span>{t('home.method3Foot')}</span>
               </div>
             </div>
           </div>
@@ -436,15 +425,15 @@ if (result.isVerified) {
               <div className="space-y-3 pt-2">
                 <div className="flex items-center gap-2.5 text-sm text-[#183127] font-medium">
                   <CheckCircle2 size={18} className="text-[#1B463A] shrink-0" />
-                  <span>Sub-second REST API endpoint responses</span>
+                  <span>{t('home.apiFeature1')}</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-sm text-[#183127] font-medium">
                   <CheckCircle2 size={18} className="text-[#1B463A] shrink-0" />
-                  <span>Webhook callbacks on payment arrival</span>
+                  <span>{t('home.apiFeature2')}</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-sm text-[#183127] font-medium">
                   <CheckCircle2 size={18} className="text-[#1B463A] shrink-0" />
-                  <span>Standardized JSON status & confidence tiers</span>
+                  <span>{t('home.apiFeature3')}</span>
                 </div>
               </div>
 
@@ -495,7 +484,7 @@ if (result.isVerified) {
                     className="text-xs text-[#F4EEDC]/70 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     {copiedCode ? <Check size={14} className="text-[#56C386]" /> : <Copy size={14} />}
-                    <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                    <span>{copiedCode ? t('common.copied') : t('common.copy')}</span>
                   </button>
                 </div>
 
@@ -558,31 +547,31 @@ if (result.isVerified) {
             <div className="flex items-center justify-between pb-3.5 border-b border-[rgba(27,70,58,0.12)] mb-4">
               <div className="flex items-center gap-2.5">
                 <img src="/deresegn-logo.svg" alt="" width={26} height={26} className="rounded" />
-                <span className="font-bold text-xs sm:text-sm text-[#091A16]">ታማኝ ቸክ — Official Seal</span>
+                <span className="font-bold text-xs sm:text-sm text-[#091A16]">{t('cert.officialSeal')}</span>
               </div>
               <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-[var(--color-verified)]/15 text-[#1B463A] border border-[#1B463A]/25 tracking-wider">
-                AUTHENTICATED
+                {t('cert.authenticated')}
               </span>
             </div>
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center py-1">
-                <span className="text-[#40564C] font-medium">Tx Reference:</span>
+                <span className="text-[#40564C] font-medium">{t('check.txRef')}</span>
                 <span className="font-mono font-bold text-[#091A16] tracking-wide">TB8392019482</span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-[rgba(27,70,58,0.06)]">
-                <span className="text-[#40564C] font-medium">Settled Amount:</span>
+                <span className="text-[#40564C] font-medium">{t('check.settledAmount')}</span>
                 <span className="font-bold text-[#1B463A] text-sm">3,500.00 ETB</span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-[rgba(27,70,58,0.06)]">
-                <span className="text-[#40564C] font-medium">Method:</span>
+                <span className="text-[#40564C] font-medium">{t('history.method')}</span>
                 <span className="font-semibold text-[#091A16]">Telebirr SuperApp</span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-[rgba(27,70,58,0.06)]">
-                <span className="text-[#40564C] font-medium">Verification Status:</span>
+                <span className="text-[#40564C] font-medium">{t('ledger.colSecurityStatus')}</span>
                 <span className="font-bold text-[#1B463A] flex items-center gap-1">
                   <CheckCircle2 size={13} className="text-[#1B463A]" />
-                  <span>100% Genuine Settlement</span>
+                  <span>{t('cert.genuineSettlement')}</span>
                 </span>
               </div>
             </div>
@@ -635,7 +624,7 @@ if (result.isVerified) {
               <img src="/deresegn-logo.svg" alt="Deresegn logo" width={32} height={32} className="rounded" />
               <div>
                 <span className="font-bold text-[#091A16] text-sm block">Deresegn.et (ታማኝ ቸክ)</span>
-                <span className="text-[11px] text-[#40564C] block font-medium">Ethiopia’s Digital Transaction Verification Seal</span>
+                <span className="text-[11px] text-[#40564C] block font-medium">{t('home.footerTagline')}</span>
               </div>
             </div>
 
@@ -645,7 +634,7 @@ if (result.isVerified) {
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                 className="hover:text-[#1B463A] transition-colors cursor-pointer"
               >
-                Back to Top
+                {t('home.backToTop')}
               </button>
               <Link to="/developer" className="hover:text-[#1B463A] transition-colors">
                 {t('home.getApi')}
@@ -659,7 +648,7 @@ if (result.isVerified) {
             </div>
 
             <div className="text-[11px] text-[#556D62] text-center sm:text-right font-medium">
-              © {new Date().getFullYear()} Deresegn.et. All rights reserved.
+              {t('home.copyright', { year: new Date().getFullYear() })}
             </div>
           </div>
         </footer>

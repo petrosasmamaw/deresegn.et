@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useIsFocused } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
@@ -82,11 +82,11 @@ const EMPTY_REFERENCE = {
   accountSuffix: '',
 }
 
-const VERIFY_STAGES = [
-  'Optical OCR & Text Extraction...',
-  'Analyzing Font Metrics & Pixel Geometry...',
-  'Cross-referencing Official Bank Gateway...',
-  'Validating Merchant Recipient Account...',
+const VERIFY_STAGE_KEYS = [
+  'check.stage1',
+  'check.stage2',
+  'check.stage3',
+  'check.stage4',
 ]
 
 function getCheckCostByAmount(amount) {
@@ -115,6 +115,7 @@ export default function CheckerModal({
   const insets = useSafeAreaInsets()
   const online = useIsOnline()
   const navigation = useNavigation()
+  const isFocused = useIsFocused()
   const [step, setStep] = useState(3)
   const [method, setMethod] = useState('telebirr')
   const [verifyMode, setVerifyMode] = useState('screenshot')
@@ -135,6 +136,11 @@ export default function CheckerModal({
 
   const active = embedded || visible
 
+  const verifyStages = useMemo(
+    () => VERIFY_STAGE_KEYS.map((k) => t(k)),
+    [t],
+  )
+
   // Multi-stage loading animation
   useEffect(() => {
     if (!loading) {
@@ -142,7 +148,7 @@ export default function CheckerModal({
       return
     }
     const interval = setInterval(() => {
-      setActiveStageIndex((prev) => (prev < VERIFY_STAGES.length - 1 ? prev + 1 : prev))
+      setActiveStageIndex((prev) => (prev < VERIFY_STAGE_KEYS.length - 1 ? prev + 1 : prev))
     }, 900)
     return () => clearInterval(interval)
   }, [loading])
@@ -252,13 +258,15 @@ export default function CheckerModal({
 
   const savedForMethod = savedAccounts.find((a) => a.method === method && a.accountNumber)
   const canMatchMyAccount = Boolean(savedForMethod)
-  const defaultAccountLine = 'seifeslasie asmamaw abebe · 0989886956'
+  const isMatchActive = canMatchMyAccount && matchMyAccount
+  const currentMethodObj = methods.find((m) => m.id === method)
+  const currentMethodName = t(`method.short.${method}`) || currentMethodObj?.label || method
   const displayAccount = savedForMethod
     ? `${savedForMethod.accountName} · ${savedForMethod.accountNumber}`
-    : defaultAccountLine
+    : t('check.noAccountSaved', { bank: currentMethodName })
 
   useEffect(() => {
-    if (!active) return undefined
+    if (!active || !isFocused) return undefined
     let cancelled = false
     api
       .get('/me/accounts')
@@ -294,7 +302,7 @@ export default function CheckerModal({
     return () => {
       cancelled = true
     }
-  }, [active])
+  }, [active, isFocused])
 
   useEffect(() => {
     if (!active) return
@@ -424,7 +432,7 @@ export default function CheckerModal({
       method,
       form: EMPTY_FORM,
       withDetails: false,
-      matchMyAccount,
+      matchMyAccount: isMatchActive,
     })
     if (result?.failed) {
       setFailureIssues(result.issues || [])
@@ -446,7 +454,7 @@ export default function CheckerModal({
       method,
       transactionCode: referenceForm.transactionCode,
       accountSuffix: referenceForm.accountSuffix,
-      matchMyAccount,
+      matchMyAccount: isMatchActive,
     })
     if (result?.failed) {
       setFailureIssues(result.issues || [])
@@ -464,7 +472,7 @@ export default function CheckerModal({
     if (!alertIfOffline(online, t)) return
     setRejected(false)
     setFailureIssues([])
-    const result = await onSmsSubmit({ method, smsText, matchMyAccount })
+    const result = await onSmsSubmit({ method, smsText, matchMyAccount: isMatchActive })
     if (result?.failed) {
       setFailureIssues(result.issues || [])
       setRejected(true)
@@ -487,34 +495,41 @@ export default function CheckerModal({
     <View
       style={[
         styles.payBox,
-        matchMyAccount ? styles.payBoxOn : styles.payBoxOff,
+        isMatchActive ? styles.payBoxOn : styles.payBoxOff,
       ]}
     >
       <View style={styles.payRow}>
         <View style={styles.payInfo}>
           <View style={styles.payTitleRow}>
             <Ionicons
-              name="lock-closed"
+              name={canMatchMyAccount ? 'lock-closed' : 'alert-circle-outline'}
               size={13}
-              color={matchMyAccount ? colors.birrGreen : '#9CA3AF'}
+              color={isMatchActive ? colors.birrGreen : '#9CA3AF'}
             />
-            <Text style={styles.payTitle}>Payment to my account</Text>
+            <Text style={styles.payTitle}>{t('check.payToMyAccount')}</Text>
           </View>
-          <Text style={styles.paySaved} numberOfLines={1}>
+          <Text
+            style={[
+              styles.paySaved,
+              !savedForMethod && { color: '#9CA3AF', fontStyle: 'italic' },
+            ]}
+            numberOfLines={1}
+          >
             {displayAccount}
           </Text>
         </View>
 
         <View style={styles.payActions}>
           <Switch
-            value={matchMyAccount}
+            value={isMatchActive}
+            disabled={!canMatchMyAccount}
             onValueChange={setMatchMyAccount}
             trackColor={{ false: '#D1D5DB', true: colors.birrGreen }}
             thumbColor="#FFFFFF"
             ios_backgroundColor="#D1D5DB"
           />
           <Pressable onPress={openMyAccounts} hitSlop={8}>
-            <Text style={styles.payManage}>Manage</Text>
+            <Text style={styles.payManage}>{t('common.manage')}</Text>
           </Pressable>
         </View>
       </View>
@@ -537,22 +552,54 @@ export default function CheckerModal({
 
   const checkForCert = successCheck || lastResult
 
-  // ── Tampered / Security Alert View ──
+  // ── Merchant-friendly Failure Banner View ──
+  const isMyAccountError = failureIssues.some((i) => String(i.code || '').startsWith('MY_ACCOUNT'))
+  const isDuplicate = failureIssues.some((i) => i.code === 'DUPLICATE_TX')
+  const isNotFound = failureIssues.some(
+    (i) => i.code === 'OFFICIAL_RECORD_NOT_FOUND' || i.code === 'INVALID_REFERENCE_INPUT',
+  )
+
+  const failBadgeText = isMyAccountError
+    ? t('result.badgeWrongAccount')
+    : isDuplicate
+      ? t('result.badgeAlreadyUsed')
+      : isNotFound
+        ? t('result.badgeNotFound')
+        : t('result.badgeUnverified')
+
+  const failTitleText = isMyAccountError
+    ? t('result.titleNotMyAccount')
+    : isDuplicate
+      ? t('result.titleAlreadyUsed')
+      : isNotFound
+        ? t('result.titleNotFound')
+        : t('result.titleMismatch')
+
+  const failSubtitleText = isMyAccountError
+    ? t('result.subNotMyAccount')
+    : isDuplicate
+      ? t('result.subAlreadyUsed')
+      : isNotFound
+        ? t('result.subNotFound')
+        : t('result.subMismatch')
+
   const failedOutcome = (
     <View style={styles.outcomeSpace}>
       <View style={styles.failHero}>
         <View style={styles.failHeroTop}>
           <View style={styles.failIconWrap}>
-            <Ionicons name="shield" size={20} color="#F87171" />
+            <Ionicons
+              name={isMyAccountError ? 'person-remove' : isDuplicate ? 'copy' : 'shield-outline'}
+              size={20}
+              color="#F87171"
+            />
           </View>
           <View style={styles.failHeroCopy}>
             <View style={styles.failBadge}>
-              <Text style={styles.failBadgeText}>SECURITY ALERT</Text>
+              <Text style={styles.failBadgeText}>{failBadgeText}</Text>
             </View>
-            <Text style={styles.failTitle}>TAMPERED / MANIPULATION DETECTED</Text>
-            <Text style={styles.failSubtitle}>
-              This receipt failed cryptographic verification against official bank settlement ledgers or font metric baselines.
-            </Text>
+            <Text style={styles.failTitle}>{failTitleText}</Text>
+            <Text style={styles.failSubtitle}>{failSubtitleText}</Text>
           </View>
         </View>
       </View>
@@ -572,7 +619,7 @@ export default function CheckerModal({
         </Pressable>
 
         <Pressable style={styles.btnOutline} onPress={startAnother}>
-          <Text style={styles.btnOutlineText}>Check Another Receipt</Text>
+          <Text style={styles.btnOutlineText}>{t('check.checkAnother')}</Text>
         </Pressable>
       </View>
     </View>
@@ -594,14 +641,15 @@ export default function CheckerModal({
       <View style={styles.successCtaRow}>
         <Text style={styles.feeNote}>
           {(successCheck || lastResult)?.isRecheck
-            ? 'Free instant re-check record'
-            : `Deducted ${
-                (successCheck || lastResult)?.balanceDeducted ||
-                getCheckCostByAmount(summaryDetails?.amount)
-              } Birr from balance`}
+            ? t('check.freeRecheckRecord')
+            : t('check.deductedFromBalance', {
+                amount:
+                  (successCheck || lastResult)?.balanceDeducted ||
+                  getCheckCostByAmount(summaryDetails?.amount),
+              })}
         </Text>
         <Pressable style={styles.btnPrimary} onPress={startAnother}>
-          <Text style={styles.btnPrimaryText}>Verify Another Receipt</Text>
+          <Text style={styles.btnPrimaryText}>{t('check.verifyAnother')}</Text>
           <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
         </Pressable>
       </View>
@@ -617,7 +665,7 @@ export default function CheckerModal({
           <View style={styles.stepCircle}>
             <Text style={styles.stepNumber}>1</Text>
           </View>
-          <Text style={styles.stepTitle}>CHOOSE BANK / MOBILE WALLET</Text>
+          <Text style={styles.stepTitle}>{t('check.stepChooseBank')}</Text>
         </View>
 
         <View style={styles.bankGrid}>
@@ -661,7 +709,7 @@ export default function CheckerModal({
           <View style={styles.stepCircle}>
             <Text style={styles.stepNumber}>2</Text>
           </View>
-          <Text style={styles.stepTitle}>VERIFICATION METHOD</Text>
+          <Text style={styles.stepTitle}>{t('check.stepMethod')}</Text>
         </View>
 
         <View style={styles.modesRow}>
@@ -683,7 +731,7 @@ export default function CheckerModal({
                 verifyMode === 'screenshot' ? styles.modeTabTextActive : styles.modeTabTextInactive,
               ]}
             >
-              Screenshot
+              {t('check.modeScreenshotShort')}
             </Text>
           </Pressable>
 
@@ -705,7 +753,7 @@ export default function CheckerModal({
                 verifyMode === 'sms' ? styles.modeTabTextActive : styles.modeTabTextInactive,
               ]}
             >
-              SMS
+              {t('check.modeSmsShort')}
             </Text>
           </Pressable>
 
@@ -727,7 +775,7 @@ export default function CheckerModal({
                 verifyMode === 'reference' ? styles.modeTabTextActive : styles.modeTabTextInactive,
               ]}
             >
-              Payment ID
+              {t('check.modeReferenceShort')}
             </Text>
           </Pressable>
         </View>
@@ -750,7 +798,7 @@ export default function CheckerModal({
             <View style={styles.stepCircle}>
               <Text style={styles.stepNumber}>3</Text>
             </View>
-            <Text style={styles.stepTitle}>UPLOAD RECEIPT SCREENSHOT</Text>
+            <Text style={styles.stepTitle}>{t('check.stepUpload')}</Text>
           </View>
 
           {/* Spacious Dropzone matching web client */}
@@ -769,14 +817,14 @@ export default function CheckerModal({
                 <View style={styles.dropPreviewInfo}>
                   <View style={styles.readyBadge}>
                     <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" />
-                    <Text style={styles.readyBadgeText}>Receipt Ready</Text>
+                    <Text style={styles.readyBadgeText}>{t('check.receiptReady')}</Text>
                   </View>
                   {fileDetails ? (
                     <Text style={styles.fileDetailsText} numberOfLines={1}>
                       {fileDetails.name} · {fileDetails.size}
                     </Text>
                   ) : null}
-                  <Text style={styles.changeLinkText}>Change Screenshot</Text>
+                  <Text style={styles.changeLinkText}>{t('check.changeScreenshot')}</Text>
                 </View>
               </View>
             ) : (
@@ -784,14 +832,14 @@ export default function CheckerModal({
                 <View style={styles.uploadIconCircle}>
                   <Ionicons name="cloud-upload" size={24} color={colors.birrGreen} />
                 </View>
-                <Text style={styles.dropMainText}>Choose Receipt Screenshot</Text>
+                <Text style={styles.dropMainText}>{t('check.chooseScreenshot')}</Text>
                 <Text style={styles.dropSubText}>
-                  Supports PNG, JPG, or WEBP from Telebirr, CBE, Abyssinia, or Dashen.
+                  {t('check.supportsFormat')}
                 </Text>
                 <View style={styles.dropActionsRow}>
                   <View style={styles.browseButton}>
                     <Ionicons name="images-outline" size={15} color="#FFFFFF" />
-                    <Text style={styles.browseButtonText}>Browse Gallery</Text>
+                    <Text style={styles.browseButtonText}>{t('check.browseGallery')}</Text>
                   </View>
                   <Pressable
                     style={styles.cameraButton}
@@ -801,7 +849,7 @@ export default function CheckerModal({
                     }}
                   >
                     <Ionicons name="camera-outline" size={15} color={colors.birrGreen} />
-                    <Text style={styles.cameraButtonText}>Take Photo</Text>
+                    <Text style={styles.cameraButtonText}>{t('check.takePhoto')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -816,15 +864,17 @@ export default function CheckerModal({
               <View style={styles.loadingBannerTop}>
                 <View style={styles.loadingBannerLeft}>
                   <ActivityIndicator size="small" color="#C6A24E" />
-                  <Text style={styles.loadingStageText}>{VERIFY_STAGES[activeStageIndex]}</Text>
+                  <Text style={styles.loadingStageText}>{verifyStages[activeStageIndex]}</Text>
                 </View>
-                <Text style={styles.loadingStepText}>Step {activeStageIndex + 1} of 4</Text>
+                <Text style={styles.loadingStepText}>
+                  {t('check.stepStageOf', { step: activeStageIndex + 1, total: verifyStages.length })}
+                </Text>
               </View>
               <View style={styles.loadingTrack}>
                 <View
                   style={[
                     styles.loadingBar,
-                    { width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` },
+                    { width: `${((activeStageIndex + 1) / verifyStages.length) * 100}%` },
                   ]}
                 />
               </View>
@@ -842,12 +892,12 @@ export default function CheckerModal({
             ) : (
               <View style={styles.verifyBtnContent}>
                 <Ionicons name="shield-checkmark" size={20} color="#E4C977" />
-                <Text style={styles.verifyBtnText}>Verify Receipt</Text>
+                <Text style={styles.verifyBtnText}>{t('check.verifyButton')}</Text>
                 <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.9)" />
               </View>
             )}
           </Pressable>
-          <Text style={styles.speedSub}>Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection</Text>
+          <Text style={styles.speedSub}>{t('check.speedSub')}</Text>
         </View>
       ) : null}
 
@@ -857,10 +907,10 @@ export default function CheckerModal({
             <View style={styles.stepCircle}>
               <Text style={styles.stepNumber}>3</Text>
             </View>
-            <Text style={styles.stepTitle}>DIRECT PAYMENT ID QUERY</Text>
+            <Text style={styles.stepTitle}>{t('check.stepReference')}</Text>
           </View>
           <Text style={styles.stepSub}>
-            Enter the bank transaction reference number to query the official ledger directly.
+            {t('check.stepReferenceHint')}
           </Text>
 
           {referenceFields.map((field) => (
@@ -888,15 +938,17 @@ export default function CheckerModal({
               <View style={styles.loadingBannerTop}>
                 <View style={styles.loadingBannerLeft}>
                   <ActivityIndicator size="small" color="#C6A24E" />
-                  <Text style={styles.loadingStageText}>{VERIFY_STAGES[activeStageIndex]}</Text>
+                  <Text style={styles.loadingStageText}>{verifyStages[activeStageIndex]}</Text>
                 </View>
-                <Text style={styles.loadingStepText}>Step {activeStageIndex + 1} of 4</Text>
+                <Text style={styles.loadingStepText}>
+                  {t('check.stepStageOf', { step: activeStageIndex + 1, total: verifyStages.length })}
+                </Text>
               </View>
               <View style={styles.loadingTrack}>
                 <View
                   style={[
                     styles.loadingBar,
-                    { width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` },
+                    { width: `${((activeStageIndex + 1) / verifyStages.length) * 100}%` },
                   ]}
                 />
               </View>
@@ -916,12 +968,12 @@ export default function CheckerModal({
             ) : (
               <View style={styles.verifyBtnContent}>
                 <Ionicons name="shield-checkmark" size={20} color="#E4C977" />
-                <Text style={styles.verifyBtnText}>Verify Receipt</Text>
+                <Text style={styles.verifyBtnText}>{t('check.verifyButton')}</Text>
                 <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.9)" />
               </View>
             )}
           </Pressable>
-          <Text style={styles.speedSub}>Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection</Text>
+          <Text style={styles.speedSub}>{t('check.speedSub')}</Text>
         </View>
       ) : null}
 
@@ -931,14 +983,14 @@ export default function CheckerModal({
             <View style={styles.stepCircle}>
               <Text style={styles.stepNumber}>3</Text>
             </View>
-            <Text style={styles.stepTitle}>BANK SMS TEXT PARSER</Text>
+            <Text style={styles.stepTitle}>{t('check.stepSmsHeader')}</Text>
           </View>
           <Text style={styles.stepSub}>
-            Paste the complete SMS received from 127, CBE, or bank shortcodes.
+            {t('check.stepSmsHint')}
           </Text>
 
           <View style={styles.smsHeaderRow}>
-            <Text style={styles.fieldLabel}>SMS Message Content</Text>
+            <Text style={styles.fieldLabel}>{t('check.smsContent')}</Text>
             <Pressable
               onPress={() => {
                 const sample = SMS_PLACEHOLDERS[method] || SMS_PLACEHOLDERS.telebirr
@@ -946,7 +998,7 @@ export default function CheckerModal({
               }}
               hitSlop={8}
             >
-              <Text style={styles.pasteSampleLink}>Paste sample</Text>
+              <Text style={styles.pasteSampleLink}>{t('check.pasteSample')}</Text>
             </Pressable>
           </View>
 
@@ -971,15 +1023,17 @@ export default function CheckerModal({
               <View style={styles.loadingBannerTop}>
                 <View style={styles.loadingBannerLeft}>
                   <ActivityIndicator size="small" color="#C6A24E" />
-                  <Text style={styles.loadingStageText}>{VERIFY_STAGES[activeStageIndex]}</Text>
+                  <Text style={styles.loadingStageText}>{verifyStages[activeStageIndex]}</Text>
                 </View>
-                <Text style={styles.loadingStepText}>Step {activeStageIndex + 1} of 4</Text>
+                <Text style={styles.loadingStepText}>
+                  {t('check.stepStageOf', { step: activeStageIndex + 1, total: verifyStages.length })}
+                </Text>
               </View>
               <View style={styles.loadingTrack}>
                 <View
                   style={[
                     styles.loadingBar,
-                    { width: `${((activeStageIndex + 1) / VERIFY_STAGES.length) * 100}%` },
+                    { width: `${((activeStageIndex + 1) / verifyStages.length) * 100}%` },
                   ]}
                 />
               </View>
@@ -999,12 +1053,12 @@ export default function CheckerModal({
             ) : (
               <View style={styles.verifyBtnContent}>
                 <Ionicons name="shield-checkmark" size={20} color="#E4C977" />
-                <Text style={styles.verifyBtnText}>Verify Receipt</Text>
+                <Text style={styles.verifyBtnText}>{t('check.verifyButton')}</Text>
                 <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.9)" />
               </View>
             )}
           </Pressable>
-          <Text style={styles.speedSub}>Takes &lt; 2s · Cryptographic seal · Anti-tamper inspection</Text>
+          <Text style={styles.speedSub}>{t('check.speedSub')}</Text>
         </View>
       ) : null}
     </View>
@@ -1027,7 +1081,7 @@ export default function CheckerModal({
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View style={styles.modalScreen}>
         <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, space[4]) }]}>
-          <Text style={styles.modalHeaderTitle}>Verify Receipt</Text>
+          <Text style={styles.modalHeaderTitle}>{t('check.title')}</Text>
           <Pressable onPress={handleClose} hitSlop={12}>
             <Ionicons name="close" size={24} color={colors.ink} />
           </Pressable>

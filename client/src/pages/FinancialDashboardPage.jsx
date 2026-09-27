@@ -285,17 +285,17 @@ export default function FinancialDashboardPage() {
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1B463A] hover:underline bg-white px-2.5 py-1 rounded-lg border border-[rgba(27,70,58,0.14)] shadow-2xs"
               >
                 <ArrowLeft size={13} />
-                <span>Verify Desk</span>
+                <span>{t('nav.verify')}</span>
               </Link>
               <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#1B463A]/10 text-[#1B463A]">
-                Financial Intelligence
+                {t('ledger.eyebrow')}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-[#091A16] tracking-tight">
-              Financial Dashboard & Verification Ledger
+              {t('ledger.title')}
             </h1>
             <p className="text-xs sm:text-sm text-[#40564C] font-medium leading-relaxed max-w-2xl mt-1">
-              Real-time audit overview of total verified transaction volumes, decreased Birr service fees, and bank settlement records.
+              {t('ledger.subtitle')}
             </p>
           </div>
 
@@ -304,10 +304,10 @@ export default function FinancialDashboardPage() {
               type="button"
               onClick={handleRefresh}
               className="px-3.5 py-2 rounded-xl border border-[rgba(27,70,58,0.18)] bg-white hover:bg-[#FAF8F5] text-[#1B463A] text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95"
-              title="Refresh ledger"
+              title={t('common.refresh')}
             >
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-              <span>Refresh</span>
+              <span>{t('common.refresh')}</span>
             </button>
 
             <button
@@ -317,7 +317,7 @@ export default function FinancialDashboardPage() {
               className="px-4 py-2 rounded-xl border border-[rgba(27,70,58,0.18)] bg-white hover:bg-[#FAF8F5] text-[#091A16] text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all disabled:opacity-50"
             >
               <Download size={14} className="text-[#1B463A]" />
-              <span>Export CSV</span>
+              <span>{t('common.exportCsv')}</span>
             </button>
 
             <button
@@ -326,7 +326,7 @@ export default function FinancialDashboardPage() {
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#C6A24E] to-[#B8933E] text-[#091A16] font-black text-xs flex items-center gap-1.5 shadow-xs hover:brightness-105 active:scale-95 transition-all cursor-pointer"
             >
               <Wallet size={14} strokeWidth={2.5} />
-              <span>Top Up Balance</span>
+              <span>{t('common.topUpBalance')}</span>
             </button>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function FinancialDashboardPage() {
           <div className="bg-white rounded-2xl sm:rounded-3xl border border-[rgba(27,70,58,0.14)] p-3.5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-3">
               <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#40564C] truncate">
-                Verified Volume
+                {t('ledger.verifiedVolume')}
               </span>
               <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
                 <CheckCircle2 size={14} className="sm:hidden" strokeWidth={2.5} />
@@ -352,7 +352,7 @@ export default function FinancialDashboardPage() {
                 <span className="text-[10px] sm:text-xs font-extrabold text-[#1B463A] uppercase">ETB</span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold mt-1 line-clamp-1">
-                Total authenticated funds
+                {t('ledger.verifiedVolumeSub')}
               </p>
             </div>
           </div>
@@ -361,7 +361,7 @@ export default function FinancialDashboardPage() {
           <div className="bg-white rounded-2xl sm:rounded-3xl border border-[rgba(27,70,58,0.14)] p-3.5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-3">
               <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#40564C] truncate">
-                Decreased Fees
+                {t('ledger.decreasedFees')}
               </span>
               <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center shrink-0">
                 <Coins size={14} className="sm:hidden" strokeWidth={2.5} />
@@ -373,10 +373,10 @@ export default function FinancialDashboardPage() {
                 <span className="font-mono tabular-nums text-lg sm:text-3xl font-black text-[#B45309] tracking-tight">
                   −{metrics.totalFeesDeducted.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
                 </span>
-                <span className="text-[10px] sm:text-xs font-extrabold text-[#B45309] uppercase">Birr</span>
+                <span className="text-[10px] sm:text-xs font-extrabold text-[#B45309] uppercase">{t('common.birr')}</span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold mt-1 line-clamp-1">
-                Audit service charges
+                {t('ledger.decreasedFeesSub')}
               </p>
             </div>
           </div>
@@ -385,7 +385,7 @@ export default function FinancialDashboardPage() {
           <div className="bg-white rounded-2xl sm:rounded-3xl border border-[rgba(27,70,58,0.14)] p-3.5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-3">
               <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#40564C] truncate">
-                Total Audits
+                {t('ledger.totalAudits')}
               </span>
               <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#1B463A]/10 text-[#1B463A] flex items-center justify-center shrink-0">
                 <FileSpreadsheet size={14} className="sm:hidden" strokeWidth={2.5} />
@@ -397,11 +397,11 @@ export default function FinancialDashboardPage() {
                 <span className="font-mono tabular-nums text-lg sm:text-3xl font-black text-[#091A16] tracking-tight">
                   {metrics.totalCount}
                 </span>
-                <span className="text-[10px] sm:text-xs font-extrabold text-[#1B463A]">Checks</span>
+                <span className="text-[10px] sm:text-xs font-extrabold text-[#1B463A]">{t('ledger.checks')}</span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold mt-1 line-clamp-1">
-                <span className="text-emerald-700 font-bold">{metrics.genuineCount} OK</span> ·{' '}
-                <span className="text-red-700 font-bold">{metrics.tamperedCount} Flag</span>
+                <span className="text-emerald-700 font-bold">{metrics.genuineCount} {t('ledger.genuineCount')}</span> ·{' '}
+                <span className="text-red-700 font-bold">{metrics.tamperedCount} {t('ledger.flaggedCount')}</span>
               </p>
             </div>
           </div>
@@ -410,7 +410,7 @@ export default function FinancialDashboardPage() {
           <div className="bg-white rounded-2xl sm:rounded-3xl border border-[rgba(27,70,58,0.14)] p-3.5 sm:p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-3">
               <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#40564C] truncate">
-                Balance
+                {t('ledger.balance')}
               </span>
               <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-50 text-[#C6A24E] flex items-center justify-center shrink-0">
                 <Wallet size={14} className="sm:hidden" strokeWidth={2.5} />
@@ -425,13 +425,13 @@ export default function FinancialDashboardPage() {
                 <span className="text-[10px] sm:text-xs font-extrabold text-[#1B463A] uppercase">ETB</span>
               </div>
               <div className="flex items-center justify-between mt-1">
-                <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold">Active</p>
+                <p className="text-[10px] sm:text-[11px] text-[#40564C] font-semibold">{t('ledger.active')}</p>
                 <button
                   type="button"
                   onClick={() => setTopupOpen(true)}
-                  className="text-[10px] sm:text-[11px] font-black text-[#1B463A] hover:underline"
+                  className="text-[10px] sm:text-[11px] font-black text-[#1B463A] hover:underline cursor-pointer"
                 >
-                  + Top Up
+                  {t('common.addTopUp')}
                 </button>
               </div>
             </div>
@@ -442,10 +442,10 @@ export default function FinancialDashboardPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-[#091A16] uppercase tracking-wider">
-              Bank Gateway Distribution
+              {t('ledger.bankDistribution')}
             </h2>
             <span className="text-[11px] font-bold text-[#40564C]">
-              Real-time settlement metrics
+              {t('ledger.bankDistributionSub')}
             </span>
           </div>
 
@@ -469,22 +469,22 @@ export default function FinancialDashboardPage() {
                         {name}
                       </span>
                       <span className="font-mono text-[10px] text-[#40564C]">
-                        {stat.count} {stat.count === 1 ? 'audit' : 'audits'}
+                        {stat.count} {stat.count === 1 ? t('ledger.singleAudit') : t('ledger.auditsCount')}
                       </span>
                     </div>
                   </div>
 
                   <div className="pt-2 border-t border-[rgba(27,70,58,0.06)] grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <span className="text-[10px] text-[#40564C] font-semibold block">Volume</span>
+                      <span className="text-[10px] text-[#40564C] font-semibold block">{t('ledger.volume')}</span>
                       <span className="font-mono tabular-nums font-bold text-[#091A16]">
                         {stat.volume.toLocaleString('en-US', { maximumFractionDigits: 0 })} ETB
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-[#40564C] font-semibold block">Decreased</span>
+                      <span className="text-[10px] text-[#40564C] font-semibold block">{t('ledger.decreased')}</span>
                       <span className="font-mono tabular-nums font-bold text-[#B45309]">
-                        −{stat.fees.toFixed(1)} Birr
+                        −{stat.fees.toFixed(1)} {t('common.birr')}
                       </span>
                     </div>
                   </div>
@@ -508,7 +508,7 @@ export default function FinancialDashboardPage() {
                 <input
                   type="search"
                   className="input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-[rgba(27,70,58,0.15)] text-xs font-medium placeholder:text-[#40564C]/60"
-                  placeholder="Search invoice ID, payer, recipient, account, or amount..."
+                  placeholder={t('ledger.searchPlaceholder')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -522,7 +522,7 @@ export default function FinancialDashboardPage() {
                   value={bankFilter}
                   onChange={(e) => setBankFilter(e.target.value)}
                 >
-                  <option value="all">All Banks</option>
+                  <option value="all">{t('ledger.allBanks')}</option>
                   <option value="telebirr">Telebirr</option>
                   <option value="cbe">CBE</option>
                   <option value="boa">Abyssinia</option>
@@ -535,10 +535,10 @@ export default function FinancialDashboardPage() {
                   value={timeFilter}
                   onChange={(e) => setTimeFilter(e.target.value)}
                 >
-                  <option value="all">All Time</option>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
+                  <option value="all">{t('ledger.allTime')}</option>
+                  <option value="today">{t('ledger.today')}</option>
+                  <option value="week">{t('ledger.thisWeek')}</option>
+                  <option value="month">{t('ledger.thisMonth')}</option>
                 </select>
 
                 {/* Status Filter */}
@@ -547,9 +547,9 @@ export default function FinancialDashboardPage() {
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value="all">All Statuses</option>
-                  <option value="genuine">Verified Genuine</option>
-                  <option value="tampered">Tampered / Flagged</option>
+                  <option value="all">{t('ledger.allStatuses')}</option>
+                  <option value="genuine">{t('ledger.genuine')}</option>
+                  <option value="tampered">{t('ledger.tampered')}</option>
                 </select>
 
                 {/* Sort Filter */}
@@ -558,16 +558,16 @@ export default function FinancialDashboardPage() {
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                 >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="highest_amount">Highest Amount</option>
-                  <option value="highest_fee">Highest Fee</option>
+                  <option value="newest">{t('ledger.newestFirst')}</option>
+                  <option value="oldest">{t('ledger.oldestFirst')}</option>
+                  <option value="highest_amount">{t('ledger.highestAmount')}</option>
+                  <option value="highest_fee">{t('ledger.highestFee')}</option>
                 </select>
               </div>
             </div>
 
             <div className="flex items-center justify-between text-xs text-[#40564C] font-semibold pt-1">
-              <span>Showing {filteredChecks.length} of {checks.length} verifications</span>
+              <span>{t('ledger.showingCount', { count: filteredChecks.length, total: checks.length })}</span>
               {(search || bankFilter !== 'all' || timeFilter !== 'all' || statusFilter !== 'all') && (
                 <button
                   type="button"
@@ -578,9 +578,9 @@ export default function FinancialDashboardPage() {
                     setStatusFilter('all')
                     setSortBy('newest')
                   }}
-                  className="text-xs font-bold text-[#1B463A] hover:underline"
+                  className="text-xs font-bold text-[#1B463A] hover:underline cursor-pointer"
                 >
-                  Reset all filters
+                  {t('ledger.resetFilters')}
                 </button>
               )}
             </div>
@@ -597,13 +597,13 @@ export default function FinancialDashboardPage() {
             <div className="py-16">
               <EmptyState
                 icon={Clock}
-                title="No Verification Records"
-                description="Your transaction receipts and decreased verification fees will appear here once you begin checking receipts."
+                title={t('ledger.noRecords')}
+                description={t('ledger.noRecordsSub')}
               />
             </div>
           ) : filteredChecks.length === 0 ? (
             <div className="py-16 text-center text-xs font-semibold text-[#40564C]">
-              No verification records match your active search and time filters.
+              {t('ledger.noMatch')}
             </div>
           ) : (
             <>
@@ -612,14 +612,14 @@ export default function FinancialDashboardPage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-[#FAF8F5] border-b border-[rgba(27,70,58,0.1)] text-[11px] font-extrabold text-[#40564C] uppercase tracking-wider">
-                      <th className="py-3.5 px-5">Invoice Reference</th>
-                      <th className="py-3.5 px-4">Bank Gateway</th>
-                      <th className="py-3.5 px-4">Payer & Target</th>
-                      <th className="py-3.5 px-4 text-right">Verified Amount</th>
-                      <th className="py-3.5 px-4 text-center">Decreased Birr</th>
-                      <th className="py-3.5 px-4">Date & Time</th>
-                      <th className="py-3.5 px-4">Security Status</th>
-                      <th className="py-3.5 px-5 text-right">Action</th>
+                      <th className="py-3.5 px-5">{t('ledger.colInvoice')}</th>
+                      <th className="py-3.5 px-4">{t('ledger.colBank')}</th>
+                      <th className="py-3.5 px-4">{t('ledger.colPayerTarget')}</th>
+                      <th className="py-3.5 px-4 text-right">{t('ledger.colVerifiedAmount')}</th>
+                      <th className="py-3.5 px-4 text-center">{t('ledger.colDecreasedBirr')}</th>
+                      <th className="py-3.5 px-4">{t('ledger.colDateTime')}</th>
+                      <th className="py-3.5 px-4">{t('ledger.colSecurityStatus')}</th>
+                      <th className="py-3.5 px-5 text-right">{t('ledger.colAction')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[rgba(27,70,58,0.06)] text-xs">
@@ -658,10 +658,10 @@ export default function FinancialDashboardPage() {
                           <td className="py-4 px-4">
                             <div className="min-w-0 max-w-[210px]">
                               <p className="font-bold text-[#091A16] truncate">
-                                {check.senderName || 'Sender'}
+                                {check.senderName || t('check.sender')}
                               </p>
                               <p className="text-[11px] text-[#40564C] truncate font-mono">
-                                → {check.receiverName || check.receiverAccount || 'Merchant'}
+                                → {check.receiverName || check.receiverAccount || t('check.merchant')}
                               </p>
                             </div>
                           </td>
@@ -675,11 +675,11 @@ export default function FinancialDashboardPage() {
                           <td className="py-4 px-4 text-center">
                             {check.isRecheck ? (
                               <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
-                                Free Recheck
+                                {t('check.freeRecheck')}
                               </span>
                             ) : (
                               <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-50 text-[#B45309] border border-amber-200">
-                                −{check.balanceDeducted || 5} Birr
+                                −{check.balanceDeducted || 5} {t('common.birr')}
                               </span>
                             )}
                           </td>
@@ -700,12 +700,12 @@ export default function FinancialDashboardPage() {
                             {isTampered ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-800 border border-red-200 uppercase tracking-wider">
                                 <ShieldAlert size={12} />
-                                <span>TAMPERED</span>
+                                <span>{t('ledger.statusTampered')}</span>
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase tracking-wider">
                                 <ShieldCheck size={12} />
-                                <span>VERIFIED</span>
+                                <span>{t('ledger.statusVerified')}</span>
                               </span>
                             )}
                           </td>
@@ -721,7 +721,7 @@ export default function FinancialDashboardPage() {
                               className="px-3 py-1.5 rounded-lg border border-[rgba(27,70,58,0.2)] bg-white hover:bg-[#1B463A] hover:text-white text-[#1B463A] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
                             >
                               <Eye size={12} />
-                              <span>Inspect</span>
+                              <span>{t('common.inspect')}</span>
                             </button>
                           </td>
                         </tr>
@@ -764,19 +764,19 @@ export default function FinancialDashboardPage() {
 
                         {isTampered ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-800">
-                            TAMPERED
+                            {t('ledger.statusTampered')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
-                            VERIFIED
+                            {t('ledger.statusVerified')}
                           </span>
                         )}
                       </div>
 
                       <div className="text-xs">
-                        <span className="text-[#40564C]">Party: </span>
-                        <span className="font-bold text-[#091A16]">{check.senderName || 'Sender'}</span>
-                        <span className="text-[#40564C] font-mono"> → {check.receiverName || check.receiverAccount || 'Merchant'}</span>
+                        <span className="text-[#40564C]">{t('check.party')} </span>
+                        <span className="font-bold text-[#091A16]">{check.senderName || t('check.sender')}</span>
+                        <span className="text-[#40564C] font-mono"> → {check.receiverName || check.receiverAccount || t('check.merchant')}</span>
                       </div>
 
                       <div className="flex items-center justify-between text-xs pt-2 border-t border-[rgba(27,70,58,0.06)]">
@@ -796,11 +796,11 @@ export default function FinancialDashboardPage() {
                         <div>
                           {check.isRecheck ? (
                             <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                              Free Recheck
+                              {t('check.freeRecheck')}
                             </span>
                           ) : (
                             <span className="text-[11px] font-black text-[#B45309] bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                              −{check.balanceDeducted || 5} Birr
+                              −{check.balanceDeducted || 5} {t('common.birr')}
                             </span>
                           )}
                         </div>

@@ -97,7 +97,7 @@ export default function CheckHistory({
     return (
       <div className="py-12 text-center p-6" role="alert">
         <p className="text-sm font-semibold text-red-600 mb-3">
-          Failed to load verification history
+          {t('errors.loadHistory')}
         </p>
         {onRetry && (
           <button
@@ -105,7 +105,7 @@ export default function CheckHistory({
             onClick={handleRefresh}
             className="px-4 py-2 rounded-xl bg-[#1B463A] text-white text-xs font-bold cursor-pointer"
           >
-            Try Again
+            {t('common.tryAgain')}
           </button>
         )}
       </div>
@@ -124,7 +124,7 @@ export default function CheckHistory({
           <input
             type="search"
             className="input w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-[rgba(27,70,58,0.15)] text-xs font-medium placeholder:text-[#40564C]/60"
-            placeholder="Search by invoice ID, payer name, or account..."
+            placeholder={t('ledger.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -137,7 +137,7 @@ export default function CheckHistory({
             value={methodFilter}
             onChange={(e) => setMethodFilter(e.target.value)}
           >
-            <option value="all">All Gateways</option>
+            <option value="all">{t('ledger.allBanks')}</option>
             <option value="telebirr">Telebirr</option>
             <option value="cbe">CBE</option>
             <option value="boa">Abyssinia</option>
@@ -150,9 +150,9 @@ export default function CheckHistory({
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="all">All Statuses</option>
-            <option value="genuine">Verified Genuine</option>
-            <option value="tampered">Tampered / Flagged</option>
+            <option value="all">{t('ledger.allStatuses')}</option>
+            <option value="genuine">{t('ledger.genuine')}</option>
+            <option value="tampered">{t('ledger.tampered')}</option>
           </select>
 
           {/* Refresh Button */}
@@ -161,7 +161,7 @@ export default function CheckHistory({
               type="button"
               onClick={handleRefresh}
               className="p-2.5 rounded-xl border border-[rgba(27,70,58,0.15)] bg-white hover:bg-[#FAF8F5] text-[#1B463A] cursor-pointer shadow-xs transition-transform active:scale-95"
-              title="Refresh ledger"
+              title={t('common.refresh')}
             >
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
             </button>
@@ -174,13 +174,13 @@ export default function CheckHistory({
         <div className="py-12">
           <EmptyState
             icon={Clock}
-            title="No Verifications Yet"
-            description="Your authenticated bank transactions and receipt audits will be stored securely here."
+            title={t('ledger.noRecords')}
+            description={t('ledger.noRecordsSub')}
           />
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-12 text-center text-xs font-semibold text-[#40564C]">
-          No verification records match your active search filters.
+          {t('ledger.noMatch')}
         </div>
       ) : (
         <>
@@ -189,13 +189,13 @@ export default function CheckHistory({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#FAF8F5] border-b border-[rgba(27,70,58,0.1)] text-[11px] font-extrabold text-[#40564C] uppercase tracking-wider">
-                  <th className="py-3 px-4">Invoice No</th>
-                  <th className="py-3 px-4">Bank Gateway</th>
-                  <th className="py-3 px-4">Payer & Target</th>
-                  <th className="py-3 px-4 text-right">Amount (ETB)</th>
-                  <th className="py-3 px-4">Date & Time</th>
-                  <th className="py-3 px-4">Integrity Status</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-4">{t('ledger.colInvoice')}</th>
+                  <th className="py-3 px-4">{t('ledger.colBank')}</th>
+                  <th className="py-3 px-4">{t('ledger.colPayerTarget')}</th>
+                  <th className="py-3 px-4 text-right">{t('common.amount')} (ETB)</th>
+                  <th className="py-3 px-4">{t('ledger.colDateTime')}</th>
+                  <th className="py-3 px-4">{t('ledger.colSecurityStatus')}</th>
+                  <th className="py-3 px-4 text-right">{t('ledger.colAction')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[rgba(27,70,58,0.06)] text-xs">
@@ -238,10 +238,10 @@ export default function CheckHistory({
                       <td className="py-3.5 px-4">
                         <div className="min-w-0 max-w-[200px]">
                           <p className="font-bold text-[#091A16] truncate">
-                            {check.senderName || 'Sender'}
+                            {check.senderName || t('check.sender')}
                           </p>
                           <p className="text-[11px] text-[#40564C] truncate font-mono">
-                            → {check.receiverName || check.receiverAccount || 'Merchant'}
+                            → {check.receiverName || check.receiverAccount || t('check.merchant')}
                           </p>
                         </div>
                       </td>
@@ -266,12 +266,12 @@ export default function CheckHistory({
                         {isTampered ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-800 border border-red-200 uppercase tracking-wider">
                             <ShieldAlert size={12} />
-                            <span>TAMPERED</span>
+                            <span>{t('ledger.statusTampered')}</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase tracking-wider">
                             <ShieldCheck size={12} />
-                            <span>VERIFIED</span>
+                            <span>{t('ledger.statusVerified')}</span>
                           </span>
                         )}
                       </td>
@@ -287,7 +287,7 @@ export default function CheckHistory({
                           className="px-3 py-1.5 rounded-lg border border-[rgba(27,70,58,0.2)] bg-white hover:bg-[#1B463A] hover:text-white text-[#1B463A] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
                         >
                           <Eye size={12} />
-                          <span>Inspect</span>
+                          <span>{t('common.inspect')}</span>
                         </button>
                       </td>
                     </tr>
@@ -334,11 +334,11 @@ export default function CheckHistory({
 
                     {isTampered ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-800">
-                        TAMPERED
+                        {t('ledger.statusTampered')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
-                        VERIFIED
+                        {t('ledger.statusVerified')}
                       </span>
                     )}
                   </div>

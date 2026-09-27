@@ -248,7 +248,7 @@ export default function VerificationCertificate({ check, compact = false, detail
 
           <div className="text-left sm:text-right">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#40564C] block">
-              Invoice Reference No.
+              {t('ledger.colInvoice')}
             </span>
             <span className="font-mono tabular-nums text-sm sm:text-base font-extrabold text-[#1B463A] bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[rgba(27,70,58,0.12)] inline-block mt-0.5">
               {displayValue(check.transactionCode)}
@@ -260,7 +260,7 @@ export default function VerificationCertificate({ check, compact = false, detail
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.08)]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#40564C] block mb-1">
-              Payer / Sender
+              {t('check.sender')}
             </span>
             <p className="font-extrabold text-[#091A16] text-sm truncate">
               {displayValue(check.senderName)}
@@ -272,7 +272,7 @@ export default function VerificationCertificate({ check, compact = false, detail
 
           <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.08)]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#40564C] block mb-1">
-              Recipient / Target
+              {t('check.merchant')}
             </span>
             <p className="font-extrabold text-[#091A16] text-sm truncate">
               {displayValue(check.receiverName)}
@@ -284,7 +284,7 @@ export default function VerificationCertificate({ check, compact = false, detail
 
           <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.08)]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#40564C] block mb-1">
-              Settlement Gateway
+              {t('ledger.colBank')}
             </span>
             <p className="font-extrabold text-[#091A16] text-sm">
               {methodLabels[check.paymentMethod] || check.paymentMethod || 'Official Gateway'}
@@ -296,12 +296,12 @@ export default function VerificationCertificate({ check, compact = false, detail
 
           <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[rgba(27,70,58,0.08)]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#40564C] block mb-1">
-              Security Seal Hash
+              {t('cert.sealHash')}
             </span>
             <p className="font-mono text-xs font-bold text-[#1B463A] truncate" title={securityHash}>
               {securityHash}
             </p>
-            <p className="text-[10px] text-[#40564C] mt-0.5">Cryptographically signed by Deresegn.et</p>
+            <p className="text-[10px] text-[#40564C] mt-0.5">{t('cert.cryptographicallySigned')}</p>
           </div>
         </div>
 
@@ -309,16 +309,16 @@ export default function VerificationCertificate({ check, compact = false, detail
         <div className="rounded-xl border border-[rgba(27,70,58,0.12)] p-4 bg-[#FAF8F5]/80 space-y-2.5">
           <div className="flex items-center justify-between pb-2 border-b border-[rgba(27,70,58,0.08)]">
             <span className="text-xs font-black uppercase tracking-wider text-[#091A16]">
-              Tamagn Anti-Tamper Diagnostics
+              {t('cert.antiTamperDiagnostics')}
             </span>
-            <span className="text-[11px] font-bold text-[#1B463A]">4 Validation Checks</span>
+            <span className="text-[11px] font-bold text-[#1B463A]">{t('cert.validationChecks', { count: 4 })}</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-[rgba(27,70,58,0.08)]">
               <span className="text-[#40564C] font-semibold flex items-center gap-1.5">
                 <Layers size={13} className="text-[#1B463A]" />
-                Font Metric Baseline
+                {t('cert.fontBaseline')}
               </span>
               <span
                 className={`text-[11px] font-extrabold px-2 py-0.5 rounded ${
@@ -332,7 +332,7 @@ export default function VerificationCertificate({ check, compact = false, detail
             <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-[rgba(27,70,58,0.08)]">
               <span className="text-[#40564C] font-semibold flex items-center gap-1.5">
                 <FileCheck2 size={13} className="text-[#1B463A]" />
-                Bank Node Settlement
+                {t('cert.bankSettlement')}
               </span>
               <span
                 className={`text-[11px] font-extrabold px-2 py-0.5 rounded ${
@@ -346,7 +346,7 @@ export default function VerificationCertificate({ check, compact = false, detail
             <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-[rgba(27,70,58,0.08)]">
               <span className="text-[#40564C] font-semibold flex items-center gap-1.5">
                 <Clock size={13} className="text-[#1B463A]" />
-                Timestamp Sync
+                {t('cert.timestampSync')}
               </span>
               <span
                 className={`text-[11px] font-extrabold px-2 py-0.5 rounded ${
@@ -360,7 +360,7 @@ export default function VerificationCertificate({ check, compact = false, detail
             <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-[rgba(27,70,58,0.08)]">
               <span className="text-[#40564C] font-semibold flex items-center gap-1.5">
                 <Lock size={13} className="text-[#1B463A]" />
-                Merchant Account Match
+                {t('cert.merchantAccountMatch')}
               </span>
               <span
                 className={`text-[11px] font-extrabold px-2 py-0.5 rounded ${
@@ -383,12 +383,12 @@ export default function VerificationCertificate({ check, compact = false, detail
             {copied ? (
               <>
                 <Check size={14} className="text-emerald-600" />
-                <span>Proof Seal Copied!</span>
+                <span>{t('cert.proofSealCopied')}</span>
               </>
             ) : (
               <>
                 <Link2 size={14} />
-                <span>Copy Proof Seal</span>
+                <span>{t('cert.copyProofSeal')}</span>
               </>
             )}
           </button>
@@ -399,7 +399,7 @@ export default function VerificationCertificate({ check, compact = false, detail
             className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#1B463A] hover:bg-[#15382E] text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm"
           >
             <Download size={14} className="text-[#E4C977]" />
-            <span>Download PDF / PNG Report</span>
+            <span>{t('cert.downloadReport')}</span>
           </button>
         </div>
       </div>

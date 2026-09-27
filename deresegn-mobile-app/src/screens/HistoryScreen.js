@@ -212,12 +212,12 @@ export default function HistoryScreen() {
         <View style={styles.headerBlock}>
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>FINANCIAL INTELLIGENCE</Text>
+              <Text style={styles.badgeText}>{t('ledger.eyebrow')}</Text>
             </View>
           </View>
-          <Text style={styles.headerTitle}>Financial Dashboard & Verification Ledger</Text>
+          <Text style={styles.headerTitle}>{t('ledger.title')}</Text>
           <Text style={styles.headerSub}>
-            Real-time audit overview of total verified transaction volumes, decreased Birr service fees, and bank settlement records.
+            {t('ledger.subtitle')}
           </Text>
 
           {/* Quick Action Buttons */}
@@ -229,12 +229,12 @@ export default function HistoryScreen() {
                 color="#1B463A"
                 style={refreshing ? styles.spin : undefined}
               />
-              <Text style={styles.refreshBtnText}>Refresh</Text>
+              <Text style={styles.refreshBtnText}>{t('common.refresh')}</Text>
             </Pressable>
 
             <Pressable style={styles.topUpBtn} onPress={openTopUp}>
               <Ionicons name="wallet-outline" size={15} color="#091A16" />
-              <Text style={styles.topUpBtnText}>Top Up Balance</Text>
+              <Text style={styles.topUpBtnText}>{t('common.topUpBalance')}</Text>
             </Pressable>
           </View>
         </View>
@@ -244,7 +244,7 @@ export default function HistoryScreen() {
           {/* 1. Verified Volume */}
           <View style={styles.metricCard}>
             <View style={styles.metricTopRow}>
-              <Text style={styles.metricLabel} numberOfLines={1}>VERIFIED VOLUME</Text>
+              <Text style={styles.metricLabel} numberOfLines={1}>{t('ledger.verifiedVolume')}</Text>
               <View style={[styles.metricIconWrap, { backgroundColor: '#ECFDF5' }]}>
                 <Ionicons name="checkmark-circle" size={14} color="#059669" />
               </View>
@@ -258,13 +258,13 @@ export default function HistoryScreen() {
               </Text>
               <Text style={styles.metricUnit}>ETB</Text>
             </View>
-            <Text style={styles.metricSub}>Total authenticated funds</Text>
+            <Text style={styles.metricSub}>{t('ledger.verifiedVolumeSub')}</Text>
           </View>
 
           {/* 2. Decreased Fees */}
           <View style={styles.metricCard}>
             <View style={styles.metricTopRow}>
-              <Text style={styles.metricLabel} numberOfLines={1}>DECREASED FEES</Text>
+              <Text style={styles.metricLabel} numberOfLines={1}>{t('ledger.decreasedFees')}</Text>
               <View style={[styles.metricIconWrap, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="cash-outline" size={14} color="#B45309" />
               </View>
@@ -276,33 +276,33 @@ export default function HistoryScreen() {
                   maximumFractionDigits: 2,
                 })}
               </Text>
-              <Text style={[styles.metricUnit, { color: '#B45309' }]}>Birr</Text>
+              <Text style={[styles.metricUnit, { color: '#B45309' }]}>{t('common.birr')}</Text>
             </View>
-            <Text style={styles.metricSub}>Audit service charges</Text>
+            <Text style={styles.metricSub}>{t('ledger.decreasedFeesSub')}</Text>
           </View>
 
           {/* 3. Total Verifications */}
           <View style={styles.metricCard}>
             <View style={styles.metricTopRow}>
-              <Text style={styles.metricLabel} numberOfLines={1}>TOTAL AUDITS</Text>
+              <Text style={styles.metricLabel} numberOfLines={1}>{t('ledger.totalAudits')}</Text>
               <View style={[styles.metricIconWrap, { backgroundColor: 'rgba(27,70,58,0.1)' }]}>
                 <Ionicons name="document-text-outline" size={14} color="#1B463A" />
               </View>
             </View>
             <View style={styles.metricValueRow}>
               <Text style={styles.metricValue}>{metrics.totalCount}</Text>
-              <Text style={styles.metricUnit}>Checks</Text>
+              <Text style={styles.metricUnit}>{t('ledger.checks')}</Text>
             </View>
             <Text style={styles.metricSub}>
-              <Text style={{ color: '#059669', fontWeight: '800' }}>{metrics.genuineCount} OK</Text> ·{' '}
-              <Text style={{ color: '#DC2626', fontWeight: '800' }}>{metrics.tamperedCount} Flag</Text>
+              <Text style={{ color: '#059669', fontWeight: '800' }}>{t('ledger.genuineCount', { count: metrics.genuineCount })}</Text> ·{' '}
+              <Text style={{ color: '#DC2626', fontWeight: '800' }}>{t('ledger.flaggedCount', { count: metrics.tamperedCount })}</Text>
             </Text>
           </View>
 
           {/* 4. Active Balance */}
           <View style={styles.metricCard}>
             <View style={styles.metricTopRow}>
-              <Text style={styles.metricLabel} numberOfLines={1}>BALANCE</Text>
+              <Text style={styles.metricLabel} numberOfLines={1}>{t('ledger.balance')}</Text>
               <View style={[styles.metricIconWrap, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="wallet-outline" size={14} color="#C6A24E" />
               </View>
@@ -312,9 +312,9 @@ export default function HistoryScreen() {
               <Text style={styles.metricUnit}>ETB</Text>
             </View>
             <View style={styles.balanceSubRow}>
-              <Text style={styles.metricSub}>Active</Text>
+              <Text style={styles.metricSub}>{t('ledger.active')}</Text>
               <Pressable onPress={openTopUp} hitSlop={6}>
-                <Text style={styles.balanceTopUpLink}>+ Top Up</Text>
+                <Text style={styles.balanceTopUpLink}>{t('common.addTopUp')}</Text>
               </Pressable>
             </View>
           </View>
@@ -322,15 +322,15 @@ export default function HistoryScreen() {
 
         {/* ── Bank Gateway Distribution (2x2 Grid) ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>BANK GATEWAY DISTRIBUTION</Text>
-          <Text style={styles.sectionSub}>Real-time settlement metrics</Text>
+          <Text style={styles.sectionTitle}>{t('ledger.bankDistribution')}</Text>
+          <Text style={styles.sectionSub}>{t('ledger.bankDistributionSub')}</Text>
         </View>
 
         <View style={styles.bankStatsGrid}>
           {Object.keys(BANK_LABELS).map((bankKey) => {
             const stat = metrics.bankStats[bankKey] || { volume: 0, fees: 0, count: 0 }
             const logo = BANK_LOGOS[bankKey]
-            const name = BANK_SHORT[bankKey] || BANK_LABELS[bankKey]
+            const name = t(`method.short.${bankKey}`) || BANK_SHORT[bankKey] || BANK_LABELS[bankKey]
 
             return (
               <View key={bankKey} style={styles.bankStatCard}>
@@ -341,22 +341,22 @@ export default function HistoryScreen() {
                   <View style={styles.bankStatCopy}>
                     <Text style={styles.bankStatName} numberOfLines={1}>{name}</Text>
                     <Text style={styles.bankStatCount}>
-                      {stat.count} {stat.count === 1 ? 'audit' : 'audits'}
+                      {stat.count === 1 ? t('ledger.singleAudit') : t('ledger.auditsCount', { count: stat.count })}
                     </Text>
                   </View>
                 </View>
 
                 <View style={styles.bankStatNumbers}>
                   <View style={styles.bankStatCol}>
-                    <Text style={styles.bankStatLabel}>Volume</Text>
+                    <Text style={styles.bankStatLabel}>{t('ledger.volume')}</Text>
                     <Text style={styles.bankStatVal} numberOfLines={1}>
                       {stat.volume.toLocaleString('en-US', { maximumFractionDigits: 0 })} ETB
                     </Text>
                   </View>
                   <View style={styles.bankStatCol}>
-                    <Text style={styles.bankStatLabel}>Decreased</Text>
+                    <Text style={styles.bankStatLabel}>{t('ledger.decreased')}</Text>
                     <Text style={[styles.bankStatVal, { color: '#B45309' }]} numberOfLines={1}>
-                      −{stat.fees.toFixed(1)} Birr
+                      −{stat.fees.toFixed(1)} {t('common.birr')}
                     </Text>
                   </View>
                 </View>
@@ -372,7 +372,7 @@ export default function HistoryScreen() {
             <Ionicons name="search" size={15} color="#40564C" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search invoice ID, payer, recipient, account..."
+              placeholder={t('ledger.searchPlaceholder')}
               placeholderTextColor="#9CA3AF"
               value={search}
               onChangeText={setSearch}
@@ -393,11 +393,11 @@ export default function HistoryScreen() {
             contentContainerStyle={styles.filterScroll}
           >
             {[
-              { id: 'all', label: 'All Banks' },
-              { id: 'telebirr', label: 'Telebirr' },
-              { id: 'cbe', label: 'CBE' },
-              { id: 'boa', label: 'Abyssinia' },
-              { id: 'dashen', label: 'Dashen' },
+              { id: 'all', label: t('ledger.allBanks') },
+              { id: 'telebirr', label: t('method.short.telebirr') || 'Telebirr' },
+              { id: 'cbe', label: t('method.short.cbe') || 'CBE' },
+              { id: 'boa', label: t('method.short.boa') || 'Abyssinia' },
+              { id: 'dashen', label: t('method.short.dashen') || 'Dashen' },
             ].map((item) => (
               <Pressable
                 key={item.id}
@@ -426,9 +426,9 @@ export default function HistoryScreen() {
             contentContainerStyle={styles.filterScroll}
           >
             {[
-              { id: 'all', label: 'All Statuses' },
-              { id: 'genuine', label: 'Verified Genuine' },
-              { id: 'tampered', label: 'Tampered' },
+              { id: 'all', label: t('ledger.allStatuses') },
+              { id: 'genuine', label: t('ledger.genuine') },
+              { id: 'tampered', label: t('ledger.tampered') },
             ].map((item) => (
               <Pressable
                 key={item.id}
@@ -452,10 +452,10 @@ export default function HistoryScreen() {
             <View style={styles.filterDivider} />
 
             {[
-              { id: 'all', label: 'All Time' },
-              { id: 'today', label: 'Today' },
-              { id: 'week', label: 'This Week' },
-              { id: 'month', label: 'This Month' },
+              { id: 'all', label: t('ledger.allTime') },
+              { id: 'today', label: t('ledger.today') },
+              { id: 'week', label: t('ledger.thisWeek') },
+              { id: 'month', label: t('ledger.thisMonth') },
             ].map((item) => (
               <Pressable
                 key={item.id}
@@ -480,11 +480,11 @@ export default function HistoryScreen() {
           {/* Count and Reset summary */}
           <View style={styles.countSummaryRow}>
             <Text style={styles.countSummaryText}>
-              Showing {filteredChecks.length} of {checks.length} verifications
+              {t('ledger.showingCount', { shown: filteredChecks.length, total: checks.length })}
             </Text>
             {hasActiveFilters ? (
               <Pressable onPress={resetFilters} hitSlop={8}>
-                <Text style={styles.resetFiltersLink}>Reset all filters</Text>
+                <Text style={styles.resetFiltersLink}>{t('ledger.resetFilters')}</Text>
               </Pressable>
             ) : null}
           </View>
@@ -493,22 +493,22 @@ export default function HistoryScreen() {
           {checksLoading && checks.length === 0 ? (
             <View style={styles.loadingWrap}>
               <ActivityIndicator color={colors.foilGold} />
-              <Text style={styles.loadingText}>Loading verification ledger...</Text>
+              <Text style={styles.loadingText}>{t('ledger.loading')}</Text>
             </View>
           ) : checks.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Ionicons name="time-outline" size={32} color="#9CA3AF" />
-              <Text style={styles.emptyTitle}>No Verification Records</Text>
+              <Text style={styles.emptyTitle}>{t('ledger.noRecords')}</Text>
               <Text style={styles.emptySub}>
-                Your transaction receipts and decreased verification fees will appear here once you begin checking receipts.
+                {t('ledger.noRecordsSub')}
               </Text>
             </View>
           ) : filteredChecks.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Ionicons name="filter-outline" size={28} color="#9CA3AF" />
-              <Text style={styles.emptyTitle}>No matching records</Text>
+              <Text style={styles.emptyTitle}>{t('ledger.noMatch')}</Text>
               <Text style={styles.emptySub}>
-                No verification records match your active search and filters.
+                {t('ledger.noMatchSub')}
               </Text>
             </View>
           ) : (
@@ -535,7 +535,7 @@ export default function HistoryScreen() {
                         </View>
                         <View>
                           <Text style={styles.cardBankName}>
-                            {BANK_LABELS[check.paymentMethod] || check.paymentMethod}
+                            {t(`method.short.${check.paymentMethod}`) || BANK_LABELS[check.paymentMethod] || check.paymentMethod}
                           </Text>
                           <Text style={styles.cardCode} numberOfLines={1}>
                             {check.transactionCode || `#${check.id}`}
@@ -546,25 +546,25 @@ export default function HistoryScreen() {
                       {isTampered ? (
                         <View style={styles.statusPillTampered}>
                           <Ionicons name="alert-circle" size={10} color="#991B1B" />
-                          <Text style={styles.statusPillTamperedText}>TAMPERED</Text>
+                          <Text style={styles.statusPillTamperedText}>{t('ledger.statusTampered')}</Text>
                         </View>
                       ) : (
                         <View style={styles.statusPillVerified}>
                           <Ionicons name="checkmark-circle" size={10} color="#065F46" />
-                          <Text style={styles.statusPillVerifiedText}>VERIFIED</Text>
+                          <Text style={styles.statusPillVerifiedText}>{t('ledger.statusVerified')}</Text>
                         </View>
                       )}
                     </View>
 
                     {/* Middle Row: Party */}
                     <View style={styles.cardPartyRow}>
-                      <Text style={styles.cardPartyLabel}>Party: </Text>
+                      <Text style={styles.cardPartyLabel}>{t('check.party')} </Text>
                       <Text style={styles.cardPartySender} numberOfLines={1}>
-                        {check.senderName || 'Sender'}
+                        {check.senderName || t('check.sender')}
                       </Text>
                       <Text style={styles.cardPartyArrow}> → </Text>
                       <Text style={styles.cardPartyReceiver} numberOfLines={1}>
-                        {check.receiverName || check.receiverAccount || 'Merchant'}
+                        {check.receiverName || check.receiverAccount || t('check.merchant')}
                       </Text>
                     </View>
 
@@ -590,12 +590,12 @@ export default function HistoryScreen() {
                       <View>
                         {check.isRecheck ? (
                           <View style={styles.freeRecheckBadge}>
-                            <Text style={styles.freeRecheckText}>Free Recheck</Text>
+                            <Text style={styles.freeRecheckText}>{t('check.freeRecheck')}</Text>
                           </View>
                         ) : (
                           <View style={styles.feeBadge}>
                             <Text style={styles.feeBadgeText}>
-                              −{check.balanceDeducted || 5} Birr
+                              {t('check.deductedBirr', { fee: check.balanceDeducted || 5 })}
                             </Text>
                           </View>
                         )}

@@ -235,54 +235,68 @@ export async function matchPaymentToMyAccount(userId, method, details) {
     qrValue: receiverLine,
   };
 
-  const issues = [];
+  const nameMatches = !officialName || namesMatch(saved.accountName, officialName);
+  const accountMatches = !officialAccount || accountsMatchForMethod(method, saved.accountNumber, officialAccount);
 
-  if (!officialName) {
-    issues.push({
-      type: 'error',
-      code: 'MY_ACCOUNT_RECEIVER_MISSING',
-      field: 'receiverName',
-      message: `Your name and number is ${yourLine}. The official record did not include a receiver name.`,
-      ...extras,
-    });
-  } else if (!namesMatch(saved.accountName, officialName)) {
-    issues.push({
-      type: 'error',
-      code: 'MY_ACCOUNT_NAME_MISMATCH',
-      field: 'receiverName',
-      message: `Your name and number is ${yourLine}. The receiver on this payment is ${officialName}. The names are not the same.`,
-      ...extras,
-    });
-  }
-
-  if (!officialAccount) {
-    issues.push({
-      type: 'error',
-      code: 'MY_ACCOUNT_RECEIVER_MISSING',
-      field: 'receiverAccount',
-      message: `Your name and number is ${yourLine}. The official record did not include a receiver account.`,
-      ...extras,
-    });
-  } else if (!accountsMatchForMethod(method, saved.accountNumber, officialAccount)) {
-    issues.push({
-      type: 'error',
-      code: 'MY_ACCOUNT_NUMBER_MISMATCH',
-      field: 'receiverAccount',
-      message: `Your name and number is ${yourLine}. The receiver account on this payment is ${officialAccount}. The numbers are not the same.`,
-      ...extras,
-    });
-  }
-
-  if (issues.length) {
-    const primary = {
-      ...issues[0],
-      message: issues.map((i) => i.message).join(' '),
-    };
+  if (!accountMatches && !nameMatches) {
+    const msg = `This payment was sent to someone else. Your account is ${saved.accountName} (${saved.accountNumber}), but this receipt was sent to ${officialName || 'another recipient'} (${officialAccount || 'different account'}).`;
     return {
       ok: false,
-      message: primary.message,
-      issues: [primary],
+      message: msg,
+      issues: [{
+        type: 'error',
+        code: 'MY_ACCOUNT_NUMBER_MISMATCH',
+        field: 'receiverAccount',
+        message: msg,
+        ...extras,
+      }],
     };
   }
+
+  if (!accountMatches) {
+    const msg = `Account mismatch. Your account is ${saved.accountNumber}, but this payment was sent to ${officialAccount || 'a different account'}.`;
+    return {
+      ok: false,
+      message: msg,
+      issues: [{
+        type: 'error',
+        code: 'MY_ACCOUNT_NUMBER_MISMATCH',
+        field: 'receiverAccount',
+        message: msg,
+        ...extras,
+      }],
+    };
+  }
+
+  if (!nameMatches) {
+    const msg = `Receiver name mismatch. Your account name is ${saved.accountName}, but this payment went to ${officialName}.`;
+    return {
+      ok: false,
+      message: msg,
+      issues: [{
+        type: 'error',
+        code: 'MY_ACCOUNT_NAME_MISMATCH',
+        field: 'receiverName',
+        message: msg,
+        ...extras,
+      }],
+    };
+  }
+
+  if (!officialAccount && !officialName) {
+    const msg = `Could not verify receiver account from official bank record.`;
+    return {
+      ok: false,
+      message: msg,
+      issues: [{
+        type: 'error',
+        code: 'MY_ACCOUNT_RECEIVER_MISSING',
+        field: 'receiverAccount',
+        message: msg,
+        ...extras,
+      }],
+    };
+  }
+
   return { ok: true };
 }

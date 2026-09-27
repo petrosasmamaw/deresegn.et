@@ -250,7 +250,7 @@ export default function DeveloperApiPage() {
             {renewForId ? t('dev.chooseRenew') : t('dev.choosePackage')}
           </h2>
           <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-            Price is charged from your wallet. Capacity is verified receipt amounts (not the in-app per-check fee).
+            {t('dev.packageHint')}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
             {packages.map((pkg) => {
@@ -271,8 +271,8 @@ export default function DeveloperApiPage() {
                 >
                   <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider mb-1 truncate" style={{ color: accent }}>{pkg.label}</p>
                   <p className="font-display text-xl sm:text-2xl font-bold" style={{ color: 'var(--color-ink)' }}>{pkg.priceBirr}</p>
-                  <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mb-1 sm:mb-2">Birr</p>
-                  <p className="text-xs sm:text-sm font-semibold truncate" style={{ color: accent }}>→ {pkg.capacityBirr} Birr</p>
+                  <p className="text-[11px] sm:text-xs text-[var(--color-text-secondary)] mb-1 sm:mb-2">{t('pricing.birr')}</p>
+                  <p className="text-xs sm:text-sm font-semibold truncate" style={{ color: accent }}>{t('dev.pkgCap', { amount: pkg.capacityBirr })}</p>
                   <p className="text-[10px] sm:text-[11px] text-[var(--color-text-tertiary)] mt-1.5 sm:mt-2 leading-snug line-clamp-2">{pkg.note}</p>
                 </button>
               )
@@ -286,11 +286,11 @@ export default function DeveloperApiPage() {
               disabled={busy || loading}
               onClick={() => buyOrRenew({ renewKeyId: renewForId || undefined })}
             >
-              {busy ? 'Processing…' : renewForId ? 'Renew selected key' : 'Buy API key'}
+              {busy ? t('common.processing') : renewForId ? t('dev.renewWithPackage') : t('dev.buy')}
             </button>
             {renewForId && (
               <button type="button" className="btn-secondary" onClick={() => setRenewForId(null)}>
-                Cancel renew
+                {t('dev.cancelRenew')}
               </button>
             )}
           </div>
@@ -300,13 +300,12 @@ export default function DeveloperApiPage() {
           <div className="card">
             <div className="flex items-center gap-2 mb-3">
               <Terminal size={18} style={{ color: 'var(--color-foil-gold)' }} />
-              <h2 className="section-title !mb-0 text-lg">Connect from your software</h2>
+              <h2 className="section-title !mb-0 text-lg">{t('dev.connectTitle')}</h2>
             </div>
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              Use the same URL + API key for <strong>Telebirr, CBE, Dashen, and Bank of Abyssinia</strong>.
-              Change <code className="font-mono text-xs">method</code> and fields as below.
+              {t('dev.connectDesc')}
             </p>
-            <label className="label">API URL</label>
+            <label className="label">{t('dev.apiUrl')}</label>
             <div className="flex flex-col sm:flex-row gap-2 mb-3 min-w-0">
               <code className="flex-1 min-w-0 text-xs font-mono p-2 rounded-lg overflow-x-auto break-all" style={{ background: 'rgba(14,36,32,0.06)' }}>
                 {verifyUrl}
@@ -315,11 +314,11 @@ export default function DeveloperApiPage() {
                 {copied === 'url' ? <Check size={14} /> : <Copy size={14} />}
               </button>
             </div>
-            <label className="label">Auth header (required)</label>
+            <label className="label">{t('dev.authHeader')}</label>
             <code className="block text-xs font-mono p-2 rounded-lg mb-4 whitespace-pre-wrap" style={{ background: 'rgba(14,36,32,0.06)' }}>
               {`X-API-Key: dk_live_…\nor\nAuthorization: Bearer dk_live_…`}
             </code>
-            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-ink)' }}>Examples by bank</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-ink)' }}>{t('dev.examplesByBank')}</p>
             <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
               {[
                 {
@@ -383,10 +382,10 @@ export default function DeveloperApiPage() {
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <Shield size={18} style={{ color: 'var(--color-foil-gold)' }} />
-                <h2 className="section-title !mb-0 text-lg">Your keys</h2>
+                <h2 className="section-title !mb-0 text-lg">{t('dev.yourKeys')}</h2>
               </div>
               <button type="button" className="btn-secondary text-xs" onClick={load} disabled={loading}>
-                <RefreshCw size={12} className="inline mr-1" /> Refresh
+                <RefreshCw size={12} className="inline mr-1" /> {t('common.refresh')}
               </button>
             </div>
             {loading ? (
@@ -395,7 +394,7 @@ export default function DeveloperApiPage() {
                 <div className="skeleton h-16 rounded" />
               </div>
             ) : keys.length === 0 ? (
-              <p className="text-sm text-[var(--color-text-secondary)]">No API keys yet. Buy a package to get started.</p>
+              <p className="text-sm text-[var(--color-text-secondary)]">{t('dev.empty')}</p>
             ) : (
               <ul className="space-y-3">
                 {keys.map((k) => {
@@ -412,7 +411,7 @@ export default function DeveloperApiPage() {
                         </span>
                       </div>
 
-                      <label className="label text-[10px] mb-1">API key</label>
+                      <label className="label text-[10px] mb-1">{t('dev.keyFallback')}</label>
                       <div
                         className="flex items-center gap-1.5 rounded-lg border px-2.5 py-2 mb-2"
                         style={{
@@ -434,7 +433,7 @@ export default function DeveloperApiPage() {
                           disabled={revealBusyId === k.id || k.status === 'revoked'}
                           onClick={() => toggleRevealKey(k)}
                           aria-label={isVisible ? 'Hide API key' : 'Show API key'}
-                          title={k.canReveal || freshSecret ? (isVisible ? 'Hide' : 'Show') : 'Not recoverable — buy a new key'}
+                          title={k.canReveal || freshSecret ? (isVisible ? 'Hide' : 'Show') : t('dev.cannotRecover')}
                         >
                           {revealBusyId === k.id
                             ? <RefreshCw size={15} className="animate-spin" />
@@ -459,7 +458,7 @@ export default function DeveloperApiPage() {
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--color-maroon)' : 'var(--color-foil-gold)' }} />
                       </div>
                       <p className="text-[11px] text-[var(--color-text-secondary)] mb-2">
-                        {k.usedAmount.toFixed(0)} / {k.capacityAmount.toFixed(0)} Birr used · {k.remainingAmount.toFixed(0)} left
+                        {t('dev.capacityMeta', { used: k.usedAmount.toFixed(0), cap: k.capacityAmount.toFixed(0), remaining: k.remainingAmount.toFixed(0) })}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <button
@@ -468,11 +467,11 @@ export default function DeveloperApiPage() {
                           disabled={busy || k.status === 'revoked'}
                           onClick={() => { setRenewForId(k.id); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                         >
-                          <RefreshCw size={12} className="inline mr-1" /> Renew
+                          <RefreshCw size={12} className="inline mr-1" /> {t('dev.renew')}
                         </button>
                         {k.status !== 'revoked' && (
                           <button type="button" className="btn-ghost text-xs" disabled={busy} onClick={() => revoke(k.id)}>
-                            <Ban size={12} className="inline mr-1" /> Revoke
+                            <Ban size={12} className="inline mr-1" /> {t('dev.revoke')}
                           </button>
                         )}
                       </div>
