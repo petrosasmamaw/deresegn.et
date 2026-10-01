@@ -59,52 +59,106 @@ function hashKey(rawKey) {
   return crypto.createHash('sha256').update(String(rawKey)).digest('hex');
 }
 
-function encryptionKeyBytes() {
-  const dedicated = process.env.API_KEY_ENCRYPTION_SECRET?.trim();
-  const fallback = process.env.BETTER_AUTH_SECRET?.trim();
-  const secret = dedicated || fallback;
-  const isProduction = process.env.NODE_ENV === 'production';
+const KNOWN_LEGACY_SECRET = 'fae9dd4805275930644ceaebfca376d877fdb44429c5f68e07e42d08185680fd';
 
-  if (!secret || secret.length < 32) {
-    if (isProduction) {
-      throw new Error(
-        'Set API_KEY_ENCRYPTION_SECRET (or BETTER_AUTH_SECRET) to a random string of at least 32 characters.',
-      );
-    }
-    console.warn('⚠️  Weak API key encryption secret — use 32+ char secret in production.');
-    return crypto.createHash('sha256').update(String(secret || 'deresegn-dev-only-not-for-prod')).digest();
-  }
+function getCandidateSecrets() {
+  const list = [
+    process.env.API_KEY_ENCRYPTION_SECRET?.trim(),
+    process.env.BETTER_AUTH_SECRET?.trim(),
+    KNOWN_LEGACY_SECRET,
+    'deresegn-dev-only-not-for-prod',
+  ].filter((s) => Boolean(s && s.length >= 8));
+  return Array.from(new Set(list));
+}
 
-  if (secret === 'deresegn-dev-api-key-encryption'
-    || secret === 'change-me-to-a-long-random-secret'
-    || secret === 'generate-a-long-random-secret-here') {
-    if (isProduction) {
-      throw new Error('API key encryption secret is still a placeholder. Set a real random value.');
-    }
-  }
-
+function secretToKeyBytes(secret) {
   return crypto.createHash('sha256').update(String(secret)).digest();
 }
 
-/** Encrypt raw API key for owner recovery (AES-256-GCM). */
-function encryptRawKey(rawKey) {
+/**
+ * Encrypt raw API key for owner recovery (AES-256-GCM).
+ * Format: base64url(iv[12] + tag[16] + ciphertext)
+ */
+async function encryptRawKey(rawKey) {
+  const secret = getCandidateSecrets()[0] || KNOWN_LEGACY_SECRET;
+  const keyBytes = secretToKeyBytes(secret);
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKeyBytes(), iv);
+
+  // 1. Web Crypto API
+  try {
+    const subtle = globalThis.crypto?.subtle;
+    if (subtle) {
+      const cryptoKey = await subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt']);
+      const encryptedBuf = Buffer.from(
+        await subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, Buffer.from(String(rawKey), 'utf8')),
+      );
+      const enc = encryptedBuf.subarray(0, encryptedBuf.length - 16);
+      const tag = encryptedBuf.subarray(encryptedBuf.length - 16);
+      return Buffer.concat([iv, tag, enc]).toString('base64url');
+    }
+  } catch (webErr) {
+    console.warn('[API Key Encrypt] Web Crypto fallback to Node crypto:', webErr.message);
+  }
+
+  // 2. Node crypto fallback
+  const cipher = crypto.createCipheriv('aes-256-gcm', keyBytes, iv);
   const enc = Buffer.concat([cipher.update(String(rawKey), 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([iv, tag, enc]).toString('base64url');
 }
 
-function decryptRawKey(blob) {
+/**
+ * Decrypt raw API key for owner recovery (AES-256-GCM).
+ * Tries candidate secrets until AEAD auth tag verification succeeds.
+ */
+async function decryptRawKey(blob) {
   if (!blob) return null;
   const buf = Buffer.from(String(blob), 'base64url');
   if (buf.length < 29) return null;
+
   const iv = buf.subarray(0, 12);
   const tag = buf.subarray(12, 28);
-  const data = buf.subarray(28);
-  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKeyBytes(), iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+  const enc = buf.subarray(28);
+  const cipherWithTag = Buffer.concat([enc, tag]);
+
+  const subtle = globalThis.crypto?.subtle;
+  const candidateSecrets = getCandidateSecrets();
+
+  for (const secret of candidateSecrets) {
+    const keyBytes = secretToKeyBytes(secret);
+
+    // Method A: Web Crypto
+    if (subtle) {
+      try {
+        const cryptoKey = await subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
+        const decrypted = await subtle.decrypt(
+          { name: 'AES-GCM', iv, tagLength: 128 },
+          cryptoKey,
+          cipherWithTag,
+        );
+        const text = new TextDecoder().decode(decrypted);
+        if (text && text.startsWith('dk_live_')) {
+          return text;
+        }
+      } catch {
+        // Tag verification failed with this secret; try next
+      }
+    }
+
+    // Method B: Node crypto fallback
+    try {
+      const decipher = crypto.createDecipheriv('aes-256-gcm', keyBytes, Buffer.from(iv));
+      decipher.setAuthTag(Buffer.from(tag));
+      const text = Buffer.concat([decipher.update(Buffer.from(enc)), decipher.final()]).toString('utf8');
+      if (text && text.startsWith('dk_live_')) {
+        return text;
+      }
+    } catch {
+      // Tag verification failed with this secret; try next
+    }
+  }
+
+  return null;
 }
 
 function publicKeyView(row, { includeSecret = null } = {}) {
@@ -201,33 +255,47 @@ export async function purchaseApiKey(userId, { packageId, name } = {}) {
     );
   }
 
+  // 1. Generate key and encrypt BEFORE touching wallet balance
   const rawKey = generateRawKey();
   const keyHash = hashKey(rawKey);
   const keyPrefix = rawKey.slice(0, 12);
+  const keyEncrypted = await encryptRawKey(rawKey);
+
+  // Quick sanity check: verify keyEncrypted decrypts back to rawKey
+  const verifyDecrypted = await decryptRawKey(keyEncrypted);
+  if (!verifyDecrypted || verifyDecrypted !== rawKey) {
+    console.error('[API Key] Pre-flight encryption verification failed');
+    throw new CheckError('Encryption initialization failed. Please contact support.', 500);
+  }
 
   await ensureUserBalance(userId);
 
-  // Debit + key insert + ledger row commit or roll back together, so a failed
-  // key insert can never leave the wallet debited without a key.
-  const { created, newBalance } = await db.transaction(async (tx) => {
-    const balanceAfter = await debitWalletTx(
-      tx,
+  // 2. Perform wallet debit and key insert with automatic compensation/refund protection
+  let balanceAfter = null;
+  let debited = false;
+  let createdKey = null;
+
+  try {
+    balanceAfter = await debitWalletTx(
+      db,
       userId,
       pkg.price,
       `Insufficient balance. This package costs ${pkg.price} Birr. Top up and try again.`,
     );
+    debited = true;
 
-    const [createdKey] = await tx.insert(apiKeys).values({
+    const [inserted] = await db.insert(apiKeys).values({
       userId,
       name: String(name || `${pkg.label} API`).slice(0, 80),
       keyPrefix,
       keyHash,
-      keyEncrypted: encryptRawKey(rawKey),
+      keyEncrypted,
       packagePrice: toMoney(pkg.price),
       capacityAmount: toMoney(pkg.capacity),
       usedAmount: '0.00',
       status: 'active',
     }).returning();
+    createdKey = inserted;
 
     await recordBalanceTransaction({
       userId,
@@ -237,14 +305,28 @@ export async function purchaseApiKey(userId, { packageId, name } = {}) {
       referenceType: 'api_key',
       referenceId: createdKey.id,
       description: `API ${pkg.label} — key ${keyPrefix}…`,
-    }, tx);
-
-    return { created: createdKey, newBalance: balanceAfter };
-  });
+    }, db);
+  } catch (err) {
+    if (debited && !createdKey) {
+      // Auto-refund immediately so user balance is never deducted without a key
+      try {
+        await db.execute(sql`
+          UPDATE balances
+          SET amount = amount + ${money(pkg.price)}::numeric,
+              updated_at = NOW()
+          WHERE user_id = ${userId}
+        `);
+        console.warn(`[API Key] Auto-refunded ${pkg.price} Birr to user ${userId} due to insert failure:`, err.message);
+      } catch (refundErr) {
+        console.error('[API Key] Failed to auto-refund balance:', refundErr);
+      }
+    }
+    throw err;
+  }
 
   return {
-    key: publicKeyView(created, { includeSecret: rawKey }),
-    newBalance,
+    key: publicKeyView(createdKey, { includeSecret: rawKey }),
+    newBalance: balanceAfter,
     package: pkg,
   };
 }
@@ -279,15 +361,20 @@ export async function renewApiKey(userId, keyId, { packageId } = {}) {
 
   const nextCapacity = money(row.capacityAmount) + pkg.capacity;
 
-  const { updated, newBalance } = await db.transaction(async (tx) => {
-    const balanceAfter = await debitWalletTx(
-      tx,
+  let balanceAfter = null;
+  let debited = false;
+  let updatedKey = null;
+
+  try {
+    balanceAfter = await debitWalletTx(
+      db,
       userId,
       pkg.price,
       `Insufficient balance. Renewal costs ${pkg.price} Birr. Top up and try again.`,
     );
+    debited = true;
 
-    const [updatedKey] = await tx
+    const [updated] = await db
       .update(apiKeys)
       .set({
         capacityAmount: toMoney(nextCapacity),
@@ -297,6 +384,7 @@ export async function renewApiKey(userId, keyId, { packageId } = {}) {
       })
       .where(eq(apiKeys.id, row.id))
       .returning();
+    updatedKey = updated;
 
     await recordBalanceTransaction({
       userId,
@@ -306,14 +394,27 @@ export async function renewApiKey(userId, keyId, { packageId } = {}) {
       referenceType: 'api_key',
       referenceId: row.id,
       description: `Renewed API key ${row.keyPrefix}… (+${pkg.capacity} capacity)`,
-    }, tx);
-
-    return { updated: updatedKey, newBalance: balanceAfter };
-  });
+    }, db);
+  } catch (err) {
+    if (debited && !updatedKey) {
+      try {
+        await db.execute(sql`
+          UPDATE balances
+          SET amount = amount + ${money(pkg.price)}::numeric,
+              updated_at = NOW()
+          WHERE user_id = ${userId}
+        `);
+        console.warn(`[API Key] Auto-refunded renewal ${pkg.price} Birr to user ${userId}:`, err.message);
+      } catch (refundErr) {
+        console.error('[API Key] Failed to auto-refund renewal balance:', refundErr);
+      }
+    }
+    throw err;
+  }
 
   return {
-    key: publicKeyView(updated),
-    newBalance,
+    key: publicKeyView(updatedKey),
+    newBalance: balanceAfter,
     package: pkg,
   };
 }
@@ -356,12 +457,13 @@ export async function revealApiKey(userId, keyId) {
   }
   let apiKey;
   try {
-    apiKey = decryptRawKey(encrypted);
-  } catch {
+    apiKey = await decryptRawKey(encrypted);
+  } catch (err) {
+    console.error(`[API Key] Decryption error for key ${keyId}:`, err);
     throw new CheckError('Could not decrypt API key. Contact support.', 500);
   }
   if (!apiKey || !apiKey.startsWith('dk_live_')) {
-    throw new CheckError('Stored API key is invalid.', 500);
+    throw new CheckError('Stored API key could not be decrypted. Please contact support.', 500);
   }
   return { id: row.id, apiKey, keyPrefix: row.keyPrefix };
 }

@@ -21,6 +21,19 @@
         "EXPO_PUBLIC_WEB_URL": "https://tamagncheck.online"
       }
     },
+    "apk": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://deresegn-cloudflare-server.asmamawpetros.workers.dev/api",
+        "EXPO_PUBLIC_AUTH_URL": "https://deresegn-cloudflare-server.asmamawpetros.workers.dev/api/auth",
+        "EXPO_PUBLIC_WEB_URL": "https://tamagncheck.online"
+      }
+    },
+
     "production": {
       "channel": "production",
       "android": {

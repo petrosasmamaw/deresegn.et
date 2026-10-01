@@ -68,8 +68,21 @@ export default function DeveloperApiPage() {
   if (user.role === 'admin') return <Navigate to="/admin" replace />
 
   const copyText = async (text, id) => {
+    if (!text) return
     try {
-      await navigator.clipboard.writeText(text)
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.focus()
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
       setCopied(id)
       setTimeout(() => setCopied(''), 1800)
     } catch {
@@ -134,23 +147,23 @@ export default function DeveloperApiPage() {
     const id = k.id
     if (visibleKeyIds[id]) {
       setVisibleKeyIds((prev) => ({ ...prev, [id]: false }))
-      return
+      return revealedKeys[id] || null
     }
 
     if (revealedKeys[id]) {
       setVisibleKeyIds((prev) => ({ ...prev, [id]: true }))
-      return
+      return revealedKeys[id]
     }
 
     if (freshSecret && k.keyPrefix && freshSecret.startsWith(k.keyPrefix)) {
       setRevealedKeys((prev) => ({ ...prev, [id]: freshSecret }))
       setVisibleKeyIds((prev) => ({ ...prev, [id]: true }))
-      return
+      return freshSecret
     }
 
     if (!k.canReveal) {
       setError('This older key cannot be recovered. Buy a new API key — you can reveal it anytime with the eye icon.')
-      return
+      return null
     }
 
     setRevealBusyId(id)
@@ -161,10 +174,26 @@ export default function DeveloperApiPage() {
       if (!data?.apiKey) throw new Error('No key returned')
       setRevealedKeys((prev) => ({ ...prev, [id]: data.apiKey }))
       setVisibleKeyIds((prev) => ({ ...prev, [id]: true }))
+      return data.apiKey
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Could not reveal API key')
+      return null
     } finally {
       setRevealBusyId(null)
+    }
+  }
+
+  const handleCopyKey = async (k) => {
+    const id = k.id
+    let keyToCopy = revealedKeys[id]
+    if (!keyToCopy && freshSecret && k.keyPrefix && freshSecret.startsWith(k.keyPrefix)) {
+      keyToCopy = freshSecret
+    }
+    if (!keyToCopy) {
+      keyToCopy = await toggleRevealKey(k)
+    }
+    if (keyToCopy) {
+      await copyText(keyToCopy, `key-${id}`)
     }
   }
 
@@ -420,8 +449,12 @@ export default function DeveloperApiPage() {
                         }}
                       >
                         <code
-                          className="flex-1 min-w-0 text-xs font-mono truncate"
-                          style={{ color: 'var(--color-ink)', letterSpacing: isVisible ? 'normal' : '0.04em' }}
+                          className="flex-1 min-w-0 text-xs font-mono select-all break-all overflow-x-auto py-0.5"
+                          style={{
+                            color: 'var(--color-ink)',
+                            letterSpacing: isVisible ? 'normal' : '0.04em',
+                            userSelect: 'all',
+                          }}
                           title={isVisible && fullKey ? fullKey : undefined}
                         >
                           {displayKey}
@@ -445,12 +478,12 @@ export default function DeveloperApiPage() {
                           type="button"
                           className="shrink-0 p-1.5 rounded-md hover:bg-black/5 disabled:opacity-50"
                           style={{ color: 'var(--color-text-secondary)' }}
-                          disabled={!fullKey || !isVisible}
-                          onClick={() => copyText(fullKey, `key-${k.id}`)}
+                          disabled={revealBusyId === k.id || k.status === 'revoked' || (!k.canReveal && !fullKey && !freshSecret)}
+                          onClick={() => handleCopyKey(k)}
                           aria-label="Copy API key"
-                          title={isVisible ? 'Copy' : 'Reveal first, then copy'}
+                          title={copied === `key-${k.id}` ? 'Copied!' : 'Copy API key'}
                         >
-                          {copied === `key-${k.id}` ? <Check size={15} /> : <Copy size={15} />}
+                          {copied === `key-${k.id}` ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
                         </button>
                       </div>
 
